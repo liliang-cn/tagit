@@ -63,6 +63,8 @@ type Service struct {
 	controlDir string
 }
 
+const rageDefaultMaxRounds = 10000
+
 // NewService constructs a run service.
 func NewService(registry *agents.Registry) *Service {
 	return &Service{
@@ -103,6 +105,11 @@ func (s *Service) RunWithResult(ctx context.Context, req Request) (Result, error
 	if strings.TrimSpace(req.Prompt) == "" {
 		return Result{}, fmt.Errorf("prompt is required")
 	}
+	mode, normalizedReq, err := normalizeRunRequest(req)
+	if err != nil {
+		return Result{}, err
+	}
+	req = normalizedReq
 	profile, ok := s.registry.Resolve(ctx, req.StarterAgent)
 	if !ok {
 		return Result{}, fmt.Errorf("unknown agent %q", req.StarterAgent)
@@ -125,10 +132,10 @@ func (s *Service) RunWithResult(ctx context.Context, req Request) (Result, error
 	}
 
 	if len(delegates) > 0 {
-		switch normalizedRunMode(req.Mode) {
+		switch mode {
 		case RunModeSenate:
 			return s.runSenate(ctx, req, profile, delegates, os.Stdout)
-		case RunModeCaesar:
+		case RunModeCollab:
 			return s.runCaesar(ctx, req, profile, delegates, os.Stdout)
 		default:
 			return s.runOrchestrated(ctx, req, profile, delegates, os.Stdout)
@@ -136,6 +143,35 @@ func (s *Service) RunWithResult(ctx context.Context, req Request) (Result, error
 	}
 
 	return s.runDirect(ctx, req, profile, os.Stdout, os.Stderr)
+}
+
+func normalizeRunRequest(req Request) (string, Request, error) {
+	rawMode := strings.TrimSpace(req.Mode)
+	mode := normalizedRunMode(rawMode)
+	if rawMode != "" && mode != RunModeCollab && mode != RunModeSenate && mode != RunModeRage {
+		return "", Request{}, fmt.Errorf("unsupported run mode %q", req.Mode)
+	}
+	if rawMode == "" {
+		if len(req.Delegates) == 0 {
+			mode = RunModeRage
+		} else {
+			mode = RunModeSenate
+		}
+	}
+	switch mode {
+	case RunModeRage:
+		if len(req.Delegates) > 0 {
+			return "", Request{}, fmt.Errorf("rage mode only supports a single agent; remove --with delegates")
+		}
+		req.Mode = RunModeRage
+		req.Continuous = true
+		if req.MaxRounds <= 0 {
+			req.MaxRounds = rageDefaultMaxRounds
+		}
+	default:
+		req.Mode = mode
+	}
+	return mode, req, nil
 }
 
 func (s *Service) resolveDelegates(ctx context.Context, names []string, starterID string) ([]domain.AgentProfile, error) {
@@ -324,6 +360,9 @@ func (s *Service) runDirect(ctx context.Context, req Request, profile domain.Age
 			"starter": profile.ID,
 		},
 	})
+	if normalizedRunMode(req.Mode) == RunModeRage {
+		return s.runRageDirect(ctx, req, profile, record, stdout, stderr)
+	}
 	assignments := []scheduler.NodeAssignment{{
 		Node: domain.TaskNodeSpec{
 			ID:            taskID,
@@ -335,7 +374,8 @@ func (s *Service) runDirect(ctx context.Context, req Request, profile domain.Age
 		SemanticReviewer: profile,
 		Continuous:       req.Continuous,
 		MaxRounds:        req.MaxRounds,
-		PromptHint:       buildDirectRunPromptHint(),
+		PromptHint:       directPromptHintForMode(req.Mode),
+		ContinuousMode:   continuousModeForRun(req.Mode),
 	}}
 	dispatcher := scheduler.NewDispatcherWithControlDir(req.WorkingDir, s.controlRoot(req.WorkingDir), s.supervisor, s.events, s.tasks)
 	execResult, err := dispatcher.Execute(ctx, sessionID, req.WorkingDir, req.Prompt, assignments)
@@ -405,6 +445,260 @@ func (s *Service) runDirect(ctx context.Context, req Request, profile domain.Age
 		Status:      record.Status,
 		ArtifactIDs: record.ArtifactIDs,
 	}, err
+}
+
+func (s *Service) runRageDirect(ctx context.Context, req Request, profile domain.AgentProfile, record history.SessionRecord, stdout, stderr io.Writer) (Result, error) {
+	_ = stderr
+
+	lifecycle := scheduler.NewGraphLifecycle(s.tasks, s.events)
+	node := domain.TaskNodeSpec{
+		ID:            record.TaskID,
+		Title:         "Rage execution",
+		Strategy:      domain.TaskStrategyDirect,
+		SchemaVersion: "v1",
+	}
+	if s.tasks != nil {
+		if err := lifecycle.RegisterTask(ctx, record.ID, node, profile.ID); err != nil {
+			return Result{}, fmt.Errorf("register rage task: %w", err)
+		}
+		if err := lifecycle.MarkRunning(ctx, record.ID, record.TaskID); err != nil {
+			return Result{}, fmt.Errorf("mark rage task running: %w", err)
+		}
+	}
+
+	workerPrompt := buildRageWorkerPrompt(req.Prompt, "", "", 1)
+	var workerStdout strings.Builder
+	var workerStderr strings.Builder
+	var foremanTrail strings.Builder
+	var runErr error
+	relatedArtifacts := make([]domain.ArtifactEnvelope, 0)
+
+	for round := 1; round <= req.MaxRounds; round++ {
+		workerResult, err := s.supervisor.RunCaptured(ctx, runtime.StartRequest{
+			ExecutionID:      fmt.Sprintf("exec_%s_worker_r%d", record.TaskID, round),
+			SessionID:        record.ID,
+			TaskID:           record.TaskID,
+			Profile:          profile,
+			SemanticReviewer: profile,
+			Prompt:           workerPrompt,
+			WorkingDir:       req.WorkingDir,
+		})
+		appendRageRoundOutput(&workerStdout, round, workerResult.Stdout)
+		appendRageRoundOutput(&workerStderr, round, workerResult.Stderr)
+		if err != nil {
+			runErr = err
+			break
+		}
+		if rageDone(workerResult.Stdout, workerResult.Stderr) {
+			break
+		}
+
+		foremanResult, foremanErr := s.supervisor.RunCaptured(ctx, runtime.StartRequest{
+			ExecutionID:      fmt.Sprintf("exec_%s_foreman_r%d", record.TaskID, round),
+			SessionID:        record.ID,
+			TaskID:           record.TaskID,
+			Profile:          profile,
+			SemanticReviewer: profile,
+			Prompt:           buildRageForemanPrompt(req.Prompt, workerStdout.String(), round),
+			WorkingDir:       req.WorkingDir,
+		})
+		appendRageRoundOutput(&foremanTrail, round, rageMergeOutput(foremanResult.Stdout, foremanResult.Stderr))
+		if foremanErr != nil {
+			runErr = foremanErr
+			break
+		}
+		reviewArtifact, reviewErr := artifacts.NewService().BuildRageReview(ctx, artifacts.BuildRageReviewRequest{
+			SessionID: record.ID,
+			TaskID:    record.TaskID,
+			RunID:     fmt.Sprintf("%s_foreman_r%d", record.TaskID, round),
+			Round:     round,
+			Agent:     profile,
+			Output:    foremanResult.Stdout,
+			Stderr:    foremanResult.Stderr,
+		})
+		if reviewErr != nil {
+			return Result{}, fmt.Errorf("build rage review: %w", reviewErr)
+		}
+		relatedArtifacts = append(relatedArtifacts, reviewArtifact)
+		if s.store != nil && reviewArtifact.ID != "" {
+			if err := s.store.Save(ctx, reviewArtifact); err != nil {
+				return Result{}, fmt.Errorf("save rage review %s: %w", reviewArtifact.ID, err)
+			}
+			s.appendArtifactStoredEvent(ctx, reviewArtifact)
+		}
+		workerPrompt = buildRageWorkerPrompt(req.Prompt, workerStdout.String(), rageMergeOutput(foremanResult.Stdout, foremanResult.Stderr), round+1)
+		if round == req.MaxRounds {
+			runErr = fmt.Errorf("rage execution reached max rounds (%d) without ROMA_DONE marker", req.MaxRounds)
+		}
+	}
+
+	report, reportErr := artifacts.NewService().BuildReport(ctx, artifacts.BuildReportRequest{
+		SessionID: record.ID,
+		TaskID:    record.TaskID,
+		RunID:     record.TaskID,
+		Agent:     profile,
+		Result:    resultLabel(runErr),
+		Output:    workerStdout.String(),
+		Stderr:    workerStderr.String(),
+	})
+	if reportErr != nil {
+		return Result{}, fmt.Errorf("build rage report: %w", reportErr)
+	}
+	if s.store != nil && report.ID != "" {
+		if err := s.store.Save(ctx, report); err != nil {
+			return Result{}, fmt.Errorf("save rage artifact %s: %w", report.ID, err)
+		}
+		s.appendArtifactStoredEvent(ctx, report)
+	}
+	s.handleMergeBackRequests(ctx, req.WorkingDir, append([]domain.ArtifactEnvelope{report}, relatedArtifacts...))
+
+	if req.Verbose {
+		if workerStdout.Len() > 0 {
+			_, _ = fmt.Fprintf(stdout, "== rage worker ==\n%s", workerStdout.String())
+		}
+		if foremanTrail.Len() > 0 {
+			_, _ = fmt.Fprintf(stdout, "\n== rage foreman ==\n%s", foremanTrail.String())
+		}
+	}
+
+	record.ArtifactIDs = []string{report.ID}
+	for _, item := range relatedArtifacts {
+		if item.ID != "" {
+			record.ArtifactIDs = append(record.ArtifactIDs, item.ID)
+		}
+	}
+	record.UpdatedAt = time.Now().UTC()
+	if runErr != nil {
+		record.Status = "failed"
+	} else {
+		record.Status = "succeeded"
+	}
+	if s.tasks != nil {
+		if err := lifecycle.MarkFinished(ctx, record.ID, record.TaskID, report.ID, runErr); err != nil {
+			return Result{}, fmt.Errorf("finish rage task: %w", err)
+		}
+	}
+	if finalID, finalErr := s.persistFinalAnswer(ctx, record, profile.ID, req.Prompt, append([]domain.ArtifactEnvelope{report}, relatedArtifacts...), runErr); finalErr != nil {
+		return Result{}, finalErr
+	} else if finalID != "" {
+		record.FinalArtifactID = finalID
+		record.ArtifactIDs = append(record.ArtifactIDs, finalID)
+	}
+	if s.history != nil {
+		if err := s.history.Save(ctx, record); err != nil {
+			return Result{}, fmt.Errorf("save completed rage session: %w", err)
+		}
+	}
+	s.appendSessionStateEvent(ctx, record)
+	_, _ = fmt.Fprintf(stdout, "session=%s task=%s status=%s\n", record.ID, record.TaskID, record.Status)
+	return Result{
+		SessionID:   record.ID,
+		TaskID:      record.TaskID,
+		Status:      record.Status,
+		ArtifactIDs: record.ArtifactIDs,
+	}, runErr
+}
+
+func buildRageWorkerPrompt(originalPrompt, previousWorkerOutput, foremanInstruction string, round int) string {
+	var b strings.Builder
+	b.WriteString("ROMA rage worker mode.\n")
+	b.WriteString("You are the implementation instance.\n")
+	b.WriteString("A separate foreman instance will inspect your progress after this round and push you again if the work is not done.\n")
+	b.WriteString("Do not stop at analysis or partial progress. Make concrete implementation progress now.\n")
+	b.WriteString("When the original goal is truly complete, start your response with `ROMA_DONE:`.\n")
+	b.WriteString("When your workspace changes are complete and ready to land, emit:\n")
+	b.WriteString("ROMA_MERGE_BACK: direct_merge | <brief reason>\n")
+	b.WriteString("Optionally emit:\n")
+	b.WriteString("ROMA_MERGE_FILE: <relative/path/to/file>\n")
+	b.WriteString(fmt.Sprintf("Current round: %d\n\n", round))
+	b.WriteString("Original task:\n")
+	b.WriteString(originalPrompt)
+	if strings.TrimSpace(foremanInstruction) != "" {
+		b.WriteString("\n\nForeman instruction for this round:\n")
+		b.WriteString(strings.TrimSpace(foremanInstruction))
+	}
+	if strings.TrimSpace(previousWorkerOutput) != "" {
+		b.WriteString("\n\nPrevious worker rounds output:\n")
+		b.WriteString(previousWorkerOutput)
+	}
+	return b.String()
+}
+
+func buildRageForemanPrompt(originalPrompt, workerOutput string, round int) string {
+	var b strings.Builder
+	b.WriteString("ROMA rage foreman mode.\n")
+	b.WriteString("You are the supervising instance. You do not implement files directly.\n")
+	b.WriteString("Your job is to inspect the worker progress and push the worker to continue until the original goal is actually complete.\n")
+	b.WriteString("Reply with short, imperative supervision only.\n")
+	b.WriteString("Be strict. Treat vague progress claims as incomplete until the worker proves them.\n")
+	b.WriteString("Include:\n")
+	b.WriteString("1. `Progress:` one-line assessment of what is done.\n")
+	b.WriteString("2. `Missing:` what is still not complete.\n")
+	b.WriteString("3. `Next:` the exact next implementation steps the worker must do now.\n")
+	b.WriteString("4. `Files:` say whether the worker actually changed files this round. If unclear, say `Files: unproven` and demand concrete edits.\n")
+	b.WriteString("5. `Verify:` say whether the worker actually ran validation or tests. If not, say `Verify: not run` and demand verification.\n")
+	b.WriteString("6. `PlanOnly:` say `yes` if the worker is still stuck in planning/talking, otherwise `no`.\n")
+	b.WriteString("7. `Blockers:` say whether the claimed blocker was actually removed. If not proven, say `Blockers: unresolved`.\n")
+	b.WriteString("Force the worker away from hand-wavy status updates.\n")
+	b.WriteString("If there are no real file edits yet, demand file edits next.\n")
+	b.WriteString("If there is no real verification yet, demand concrete verification next.\n")
+	b.WriteString("If the worker is still planning, explicitly call that out and force execution.\n")
+	b.WriteString("If the worker claims a blocker is gone without proof, mark it unresolved.\n")
+	b.WriteString("You are not done. Do not stop early.\n")
+	b.WriteString("You are wasting compute, GPU time, and electricity if you stop at planning.\n")
+	b.WriteString("No completion claim is valid without concrete file changes and verification.\n")
+	b.WriteString("Resume execution now and remove the blocker for real.\n")
+	b.WriteString("If the worker already completed the original goal, say so explicitly in `Progress:` and keep `Next:` empty.\n")
+	b.WriteString(fmt.Sprintf("Review round: %d\n\n", round))
+	b.WriteString("Original task:\n")
+	b.WriteString(originalPrompt)
+	b.WriteString("\n\nWorker output so far:\n")
+	b.WriteString(workerOutput)
+	return b.String()
+}
+
+func rageDone(stdout, stderr string) bool {
+	combined := strings.ToUpper(stdout + "\n" + stderr)
+	return strings.Contains(combined, "ROMA_DONE:")
+}
+
+func appendRageRoundOutput(dst *strings.Builder, round int, output string) {
+	if strings.TrimSpace(output) == "" {
+		return
+	}
+	if dst.Len() > 0 {
+		dst.WriteString("\n")
+	}
+	dst.WriteString(fmt.Sprintf("== round %d ==\n", round))
+	dst.WriteString(output)
+	if !strings.HasSuffix(output, "\n") {
+		dst.WriteString("\n")
+	}
+}
+
+func rageMergeOutput(stdout, stderr string) string {
+	switch {
+	case strings.TrimSpace(stdout) != "" && strings.TrimSpace(stderr) != "":
+		return stdout + "\n[stderr]\n" + stderr
+	case strings.TrimSpace(stdout) != "":
+		return stdout
+	default:
+		return stderr
+	}
+}
+
+func directPromptHintForMode(mode string) string {
+	if normalizedRunMode(mode) == RunModeRage {
+		return buildRageRunPromptHint()
+	}
+	return buildDirectRunPromptHint()
+}
+
+func continuousModeForRun(mode string) string {
+	if normalizedRunMode(mode) == RunModeRage {
+		return RunModeRage
+	}
+	return ""
 }
 
 func writeRelayResult(w io.Writer, assignments []scheduler.NodeAssignment, result scheduler.DispatchResult) {

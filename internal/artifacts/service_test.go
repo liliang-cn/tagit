@@ -83,6 +83,36 @@ func TestBuildReportParsesMergeBackRequest(t *testing.T) {
 	}
 }
 
+func TestBuildRageReview(t *testing.T) {
+	t.Parallel()
+
+	svc := NewService()
+	envelope, err := svc.BuildRageReview(context.Background(), BuildRageReviewRequest{
+		SessionID: "sess_1",
+		TaskID:    "task_1",
+		RunID:     "run_rage_review",
+		Round:     2,
+		Agent: domain.AgentProfile{
+			ID:          "codex-cli",
+			DisplayName: "Codex CLI",
+		},
+		Output: "Progress: implemented API\nMissing: tests\nNext: add tests\nFiles: changed api.go\nVerify: not run\nPlanOnly: no\nBlockers: unresolved\n",
+	})
+	if err != nil {
+		t.Fatalf("BuildRageReview() error = %v", err)
+	}
+	if envelope.Kind != domain.ArtifactKindRageReview {
+		t.Fatalf("kind = %s, want %s", envelope.Kind, domain.ArtifactKindRageReview)
+	}
+	payload, ok := RageReviewFromEnvelope(envelope)
+	if !ok {
+		t.Fatal("RageReviewFromEnvelope() = false")
+	}
+	if payload.Round != 2 || payload.Progress != "implemented API" || payload.Verify != "not run" {
+		t.Fatalf("payload = %#v, want parsed rage review", payload)
+	}
+}
+
 func TestBuildCuriaArtifacts(t *testing.T) {
 	t.Parallel()
 

@@ -148,7 +148,7 @@ func (s *Service) runCaesar(ctx context.Context, req Request, starter domain.Age
 			record.CreatedAt = existing.CreatedAt
 		}
 	}
-	if _, err := s.evaluatePolicy(ctx, sessionID, taskID, "caesar", req.Prompt, req.WorkingDir, req.WorkingDir, nil, starter.ID, req.Delegates, assignmentsOrchestrated(delegates), req.PolicyOverride, req.OverrideActor); err != nil {
+	if _, err := s.evaluatePolicy(ctx, sessionID, taskID, RunModeCollab, req.Prompt, req.WorkingDir, req.WorkingDir, nil, starter.ID, req.Delegates, assignmentsOrchestrated(delegates), req.PolicyOverride, req.OverrideActor); err != nil {
 		return Result{}, err
 	}
 	if s.history != nil {
@@ -166,7 +166,7 @@ func (s *Service) runCaesar(ctx context.Context, req Request, starter domain.Age
 		Payload: map[string]any{
 			"starter":   starter.ID,
 			"delegates": req.Delegates,
-			"mode":      RunModeCaesar,
+			"mode":      RunModeCollab,
 		},
 	})
 	helpOutputs := make(map[string]string, len(delegates))
@@ -364,6 +364,20 @@ func buildStarterBootstrapPromptHint(starter domain.AgentProfile, delegates []do
 func buildDirectRunPromptHint() string {
 	return strings.Join([]string{
 		"You are the sole executor for this task.",
+		"When your workspace changes are complete and ready to land, emit:",
+		"ROMA_MERGE_BACK: direct_merge | <brief reason>",
+		"Optionally list each changed file with:",
+		"ROMA_MERGE_FILE: <relative/path/to/file>",
+	}, "\n")
+}
+
+func buildRageRunPromptHint() string {
+	return strings.Join([]string{
+		"You are in ROMA rage mode.",
+		"You are the only agent on this task. Do not stop after analysis or a partial attempt.",
+		"In every round, make concrete progress toward the original goal: edit files, run checks, fix breakage, and continue.",
+		"Only declare completion when the original goal is actually implemented and the result is ready to land.",
+		"When the task is fully complete, start your response with `ROMA_DONE:`.",
 		"When your workspace changes are complete and ready to land, emit:",
 		"ROMA_MERGE_BACK: direct_merge | <brief reason>",
 		"Optionally list each changed file with:",

@@ -34,6 +34,7 @@ type StartRequest struct {
 	WorkingDir       string
 	Continuous       bool
 	MaxRounds        int
+	ContinuousMode   string
 }
 
 // ExecutionState is the tracked supervisor state for a process.
@@ -275,7 +276,7 @@ func (s *Supervisor) runCapturedContinuous(ctx context.Context, req StartRequest
 	}
 
 	baseExecID := s.ensureExecutionID(req)
-	currentPrompt := buildContinuousPrompt(req.Prompt, "", 1)
+	currentPrompt := buildContinuousPrompt(req.Prompt, "", 1, req.ContinuousMode)
 	var stdout strings.Builder
 	var stderr strings.Builder
 
@@ -305,7 +306,7 @@ func (s *Supervisor) runCapturedContinuous(ctx context.Context, req StartRequest
 				Stderr:      stderr.String(),
 			}, nil
 		}
-		currentPrompt = buildContinuousPrompt(req.Prompt, stdout.String(), round+1)
+		currentPrompt = buildContinuousPrompt(req.Prompt, stdout.String(), round+1, req.ContinuousMode)
 	}
 
 	return Result{
@@ -681,12 +682,17 @@ func isExpectedPTYReadError(err error) bool {
 	return errors.Is(err, syscall.EIO)
 }
 
-func buildContinuousPrompt(originalPrompt, previousOutput string, round int) string {
+func buildContinuousPrompt(originalPrompt, previousOutput string, round int, mode string) string {
 	var b strings.Builder
 	b.WriteString("ROMA continuous execution mode.\n")
 	b.WriteString("Keep working on the same task across rounds.\n")
 	b.WriteString("When the task is complete, start your response with `ROMA_DONE:`.\n")
 	b.WriteString("If the task is not complete, keep making concrete progress and ROMA will continue you.\n")
+	if strings.EqualFold(strings.TrimSpace(mode), "rage") {
+		b.WriteString("ROMA rage supervisor is standing next to you and will keep asking until the original goal is truly done.\n")
+		b.WriteString("At the start of this round, state briefly: current progress, what remains, and the very next concrete action.\n")
+		b.WriteString("Do not stop at analysis, planning, or a partial implementation. Keep executing.\n")
+	}
 	b.WriteString(fmt.Sprintf("Current round: %d\n\n", round))
 	b.WriteString("Original task:\n")
 	b.WriteString(originalPrompt)

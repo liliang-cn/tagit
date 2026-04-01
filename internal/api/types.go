@@ -81,6 +81,7 @@ type StatusResponse struct {
 	QueueItems           int    `json:"queue_items"`
 	Sessions             int    `json:"sessions"`
 	Artifacts            int    `json:"artifacts"`
+	RageReviews          int    `json:"rage_reviews"`
 	Events               int    `json:"events"`
 	ActiveLeases         int    `json:"active_leases"`
 	ReleasedLeases       int    `json:"released_leases"`
@@ -142,6 +143,18 @@ type SemanticSummary struct {
 	ArtifactID       string            `json:"artifact_id,omitempty"`
 }
 
+type RageReviewSummary struct {
+	ArtifactID string `json:"artifact_id,omitempty"`
+	Round      int    `json:"round"`
+	Progress   string `json:"progress,omitempty"`
+	Missing    string `json:"missing,omitempty"`
+	Next       string `json:"next,omitempty"`
+	Files      string `json:"files,omitempty"`
+	Verify     string `json:"verify,omitempty"`
+	PlanOnly   string `json:"plan_only,omitempty"`
+	Blockers   string `json:"blockers,omitempty"`
+}
+
 type CuriaSummary struct {
 	Dispute               bool                                `json:"dispute"`
 	DisputeClass          string                              `json:"dispute_class,omitempty"`
@@ -184,6 +197,7 @@ type QueueInspectResponse struct {
 	Plans                  []PlanActionSummary       `json:"plans,omitempty"`
 	Curia                  *CuriaSummary             `json:"curia,omitempty"`
 	Semantic               *SemanticSummary          `json:"semantic,omitempty"`
+	RageReviews            []RageReviewSummary       `json:"rage_reviews,omitempty"`
 }
 
 // WorkspaceListResponse lists persisted workspace records.
@@ -205,14 +219,16 @@ type SessionInspectResponse struct {
 	Plans                  []PlanActionSummary       `json:"plans,omitempty"`
 	Curia                  *CuriaSummary             `json:"curia,omitempty"`
 	Semantic               *SemanticSummary          `json:"semantic,omitempty"`
+	RageReviews            []RageReviewSummary       `json:"rage_reviews,omitempty"`
 }
 
 // ResultShowResponse returns the user-facing final session outcome.
 type ResultShowResponse struct {
-	Session  history.SessionRecord   `json:"session"`
-	Pending  bool                    `json:"pending,omitempty"`
-	Message  string                  `json:"message,omitempty"`
-	Artifact domain.ArtifactEnvelope `json:"artifact,omitempty"`
+	Session     history.SessionRecord   `json:"session"`
+	Pending     bool                    `json:"pending,omitempty"`
+	Message     string                  `json:"message,omitempty"`
+	Artifact    domain.ArtifactEnvelope `json:"artifact,omitempty"`
+	RageReviews []RageReviewSummary     `json:"rage_reviews,omitempty"`
 }
 
 type PlanApplyRequest struct {

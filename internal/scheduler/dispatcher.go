@@ -367,6 +367,7 @@ func (d *Dispatcher) executeBatch(
 					WorkingDir:       workspace.EffectiveDir,
 					Continuous:       assignment.Continuous,
 					MaxRounds:        assignment.MaxRounds,
+					ContinuousMode:   assignment.ContinuousMode,
 				})
 				runErr = err
 				report, reportErr = d.artifacts.BuildReport(batchCtx, artifacts.BuildReportRequest{

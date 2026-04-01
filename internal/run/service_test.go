@@ -60,6 +60,194 @@ func TestRunRejectsUnknownDelegate(t *testing.T) {
 	}
 }
 
+func TestRunWithResultRejectsRageDelegates(t *testing.T) {
+	t.Parallel()
+
+	registry, err := agents.NewRegistry(domain.AgentProfile{
+		ID:           "starter",
+		DisplayName:  "Starter",
+		Command:      "sh",
+		Aliases:      []string{"codex"},
+		Availability: domain.AgentAvailabilityAvailable,
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry() error = %v", err)
+	}
+
+	svc := NewService(registry)
+	_, err = svc.RunWithResult(context.Background(), Request{
+		Prompt:       "keep going until complete",
+		Mode:         RunModeRage,
+		StarterAgent: "codex",
+		WorkingDir:   ".",
+		Delegates:    []string{"worker"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "rage mode only supports a single agent") {
+		t.Fatalf("RunWithResult() error = %v, want rage delegate rejection", err)
+	}
+}
+
+func TestNormalizeRunRequestRageDefaultsToHighRoundLimit(t *testing.T) {
+	t.Parallel()
+
+	mode, req, err := normalizeRunRequest(Request{Mode: RunModeRage})
+	if err != nil {
+		t.Fatalf("normalizeRunRequest() error = %v", err)
+	}
+	if mode != RunModeRage {
+		t.Fatalf("mode = %q, want %q", mode, RunModeRage)
+	}
+	if !req.Continuous {
+		t.Fatal("Continuous = false, want true")
+	}
+	if req.MaxRounds != rageDefaultMaxRounds {
+		t.Fatalf("MaxRounds = %d, want %d", req.MaxRounds, rageDefaultMaxRounds)
+	}
+}
+
+func TestNormalizeRunRequestDefaultsSingleAgentToRage(t *testing.T) {
+	t.Parallel()
+
+	mode, req, err := normalizeRunRequest(Request{})
+	if err != nil {
+		t.Fatalf("normalizeRunRequest() error = %v", err)
+	}
+	if mode != RunModeRage || req.Mode != RunModeRage {
+		t.Fatalf("mode = %q req.Mode = %q, want rage", mode, req.Mode)
+	}
+	if !req.Continuous {
+		t.Fatal("Continuous = false, want true")
+	}
+	if req.MaxRounds != rageDefaultMaxRounds {
+		t.Fatalf("MaxRounds = %d, want %d", req.MaxRounds, rageDefaultMaxRounds)
+	}
+}
+
+func TestNormalizeRunRequestDefaultsMultiAgentToSenate(t *testing.T) {
+	t.Parallel()
+
+	mode, req, err := normalizeRunRequest(Request{Delegates: []string{"gemini", "claude"}})
+	if err != nil {
+		t.Fatalf("normalizeRunRequest() error = %v", err)
+	}
+	if mode != RunModeSenate || req.Mode != RunModeSenate {
+		t.Fatalf("mode = %q req.Mode = %q, want senate", mode, req.Mode)
+	}
+	if req.Continuous {
+		t.Fatal("Continuous = true, want false")
+	}
+}
+
+func TestBuildRageForemanPromptDemandsExecutionProof(t *testing.T) {
+	t.Parallel()
+
+	prompt := buildRageForemanPrompt("ship the feature", "worker says progress", 3)
+	for _, want := range []string{
+		"`Files:` say whether the worker actually changed files this round",
+		"`Verify:` say whether the worker actually ran validation or tests",
+		"`PlanOnly:` say `yes` if the worker is still stuck in planning/talking",
+		"`Blockers:` say whether the claimed blocker was actually removed",
+		"If there is no real verification yet, demand concrete verification next.",
+		"You are not done. Do not stop early.",
+		"You are wasting compute, GPU time, and electricity if you stop at planning.",
+		"No completion claim is valid without concrete file changes and verification.",
+		"Resume execution now and remove the blocker for real.",
+		"Review round: 3",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("buildRageForemanPrompt() missing %q:\n%s", want, prompt)
+		}
+	}
+}
+
+func TestRunWithResultRageContinuesUntilDone(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+	controlDir := t.TempDir()
+	initRunGitRepo(t, workDir)
+
+	script := strings.Join([]string{
+		`prompt="$1"`,
+		`if printf '%s' "$prompt" | grep -q "ROMA rage foreman mode"; then`,
+		`  printf 'Progress: first pass landed\n'`,
+		`  printf 'Missing: final implementation and merge markers are not complete\n'`,
+		`  printf 'Next: finish the implementation, write rage.txt, emit ROMA_DONE, and emit ROMA_MERGE_BACK.\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Current round: 2"; then`,
+		`  printf 'done\n' > rage.txt`,
+		`  printf 'ROMA_DONE: objective implemented\n'`,
+		`  printf 'ROMA_MERGE_BACK: direct_merge | rage mode complete\n'`,
+		`  printf 'ROMA_MERGE_FILE: rage.txt\n'`,
+		`else`,
+		`  printf 'first pass only\n'`,
+		`fi`,
+	}, "\n")
+
+	registry, err := agents.NewRegistry(domain.AgentProfile{
+		ID:           "starter",
+		DisplayName:  "Starter",
+		Command:      "sh",
+		Args:         []string{"-c", script, "starter", "{prompt}"},
+		Availability: domain.AgentAvailabilityAvailable,
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry() error = %v", err)
+	}
+
+	svc := NewService(registry)
+	svc.SetControlDir(controlDir)
+	result, err := svc.RunWithResult(context.Background(), Request{
+		Prompt:       "implement the objective fully",
+		Mode:         RunModeRage,
+		StarterAgent: "starter",
+		WorkingDir:   workDir,
+	})
+	if err != nil {
+		t.Fatalf("RunWithResult() error = %v", err)
+	}
+	if result.Status != "succeeded" {
+		t.Fatalf("status = %s, want succeeded", result.Status)
+	}
+	content, err := os.ReadFile(filepath.Join(workDir, "rage.txt"))
+	if err != nil {
+		t.Fatalf("ReadFile(rage.txt) error = %v", err)
+	}
+	if strings.TrimSpace(string(content)) != "done" {
+		t.Fatalf("rage.txt = %q, want done", strings.TrimSpace(string(content)))
+	}
+
+	sessionStore, err := history.NewSQLiteStore(controlDir)
+	if err != nil {
+		t.Fatalf("NewSQLiteStore() error = %v", err)
+	}
+	record, err := sessionStore.Get(context.Background(), result.SessionID)
+	if err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+	if record.FinalArtifactID == "" {
+		t.Fatal("final artifact id = empty, want final answer artifact")
+	}
+
+	artifactStore, err := artifacts.NewSQLiteStore(controlDir)
+	if err != nil {
+		t.Fatalf("NewSQLiteStore() error = %v", err)
+	}
+	envelope, err := artifactStore.Get(context.Background(), record.FinalArtifactID)
+	if err != nil {
+		t.Fatalf("Get(final artifact) error = %v", err)
+	}
+	payload, ok := artifacts.FinalAnswerFromEnvelope(envelope)
+	if !ok {
+		t.Fatalf("FinalAnswerFromEnvelope(%T) = false, want true", envelope.Payload)
+	}
+	if !strings.Contains(payload.Answer, "== round 2 ==") {
+		t.Fatalf("final answer missing continuous rounds:\n%s", payload.Answer)
+	}
+	if !strings.Contains(payload.Answer, "ROMA_DONE: objective implemented") {
+		t.Fatalf("final answer missing completion marker:\n%s", payload.Answer)
+	}
+}
+
 func TestWriteRelayResult(t *testing.T) {
 	var buf strings.Builder
 	writeRelayResult(&buf, []scheduler.NodeAssignment{
@@ -106,6 +294,7 @@ func TestRunReturnsAwaitingApprovalOnPolicyWarn(t *testing.T) {
 	svc := NewService(registry)
 	result, err := svc.RunWithResult(context.Background(), Request{
 		Prompt:       "drop database and then summarize the risk",
+		Mode:         RunModeCollab,
 		StarterAgent: "codex",
 		WorkingDir:   workDir,
 	})
@@ -440,6 +629,7 @@ func TestRunDirectAutoMergeBackRequest(t *testing.T) {
 	svc := NewService(registry)
 	result, err := svc.RunWithResult(context.Background(), Request{
 		Prompt:       "auto merge probe",
+		Mode:         RunModeCollab,
 		StarterAgent: "auto-merge",
 		WorkingDir:   workDir,
 	})
@@ -489,6 +679,7 @@ func TestRunDirectAutoMergeBackRequestUsesControlRootWorkspaceMetadata(t *testin
 	svc.SetControlDir(controlDir)
 	result, err := svc.RunWithResult(context.Background(), Request{
 		Prompt:       "auto merge probe",
+		Mode:         RunModeCollab,
 		StarterAgent: "auto-merge",
 		WorkingDir:   workDir,
 	})
@@ -528,6 +719,7 @@ func TestRunDirectMergeBackRequestRequireVoteDoesNotAutoMerge(t *testing.T) {
 	svc := NewService(registry)
 	result, err := svc.RunWithResult(context.Background(), Request{
 		Prompt:       "vote merge probe",
+		Mode:         RunModeCollab,
 		StarterAgent: "vote-merge",
 		WorkingDir:   workDir,
 	})
@@ -551,7 +743,7 @@ func TestRunDirectMergeBackRequestRequireVoteDoesNotAutoMerge(t *testing.T) {
 	}
 }
 
-func TestRunOrchestratedStarterClarifiesThenDelegates(t *testing.T) {
+func TestRunCollabStarterBootstrapsThenDelegates(t *testing.T) {
 	workDir := t.TempDir()
 	controlDir := t.TempDir()
 	initRunGitRepo(t, workDir)
@@ -560,8 +752,12 @@ func TestRunOrchestratedStarterClarifiesThenDelegates(t *testing.T) {
 		`prompt="$1"`,
 		`if printf '%s' "$prompt" | grep -q "Starter prompt clarification"; then`,
 		`  printf 'clarified spec\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Starter Caesar coordination"; then`,
+		`  printf 'bootstrap ready\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Caesar review round"; then`,
+		`  printf 'ROMA_DONE: delegated work is complete\n'`,
 		`else`,
-		`  printf 'starter should only clarify once\n' >&2`,
+		`  printf 'starter should only clarify, bootstrap, and review\n' >&2`,
 		`  exit 9`,
 		`fi`,
 	}, "\n")
@@ -594,6 +790,7 @@ func TestRunOrchestratedStarterClarifiesThenDelegates(t *testing.T) {
 	svc.SetControlDir(controlDir)
 	result, err := svc.RunWithResult(context.Background(), Request{
 		Prompt:       "coordinate a low-risk sample file update",
+		Mode:         RunModeCollab,
 		StarterAgent: "caesar",
 		Delegates:    []string{"worker"},
 		WorkingDir:   workDir,
@@ -625,16 +822,27 @@ func TestRunOrchestratedStarterClarifiesThenDelegates(t *testing.T) {
 		t.Fatalf("ListTasksBySession() error = %v", err)
 	}
 	clarifyCount := 0
+	bootstrapCount := 0
+	reviewCount := 0
 	for _, task := range tasks {
 		if task.Title == "Starter prompt clarification" {
 			clarifyCount++
 		}
-		if strings.Contains(task.Title, "Caesar review round") || task.Title == "Starter Caesar coordination" {
-			t.Fatalf("unexpected starter coordination task present: %#v", task)
+		if task.Title == "Starter Caesar coordination" {
+			bootstrapCount++
+		}
+		if strings.Contains(task.Title, "Caesar review round") {
+			reviewCount++
 		}
 	}
 	if clarifyCount != 1 {
 		t.Fatalf("clarify task count = %d, want 1", clarifyCount)
+	}
+	if bootstrapCount != 1 {
+		t.Fatalf("bootstrap task count = %d, want 1", bootstrapCount)
+	}
+	if reviewCount != 1 {
+		t.Fatalf("review task count = %d, want 1", reviewCount)
 	}
 }
 
@@ -698,7 +906,7 @@ func TestRunCaesarStarterParticipatesWithBootstrapAndFollowUp(t *testing.T) {
 	svc.SetControlDir(controlDir)
 	result, err := svc.RunWithResult(context.Background(), Request{
 		Prompt:       "coordinate a low-risk sample file update",
-		Mode:         RunModeCaesar,
+		Mode:         RunModeCollab,
 		StarterAgent: "caesar",
 		Delegates:    []string{"worker"},
 		WorkingDir:   workDir,

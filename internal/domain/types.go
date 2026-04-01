@@ -76,6 +76,7 @@ const (
 	ArtifactKindDecisionPack   ArtifactKind = "decision_pack"
 	ArtifactKindExecutionPlan  ArtifactKind = "execution_plan"
 	ArtifactKindSemanticReport ArtifactKind = "semantic_report"
+	ArtifactKindRageReview     ArtifactKind = "rage_review"
 	ArtifactKindFinalAnswer    ArtifactKind = "final_answer"
 	ArtifactKindReport         ArtifactKind = "report"
 )

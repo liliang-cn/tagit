@@ -286,7 +286,7 @@ func TestQueueTailEventLinesSemanticRecommendationsStructured(t *testing.T) {
 	}
 }
 
-func TestParseRunArgsWithAlias(t *testing.T) {
+func TestParseRunArgsModes(t *testing.T) {
 	t.Parallel()
 
 	req, err := parseRunArgs([]string{"--mode", "senate", "--agent", "my-codex", "--with", "my-gemini,my-copilot", "--prompt", "build feature", "--verbose", "-d"})
@@ -317,12 +317,27 @@ func TestParseRunArgsWithAlias(t *testing.T) {
 		t.Fatalf("delegates via --delegate = %#v, want [my-gemini]", req.Delegates)
 	}
 
-	req, err = parseRunArgs([]string{"--mode", "relay", "--agent", "my-codex", "--prompt", "build feature"})
+	req, err = parseRunArgs([]string{"--mode", "collab", "--agent", "my-codex", "--prompt", "build feature"})
 	if err != nil {
-		t.Fatalf("parseRunArgs() with relay alias error = %v", err)
+		t.Fatalf("parseRunArgs() with collab error = %v", err)
 	}
-	if req.Mode != runsvc.RunModeFanout {
-		t.Fatalf("mode = %q, want %q", req.Mode, runsvc.RunModeFanout)
+	if req.Mode != runsvc.RunModeCollab {
+		t.Fatalf("mode = %q, want %q", req.Mode, runsvc.RunModeCollab)
+	}
+
+	req, err = parseRunArgs([]string{"--mode", "rage", "--agent", "my-codex", "--prompt", "build feature"})
+	if err != nil {
+		t.Fatalf("parseRunArgs() with rage error = %v", err)
+	}
+	if req.Mode != runsvc.RunModeRage {
+		t.Fatalf("mode = %q, want %q", req.Mode, runsvc.RunModeRage)
+	}
+
+	for _, mode := range []string{"relay", "fanout", "caesar"} {
+		_, err := parseRunArgs([]string{"--mode", mode, "--agent", "my-codex", "--prompt", "build feature"})
+		if err == nil || !strings.Contains(err.Error(), "unsupported run mode") {
+			t.Fatalf("parseRunArgs(%q) error = %v, want unsupported run mode", mode, err)
+		}
 	}
 }
 
@@ -501,6 +516,51 @@ func TestPrintResultShowPending(t *testing.T) {
 	}
 }
 
+func TestPrintResultShowIncludesRageReviews(t *testing.T) {
+	out := captureStdout(t, func() {
+		if err := printResultShow(api.ResultShowResponse{
+			Session: history.SessionRecord{
+				ID:     "sess_done",
+				Status: "succeeded",
+			},
+			Artifact: domain.ArtifactEnvelope{
+				ID:   "art_final",
+				Kind: domain.ArtifactKindFinalAnswer,
+				Payload: artifacts.FinalAnswerPayload{
+					OutcomeType: "completed",
+					Summary:     "done",
+				},
+			},
+			RageReviews: []api.RageReviewSummary{{
+				Round:    2,
+				Progress: "implemented API",
+				Missing:  "tests",
+				Next:     "run go test",
+				Files:    "changed api.go",
+				Verify:   "not run",
+				PlanOnly: "no",
+				Blockers: "unresolved",
+			}},
+		}); err != nil {
+			t.Fatalf("printResultShow() error = %v", err)
+		}
+	})
+	for _, want := range []string{
+		"rage_reviews:",
+		"round=2 progress=implemented API",
+		"missing=tests",
+		"next=run go test",
+		"files=changed api.go",
+		"verify=not run",
+		"plan_only=no",
+		"blockers=unresolved",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output = %q, missing %q", out, want)
+		}
+	}
+}
+
 func TestRunStatusUsesControlPlaneStateOnly(t *testing.T) {
 	home := filepath.Join(t.TempDir(), ".roma-home")
 	repo := t.TempDir()
@@ -557,6 +617,28 @@ func TestRunStatusUsesControlPlaneStateOnly(t *testing.T) {
 	if err := leaseStore.Acquire(context.Background(), "sess_status", "owner_1"); err != nil {
 		t.Fatalf("Acquire() error = %v", err)
 	}
+	artifactStore, err := artifacts.NewSQLiteStore(home)
+	if err != nil {
+		t.Fatalf("NewSQLiteStore(artifacts) error = %v", err)
+	}
+	if err := artifactStore.Save(context.Background(), domain.ArtifactEnvelope{
+		ID:            "art_rage_review",
+		Kind:          domain.ArtifactKindRageReview,
+		SchemaVersion: "v1",
+		Producer:      domain.Producer{AgentID: "starter", Role: domain.ProducerRoleReviewer, RunID: "run_rage_review"},
+		SessionID:     "sess_status",
+		TaskID:        "task_status",
+		CreatedAt:     now,
+		PayloadSchema: artifacts.RageReviewPayloadSchema,
+		Payload: artifacts.RageReviewPayload{
+			ReviewID:       "rage_review_run_rage_review",
+			Round:          1,
+			Progress:       "started",
+			ForemanAgentID: "starter",
+		},
+	}); err != nil {
+		t.Fatalf("Save(rage review) error = %v", err)
+	}
 	manager := workspacepkg.NewManager(repo, nil)
 	prepared, err := manager.Prepare(context.Background(), "sess_status", "task_status", repo, domain.TaskStrategyDirect)
 	if err != nil {
@@ -575,6 +657,7 @@ func TestRunStatusUsesControlPlaneStateOnly(t *testing.T) {
 		"mode=control-plane-local",
 		"queue_items=1",
 		"sessions=1",
+		"rage_reviews=1",
 		"released_workspaces=1",
 		"sqlite_path=" + filepath.Clean(filepath.Join(home, ".roma", "roma.db")),
 	} {
@@ -609,7 +692,7 @@ func TestPrintUsageIncludesActualCommands(t *testing.T) {
 	for _, want := range []string{
 		"  roma --help",
 		"  roma check [job_id] [--raw]",
-		`  roma run --prompt "<prompt>" [--mode <fanout|caesar|senate>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`,
+		`  roma run --prompt "<prompt>" [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`,
 		"  roma <command> --help",
 		"  roma result show <session_id>",
 		"  roma acp status",
@@ -642,12 +725,19 @@ func TestPrintTopicUsageRunIncludesActualFlags(t *testing.T) {
 		"roma run usage:",
 		"--prompt <text>",
 		"--mode <name>",
+		"collab, senate, or rage",
+		"default mode selection:",
+		"one agent -> rage",
+		"multiple agents -> senate",
 		"--with <id,...>",
 		"-d, --detach",
 		"-f, --follow",
 		"--verbose",
 		"--policy-override",
 		"--override-actor <name>",
+		"rage mode:",
+		"Defaults to 10000 rounds unless --max-rounds is set.",
+		"collab mode:",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("printTopicUsage(run) missing %q:\n%s", want, out)

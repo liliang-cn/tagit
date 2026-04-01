@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/liliang-cn/roma/internal/domain"
@@ -54,7 +55,26 @@ func buildProfileArgs(req StartRequest) ([]string, error) {
 	if !promptReferenced && strings.TrimSpace(req.Prompt) != "" {
 		args = append(args, req.Prompt)
 	}
+	args = maybeInjectCodexGitWriteAccess(req, args)
 	return args, nil
+}
+
+func maybeInjectCodexGitWriteAccess(req StartRequest, args []string) []string {
+	command := strings.ToLower(filepath.Base(strings.TrimSpace(req.Profile.Command)))
+	if command != "codex" || strings.TrimSpace(req.WorkingDir) == "" {
+		return args
+	}
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] != "--add-dir" {
+			continue
+		}
+		if filepath.Clean(args[i+1]) == filepath.Join(req.WorkingDir, ".git") {
+			return args
+		}
+	}
+	out := append([]string{}, args...)
+	out = append(out, "--add-dir", filepath.Join(req.WorkingDir, ".git"))
+	return out
 }
 
 func expandProfileArg(arg string, req StartRequest) (string, bool) {

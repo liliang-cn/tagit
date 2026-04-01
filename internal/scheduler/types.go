@@ -16,6 +16,7 @@ type NodeAssignment struct {
 	PromptHint           string
 	Continuous           bool
 	MaxRounds            int
+	ContinuousMode       string
 }
 
 // DispatchResult captures scheduler-owned execution results.

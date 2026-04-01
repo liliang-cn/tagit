@@ -650,7 +650,15 @@ func runResults(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	return printResultShow(api.ResultShowResponse{Session: session, Artifact: artifact})
+	items, err := preferredArtifactStore(inspectDir).List(ctx, session.ID)
+	if err != nil {
+		return err
+	}
+	return printResultShow(api.ResultShowResponse{
+		Session:     session,
+		Artifact:    artifact,
+		RageReviews: summarizeRageReviewArtifactsCLI(items),
+	})
 }
 
 func printResultShow(resp api.ResultShowResponse) error {
@@ -692,6 +700,30 @@ func printResultShow(resp api.ResultShowResponse) error {
 		fmt.Println("\nnext_actions:")
 		for _, item := range payload.NextActions {
 			fmt.Printf("- %s\n", item)
+		}
+	}
+	if len(resp.RageReviews) > 0 {
+		fmt.Println("\nrage_reviews:")
+		for _, item := range resp.RageReviews {
+			fmt.Printf("- round=%d progress=%s\n", item.Round, item.Progress)
+			if item.Missing != "" {
+				fmt.Printf("  missing=%s\n", item.Missing)
+			}
+			if item.Next != "" {
+				fmt.Printf("  next=%s\n", item.Next)
+			}
+			if item.Files != "" {
+				fmt.Printf("  files=%s\n", item.Files)
+			}
+			if item.Verify != "" {
+				fmt.Printf("  verify=%s\n", item.Verify)
+			}
+			if item.PlanOnly != "" {
+				fmt.Printf("  plan_only=%s\n", item.PlanOnly)
+			}
+			if item.Blockers != "" {
+				fmt.Printf("  blockers=%s\n", item.Blockers)
+			}
 		}
 	}
 	fmt.Printf("\nartifact=%s\n", resp.Artifact.ID)
@@ -1334,6 +1366,7 @@ func inspectQueueLocal(ctx context.Context, wd, jobID string, raw bool) (api.Que
 		}
 		resp.Curia = summarizeCuriaArtifactsCLI(controlDir, items)
 		resp.Semantic = summarizeSemanticArtifactsCLI(items)
+		resp.RageReviews = summarizeRageReviewArtifactsCLI(items)
 	}
 	eventStore := preferredEventStore(controlDir)
 	if items, err := eventStore.ListEvents(ctx, storepkg.EventFilter{SessionID: req.SessionID}); err == nil {
@@ -1360,6 +1393,28 @@ func inspectQueueLocal(ctx context.Context, wd, jobID string, raw bool) (api.Que
 	}
 	resp.Live = api.EnrichRuntimeLive(api.SummarizeRuntimeLive(sessionStatus, resp.Tasks, eventItems, resp.Workspaces, resp.Lease, req.UpdatedAt), req.StarterAgent, req.Delegates)
 	return resp, nil
+}
+
+func summarizeRageReviewArtifactsCLI(items []domain.ArtifactEnvelope) []api.RageReviewSummary {
+	out := make([]api.RageReviewSummary, 0)
+	for _, item := range items {
+		payload, ok := artifacts.RageReviewFromEnvelope(item)
+		if !ok {
+			continue
+		}
+		out = append(out, api.RageReviewSummary{
+			ArtifactID: item.ID,
+			Round:      payload.Round,
+			Progress:   payload.Progress,
+			Missing:    payload.Missing,
+			Next:       payload.Next,
+			Files:      payload.Files,
+			Verify:     payload.Verify,
+			PlanOnly:   payload.PlanOnly,
+			Blockers:   payload.Blockers,
+		})
+	}
+	return out
 }
 
 func runQueueCancel(ctx context.Context, args []string) error {
@@ -1885,6 +1940,7 @@ func runSessions(ctx context.Context, args []string) error {
 			resp.Artifacts = items
 			resp.Curia = summarizeCuriaArtifactsCLI(controlDir, items)
 			resp.Semantic = summarizeSemanticArtifactsCLI(items)
+			resp.RageReviews = summarizeRageReviewArtifactsCLI(items)
 		}
 		if workspaceDir != "" {
 			manager := workspacepkg.NewManager(workspaceDir, nil)
@@ -1937,6 +1993,7 @@ func runSessions(ctx context.Context, args []string) error {
 			resp.Artifacts = items
 			resp.Curia = summarizeCuriaArtifactsCLI(controlDir, items)
 			resp.Semantic = summarizeSemanticArtifactsCLI(items)
+			resp.RageReviews = summarizeRageReviewArtifactsCLI(items)
 		}
 		if workspaceDir != "" {
 			manager := workspacepkg.NewManager(workspaceDir, nil)
@@ -2416,6 +2473,7 @@ func runStatus(ctx context.Context) error {
 	queueCount := 0
 	sessionCount := 0
 	artifactCount := 0
+	rageReviewCount := 0
 	eventCount := 0
 	activeLeaseCount := 0
 	releasedLeaseCount := 0
@@ -2436,6 +2494,7 @@ func runStatus(ctx context.Context) error {
 			queueCount = status.QueueItems
 			sessionCount = status.Sessions
 			artifactCount = status.Artifacts
+			rageReviewCount = status.RageReviews
 			eventCount = status.Events
 			activeLeaseCount = status.ActiveLeases
 			releasedLeaseCount = status.ReleasedLeases
@@ -2459,6 +2518,11 @@ func runStatus(ctx context.Context) error {
 		}
 		if items, err := artifactStore.List(ctx, ""); err == nil {
 			artifactCount = len(items)
+			for _, item := range items {
+				if item.Kind == domain.ArtifactKindRageReview {
+					rageReviewCount++
+				}
+			}
 		}
 	}
 	if !client.Available() {
@@ -2512,6 +2576,7 @@ func runStatus(ctx context.Context) error {
 	fmt.Printf("queue_items=%d\n", queueCount)
 	fmt.Printf("sessions=%d\n", sessionCount)
 	fmt.Printf("artifacts=%d\n", artifactCount)
+	fmt.Printf("rage_reviews=%d\n", rageReviewCount)
 	fmt.Printf("events=%d\n", eventCount)
 	fmt.Printf("active_leases=%d\n", activeLeaseCount)
 	fmt.Printf("released_leases=%d\n", releasedLeaseCount)
@@ -3394,7 +3459,7 @@ func parseRunArgs(args []string) (runsvc.Request, error) {
 				return runsvc.Request{}, fmt.Errorf("--mode requires a value")
 			}
 			req.Mode = runsvc.NormalizeMode(args[i])
-			if req.Mode != "" && req.Mode != runsvc.RunModeFanout && req.Mode != runsvc.RunModeCaesar && req.Mode != runsvc.RunModeSenate {
+			if req.Mode != "" && req.Mode != runsvc.RunModeCollab && req.Mode != runsvc.RunModeSenate && req.Mode != runsvc.RunModeRage {
 				return runsvc.Request{}, fmt.Errorf("unsupported run mode %q", args[i])
 			}
 		case "--detach", "-d":
@@ -3449,7 +3514,7 @@ func printUsage() {
 	fmt.Println("  roma --help")
 	fmt.Println("  roma check [job_id] [--raw]")
 	fmt.Println("  roma tui [--cwd <dir>]")
-	fmt.Println(`  roma run --prompt "<prompt>" [--mode <fanout|caesar|senate>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`)
+	fmt.Println(`  roma run --prompt "<prompt>" [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`)
 	fmt.Println("  roma status")
 	fmt.Println("  roma result show <session_id>")
 	fmt.Println("  roma <command> --help")
@@ -3482,8 +3547,9 @@ func printUsage() {
 	fmt.Println("  roma tui")
 	fmt.Println(`  roma agent add my-codex "My Codex" /usr/bin/codex --arg exec --arg --full-auto --arg {prompt} --pty`)
 	fmt.Println(`  roma run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
-	fmt.Println(`  roma run --mode caesar --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
+	fmt.Println(`  roma run --mode collab --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
 	fmt.Println(`  roma run --mode senate --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
+	fmt.Println(`  roma run --mode rage --prompt "keep going until the feature is actually complete" --agent my-codex`)
 	fmt.Println(`  roma run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot -d`)
 	fmt.Println(`  roma run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot --verbose`)
 }
@@ -3704,11 +3770,11 @@ func printTopicUsage(topic string) {
 		fmt.Println(`  roma policy check --agent <id> --prompt "<prompt>" [--with <id,...>] [--cwd <dir>]`)
 	case "run":
 		fmt.Println("roma run usage:")
-		fmt.Println(`  roma run --prompt "<prompt>" [--mode <fanout|caesar|senate>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <name>]`)
+		fmt.Println(`  roma run --prompt "<prompt>" [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <name>]`)
 		fmt.Println("")
 		fmt.Println("Flags:")
 		fmt.Println("  --prompt <text>      task prompt (required)")
-		fmt.Println("  --mode <name>        orchestration mode: fanout, caesar, or senate")
+		fmt.Println("  --mode <name>        orchestration mode: collab, senate, or rage")
 		fmt.Println("  --agent <id>         starter agent ID (default: first available)")
 		fmt.Println("  --with <id,...>      delegate agent IDs (comma-separated)")
 		fmt.Println("  --cwd <dir>          working directory (default: current directory)")
@@ -3719,6 +3785,18 @@ func printTopicUsage(topic string) {
 		fmt.Println("  --verbose            print per-node execution output")
 		fmt.Println("  --policy-override    override safety policies")
 		fmt.Println("  --override-actor <n> name of the actor performing the override")
+		fmt.Println("")
+		fmt.Println("default mode selection:")
+		fmt.Println("  one agent -> rage")
+		fmt.Println("  multiple agents -> senate")
+		fmt.Println("")
+		fmt.Println("collab mode:")
+		fmt.Println("  Caesar/starter scopes work, delegates implement in separate worktrees, and Caesar reviews and merges.")
+		fmt.Println("")
+		fmt.Println("rage mode:")
+		fmt.Println("  Single-agent only.")
+		fmt.Println("  Runs as worker stop -> foreman inspect -> worker resume.")
+		fmt.Println("  Defaults to 10000 rounds unless --max-rounds is set.")
 	case "submit", "tell", "ask":
 		fmt.Println(`  "submit", "tell", and "ask" were removed.`)
 		fmt.Println(`  Use: roma run --help`)

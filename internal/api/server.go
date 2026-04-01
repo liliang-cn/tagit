@@ -175,6 +175,12 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	queueItems, _ := s.queueStore.List(r.Context())
 	sessionItems, _ := s.sessionStore.List(r.Context())
 	artifactItems, _ := preferredArtifactStore(workDir).List(r.Context(), "")
+	rageReviews := 0
+	for _, item := range artifactItems {
+		if item.Kind == domain.ArtifactKindRageReview {
+			rageReviews++
+		}
+	}
 	eventItems, _ := preferredEventStore(workDir).ListEvents(r.Context(), store.EventFilter{})
 	activeLeases := 0
 	releasedLeases := 0
@@ -230,6 +236,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		QueueItems:           len(queueItems),
 		Sessions:             len(sessionItems),
 		Artifacts:            len(artifactItems),
+		RageReviews:          rageReviews,
 		Events:               len(eventItems),
 		ActiveLeases:         activeLeases,
 		ReleasedLeases:       releasedLeases,
@@ -876,6 +883,28 @@ func summarizeSemanticArtifacts(items []domain.ArtifactEnvelope) *SemanticSummar
 	}
 }
 
+func summarizeRageReviewArtifacts(items []domain.ArtifactEnvelope) []RageReviewSummary {
+	out := make([]RageReviewSummary, 0)
+	for _, item := range items {
+		payload, ok := artifacts.RageReviewFromEnvelope(item)
+		if !ok {
+			continue
+		}
+		out = append(out, RageReviewSummary{
+			ArtifactID: item.ID,
+			Round:      payload.Round,
+			Progress:   payload.Progress,
+			Missing:    payload.Missing,
+			Next:       payload.Next,
+			Files:      payload.Files,
+			Verify:     payload.Verify,
+			PlanOnly:   payload.PlanOnly,
+			Blockers:   payload.Blockers,
+		})
+	}
+	return out
+}
+
 func summarizeCuriaReviewerWeights(workDir string, items []artifacts.CuriaReviewContribution) []CuriaReviewerSummary {
 	if workDir == "" || len(items) == 0 {
 		return nil
@@ -1237,6 +1266,7 @@ func (s *Server) handleQueueInspect(w http.ResponseWriter, r *http.Request) {
 			}
 			resp.Curia = summarizeCuriaArtifacts(controlDir, items)
 			resp.Semantic = summarizeSemanticArtifacts(items)
+			resp.RageReviews = summarizeRageReviewArtifacts(items)
 		}
 		resp.EventCount = len(resp.Events)
 		if !rawInspect {
@@ -1352,12 +1382,21 @@ func (s *Server) handleResultShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	artifactStore := preferredArtifactStore(s.workDir)
+	items, err := artifactStore.List(r.Context(), session.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
 	envelope, err := resolveFinalAnswerEnvelope(r.Context(), artifactStore, session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	writeJSON(w, http.StatusOK, ResultShowResponse{Session: session, Artifact: envelope})
+	writeJSON(w, http.StatusOK, ResultShowResponse{
+		Session:     session,
+		Artifact:    envelope,
+		RageReviews: summarizeRageReviewArtifacts(items),
+	})
 }
 
 func (s *Server) handleSessionShow(w http.ResponseWriter, r *http.Request) {
@@ -1415,6 +1454,7 @@ func (s *Server) handleSessionInspect(w http.ResponseWriter, r *http.Request) {
 		resp.Artifacts = items
 		resp.Curia = summarizeCuriaArtifacts(s.workDir, items)
 		resp.Semantic = summarizeSemanticArtifacts(items)
+		resp.RageReviews = summarizeRageReviewArtifacts(items)
 	}
 	if inspectDir != "" {
 		if items, err := workspacepkg.NewManager(inspectDir, nil).List(r.Context()); err == nil {

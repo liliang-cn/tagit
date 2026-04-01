@@ -18,6 +18,8 @@ const (
 	ReportPayloadSchema = "roma/report/v1"
 	// SemanticReportPayloadSchema is the agent-assisted semantic classifier schema.
 	SemanticReportPayloadSchema = "roma/semantic_report/v1"
+	// RageReviewPayloadSchema is the structured rage-foreman review schema.
+	RageReviewPayloadSchema = "roma/rage_review/v1"
 	// FinalAnswerPayloadSchema is the user-facing session outcome schema.
 	FinalAnswerPayloadSchema = "roma/final_answer/v1"
 )
@@ -67,6 +69,21 @@ type SemanticReportPayload struct {
 	RecommendCuria    bool              `json:"recommend_curia"`
 	Summary           string            `json:"summary"`
 	RawOutput         string            `json:"raw_output,omitempty"`
+}
+
+// RageReviewPayload is the structured supervision output emitted by a rage foreman round.
+type RageReviewPayload struct {
+	ReviewID       string `json:"review_id"`
+	Round          int    `json:"round"`
+	Progress       string `json:"progress,omitempty"`
+	Missing        string `json:"missing,omitempty"`
+	Next           string `json:"next,omitempty"`
+	Files          string `json:"files,omitempty"`
+	Verify         string `json:"verify,omitempty"`
+	PlanOnly       string `json:"plan_only,omitempty"`
+	Blockers       string `json:"blockers,omitempty"`
+	RawOutput      string `json:"raw_output,omitempty"`
+	ForemanAgentID string `json:"foreman_agent_id,omitempty"`
 }
 
 // FinalAnswerPayload is the user-facing outcome for a completed or paused session.
@@ -126,6 +143,17 @@ type BuildSemanticReportRequest struct {
 	SignalConfidence domain.Confidence
 	SignalText       string
 	Output           string
+}
+
+// BuildRageReviewRequest describes rage-review creation input.
+type BuildRageReviewRequest struct {
+	SessionID string
+	TaskID    string
+	RunID     string
+	Round     int
+	Agent     domain.AgentProfile
+	Output    string
+	Stderr    string
 }
 
 // Service creates structured artifacts for runtime outputs.
@@ -198,6 +226,9 @@ func SummaryFromEnvelope(envelope domain.ArtifactEnvelope) string {
 	if payload, ok := envelope.Payload.(SemanticReportPayload); ok {
 		return payload.Summary
 	}
+	if payload, ok := envelope.Payload.(RageReviewPayload); ok {
+		return payload.Progress
+	}
 	if payload, ok := envelope.Payload.(FinalAnswerPayload); ok {
 		return payload.Summary
 	}
@@ -217,6 +248,10 @@ func SummaryFromEnvelope(envelope domain.ArtifactEnvelope) string {
 	}
 	var payload ReportPayload
 	if err := json.Unmarshal(raw, &payload); err != nil {
+		var rage RageReviewPayload
+		if err := json.Unmarshal(raw, &rage); err == nil && rage.Progress != "" {
+			return rage.Progress
+		}
 		var final FinalAnswerPayload
 		if err := json.Unmarshal(raw, &final); err == nil {
 			return final.Summary
@@ -224,6 +259,50 @@ func SummaryFromEnvelope(envelope domain.ArtifactEnvelope) string {
 		return ""
 	}
 	return payload.Summary
+}
+
+// BuildRageReview creates a structured rage-review envelope for foreman output.
+func (s *Service) BuildRageReview(ctx context.Context, req BuildRageReviewRequest) (domain.ArtifactEnvelope, error) {
+	_ = ctx
+
+	if req.SessionID == "" {
+		return domain.ArtifactEnvelope{}, fmt.Errorf("session id is required")
+	}
+	if req.TaskID == "" {
+		return domain.ArtifactEnvelope{}, fmt.Errorf("task id is required")
+	}
+	if req.Agent.ID == "" {
+		return domain.ArtifactEnvelope{}, fmt.Errorf("agent id is required")
+	}
+
+	merged := mergeOutput(req.Output, req.Stderr)
+	payload := parseRageReviewOutput(merged)
+	payload.ReviewID = "rage_review_" + req.RunID
+	payload.Round = req.Round
+	payload.RawOutput = merged
+	payload.ForemanAgentID = req.Agent.ID
+
+	envelope := domain.ArtifactEnvelope{
+		ID:            "art_" + payload.ReviewID,
+		Kind:          domain.ArtifactKindRageReview,
+		SchemaVersion: "v1",
+		Producer: domain.Producer{
+			AgentID: req.Agent.ID,
+			Role:    domain.ProducerRoleReviewer,
+			RunID:   req.RunID,
+		},
+		SessionID:     req.SessionID,
+		TaskID:        req.TaskID,
+		CreatedAt:     s.now(),
+		PayloadSchema: RageReviewPayloadSchema,
+		Payload:       payload,
+	}
+	checksum, err := checksumEnvelope(envelope)
+	if err != nil {
+		return domain.ArtifactEnvelope{}, err
+	}
+	envelope.Checksum = checksum
+	return envelope, nil
 }
 
 // BuildSemanticReport creates a semantic-report envelope from a classifier-agent output.
@@ -424,6 +503,31 @@ func parseSemanticClassifierOutput(output string) (intent string, risk domain.Co
 	return intent, risk, needsApproval, recommendCuria, summary
 }
 
+func parseRageReviewOutput(output string) RageReviewPayload {
+	payload := RageReviewPayload{}
+	for _, raw := range strings.Split(output, "\n") {
+		line := trimLine(raw)
+		lower := strings.ToLower(line)
+		switch {
+		case strings.HasPrefix(lower, "progress:"):
+			payload.Progress = trimLine(line[len("progress:"):])
+		case strings.HasPrefix(lower, "missing:"):
+			payload.Missing = trimLine(line[len("missing:"):])
+		case strings.HasPrefix(lower, "next:"):
+			payload.Next = trimLine(line[len("next:"):])
+		case strings.HasPrefix(lower, "files:"):
+			payload.Files = trimLine(line[len("files:"):])
+		case strings.HasPrefix(lower, "verify:"):
+			payload.Verify = trimLine(line[len("verify:"):])
+		case strings.HasPrefix(lower, "planonly:"):
+			payload.PlanOnly = trimLine(line[len("planonly:"):])
+		case strings.HasPrefix(lower, "blockers:"):
+			payload.Blockers = trimLine(line[len("blockers:"):])
+		}
+	}
+	return payload
+}
+
 func trimLine(line string) string {
 	for len(line) > 0 && (line[0] == ' ' || line[0] == '\n' || line[0] == '\r' || line[0] == '\t') {
 		line = line[1:]
@@ -565,6 +669,26 @@ func FinalAnswerFromEnvelope(envelope domain.ArtifactEnvelope) (FinalAnswerPaylo
 	var payload FinalAnswerPayload
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return FinalAnswerPayload{}, false
+	}
+	return payload, true
+}
+
+// RageReviewFromEnvelope extracts a rage-review payload.
+func RageReviewFromEnvelope(envelope domain.ArtifactEnvelope) (RageReviewPayload, bool) {
+	if envelope.Kind != domain.ArtifactKindRageReview {
+		return RageReviewPayload{}, false
+	}
+	switch typed := envelope.Payload.(type) {
+	case RageReviewPayload:
+		return typed, true
+	}
+	raw, err := json.Marshal(envelope.Payload)
+	if err != nil {
+		return RageReviewPayload{}, false
+	}
+	var payload RageReviewPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return RageReviewPayload{}, false
 	}
 	return payload, true
 }

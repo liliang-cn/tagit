@@ -33,8 +33,29 @@ func TestBuildCommandForProfileArgs(t *testing.T) {
 	if got := cmd.Args[0]; got != "codex" {
 		t.Fatalf("command = %s, want codex", got)
 	}
-	if got := strings.Join(cmd.Args[1:], " "); got != "exec --full-auto -C /tmp/work test prompt" {
-		t.Fatalf("args = %q, want %q", got, "exec --full-auto -C /tmp/work test prompt")
+	if got := strings.Join(cmd.Args[1:], " "); got != "exec --full-auto -C /tmp/work test prompt --add-dir /tmp/work/.git" {
+		t.Fatalf("args = %q, want %q", got, "exec --full-auto -C /tmp/work test prompt --add-dir /tmp/work/.git")
+	}
+}
+
+func TestBuildCommandForCodexDoesNotDuplicateGitAddDir(t *testing.T) {
+	t.Parallel()
+
+	supervisor := DefaultSupervisor()
+	cmd, err := supervisor.BuildCommand(context.Background(), StartRequest{
+		Profile: domain.AgentProfile{
+			ID:      "my-codex",
+			Command: "codex",
+			Args:    []string{"exec", "--full-auto", "-C", "{cwd}", "{prompt}", "--add-dir", "{cwd}/.git"},
+		},
+		Prompt:     "test prompt",
+		WorkingDir: "/tmp/work",
+	})
+	if err != nil {
+		t.Fatalf("BuildCommand() error = %v", err)
+	}
+	if got := strings.Join(cmd.Args[1:], " "); got != "exec --full-auto -C /tmp/work test prompt --add-dir /tmp/work/.git" {
+		t.Fatalf("args = %q, want single git add-dir", got)
 	}
 }
 
@@ -130,6 +151,21 @@ func TestRunCapturedContinuous(t *testing.T) {
 	}
 	if !strings.Contains(result.Stdout, "ROMA_DONE:") {
 		t.Fatalf("continuous output missing completion marker: %s", result.Stdout)
+	}
+}
+
+func TestBuildContinuousPromptIncludesRageSupervisorNudge(t *testing.T) {
+	t.Parallel()
+
+	prompt := buildContinuousPrompt("ship the feature", "round one output", 2, "rage")
+	for _, want := range []string{
+		"ROMA rage supervisor is standing next to you",
+		"state briefly: current progress, what remains, and the very next concrete action",
+		"Current round: 2",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("buildContinuousPrompt() missing %q:\n%s", want, prompt)
+		}
 	}
 }
 

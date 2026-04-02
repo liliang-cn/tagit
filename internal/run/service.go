@@ -490,9 +490,6 @@ func (s *Service) runRageDirect(ctx context.Context, req Request, profile domain
 			runErr = err
 			break
 		}
-		if rageDone(workerResult.Stdout, workerResult.Stderr) {
-			break
-		}
 
 		foremanResult, foremanErr := s.supervisor.RunCaptured(ctx, runtime.StartRequest{
 			ExecutionID:      fmt.Sprintf("exec_%s_foreman_r%d", record.TaskID, round),
@@ -527,9 +524,12 @@ func (s *Service) runRageDirect(ctx context.Context, req Request, profile domain
 			}
 			s.appendArtifactStoredEvent(ctx, reviewArtifact)
 		}
+		if foremanDeterminesDone(reviewArtifact) {
+			break
+		}
 		workerPrompt = buildRageWorkerPrompt(req.Prompt, workerStdout.String(), rageMergeOutput(foremanResult.Stdout, foremanResult.Stderr), round+1)
 		if round == req.MaxRounds {
-			runErr = fmt.Errorf("rage execution reached max rounds (%d) without ROMA_DONE marker", req.MaxRounds)
+			runErr = fmt.Errorf("rage execution reached max rounds (%d) without foreman completion approval", req.MaxRounds)
 		}
 	}
 
@@ -649,13 +649,42 @@ func buildRageForemanPrompt(originalPrompt, workerOutput string, round int) stri
 	b.WriteString("You are wasting compute, GPU time, and electricity if you stop at planning.\n")
 	b.WriteString("No completion claim is valid without concrete file changes and verification.\n")
 	b.WriteString("Resume execution now and remove the blocker for real.\n")
-	b.WriteString("If the worker already completed the original goal, say so explicitly in `Progress:` and keep `Next:` empty.\n")
+	b.WriteString("You, the foreman, are the final authority on whether the task is done.\n")
+	b.WriteString("Only leave `Next:` empty if the task is truly complete and verified.\n")
+	b.WriteString("A worker-side `ROMA_DONE:` marker is only a claim until you confirm it.\n")
 	b.WriteString(fmt.Sprintf("Review round: %d\n\n", round))
 	b.WriteString("Original task:\n")
 	b.WriteString(originalPrompt)
 	b.WriteString("\n\nWorker output so far:\n")
 	b.WriteString(workerOutput)
 	return b.String()
+}
+
+func foremanDeterminesDone(review domain.ArtifactEnvelope) bool {
+	payload, ok := artifacts.RageReviewFromEnvelope(review)
+	if !ok {
+		return false
+	}
+	if strings.TrimSpace(payload.Next) != "" {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(payload.PlanOnly), "yes") {
+		return false
+	}
+	if rageReviewSignalsMissingProof(payload.Files) || rageReviewSignalsMissingProof(payload.Verify) || rageReviewSignalsMissingProof(payload.Blockers) {
+		return false
+	}
+	return strings.TrimSpace(payload.Progress) != ""
+}
+
+func rageReviewSignalsMissingProof(value string) bool {
+	lower := strings.ToLower(strings.TrimSpace(value))
+	switch lower {
+	case "", "unproven", "not run", "unresolved", "unknown":
+		return true
+	default:
+		return false
+	}
 }
 
 func rageDone(stdout, stderr string) bool {

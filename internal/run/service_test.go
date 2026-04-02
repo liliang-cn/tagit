@@ -152,11 +152,47 @@ func TestBuildRageForemanPromptDemandsExecutionProof(t *testing.T) {
 		"You are wasting compute, GPU time, and electricity if you stop at planning.",
 		"No completion claim is valid without concrete file changes and verification.",
 		"Resume execution now and remove the blocker for real.",
+		"You, the foreman, are the final authority on whether the task is done.",
+		"Only leave `Next:` empty if the task is truly complete and verified.",
 		"Review round: 3",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("buildRageForemanPrompt() missing %q:\n%s", want, prompt)
 		}
+	}
+}
+
+func TestForemanDeterminesDone(t *testing.T) {
+	t.Parallel()
+
+	done := domain.ArtifactEnvelope{
+		Kind: domain.ArtifactKindRageReview,
+		Payload: artifacts.RageReviewPayload{
+			Progress: "all required work is complete and verified",
+			Next:     "",
+			Files:    "changed and verified",
+			Verify:   "tests passed",
+			PlanOnly: "no",
+			Blockers: "resolved",
+		},
+	}
+	if !foremanDeterminesDone(done) {
+		t.Fatal("foremanDeterminesDone(done) = false, want true")
+	}
+
+	notDone := domain.ArtifactEnvelope{
+		Kind: domain.ArtifactKindRageReview,
+		Payload: artifacts.RageReviewPayload{
+			Progress: "worker claims done",
+			Next:     "",
+			Files:    "changed and verified",
+			Verify:   "not run",
+			PlanOnly: "no",
+			Blockers: "resolved",
+		},
+	}
+	if foremanDeterminesDone(notDone) {
+		t.Fatal("foremanDeterminesDone(notDone) = true, want false")
 	}
 }
 
@@ -169,17 +205,47 @@ func TestRunWithResultRageContinuesUntilDone(t *testing.T) {
 
 	script := strings.Join([]string{
 		`prompt="$1"`,
-		`if printf '%s' "$prompt" | grep -q "ROMA rage foreman mode"; then`,
-		`  printf 'Progress: first pass landed\n'`,
-		`  printf 'Missing: final implementation and merge markers are not complete\n'`,
-		`  printf 'Next: finish the implementation, write rage.txt, emit ROMA_DONE, and emit ROMA_MERGE_BACK.\n'`,
+		`if printf '%s' "$prompt" | grep -q "You are ROMA's semantic runtime classifier."; then`,
+		`  printf 'intent: test rage review\n'`,
+		`  printf 'risk: low\n'`,
+		`  printf 'needs_approval: false\n'`,
+		`  printf 'recommend_curia: false\n'`,
+		`  printf 'summary: test semantic review\n'`,
+		`elif printf '%s' "$prompt" | grep -q "ROMA rage foreman mode"; then`,
+		`  if printf '%s' "$prompt" | grep -q "objective implemented for real"; then`,
+		`    printf 'Progress: implementation complete and verified\n'`,
+		`    printf 'Missing:\n'`,
+		`    printf 'Files: changed rage.txt\n'`,
+		`    printf 'Verify: tests passed\n'`,
+		`    printf 'PlanOnly: no\n'`,
+		`    printf 'Blockers: resolved\n'`,
+		`    printf 'Next:\n'`,
+		`  elif printf '%s' "$prompt" | grep -q "objective implemented too early"; then`,
+		`    printf 'Progress: first pass landed\n'`,
+		`    printf 'Missing: final implementation and merge markers are not complete\n'`,
+		`    printf 'Files: changed rage.txt scaffold\n'`,
+		`    printf 'Verify: not run\n'`,
+		`    printf 'PlanOnly: no\n'`,
+		`    printf 'Blockers: unresolved\n'`,
+		`    printf 'Next: finish the implementation, write rage.txt, emit ROMA_DONE, and emit ROMA_MERGE_BACK.\n'`,
+		`  else`,
+		`    printf 'Progress: review fallback\n'`,
+		`    printf 'Missing:\n'`,
+		`    printf 'Files: changed rage.txt\n'`,
+		`    printf 'Verify: tests passed\n'`,
+		`    printf 'PlanOnly: no\n'`,
+		`    printf 'Blockers: resolved\n'`,
+		`    printf 'Next:\n'`,
+		`  fi`,
 		`elif printf '%s' "$prompt" | grep -q "Current round: 2"; then`,
 		`  printf 'done\n' > rage.txt`,
-		`  printf 'ROMA_DONE: objective implemented\n'`,
+		`  printf 'ROMA_DONE: objective implemented for real\n'`,
 		`  printf 'ROMA_MERGE_BACK: direct_merge | rage mode complete\n'`,
 		`  printf 'ROMA_MERGE_FILE: rage.txt\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Current round: 1"; then`,
+		`  printf 'ROMA_DONE: objective implemented too early\n'`,
 		`else`,
-		`  printf 'first pass only\n'`,
+		`  printf 'fallback worker output\n'`,
 		`fi`,
 	}, "\n")
 
@@ -243,8 +309,11 @@ func TestRunWithResultRageContinuesUntilDone(t *testing.T) {
 	if !strings.Contains(payload.Answer, "== round 2 ==") {
 		t.Fatalf("final answer missing continuous rounds:\n%s", payload.Answer)
 	}
-	if !strings.Contains(payload.Answer, "ROMA_DONE: objective implemented") {
-		t.Fatalf("final answer missing completion marker:\n%s", payload.Answer)
+	if !strings.Contains(payload.Answer, "ROMA_DONE: objective implemented too early") {
+		t.Fatalf("final answer missing first-round worker claim:\n%s", payload.Answer)
+	}
+	if !strings.Contains(payload.Answer, "ROMA_DONE: objective implemented for real") {
+		t.Fatalf("final answer missing second-round completion marker:\n%s", payload.Answer)
 	}
 }
 

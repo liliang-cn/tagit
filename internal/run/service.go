@@ -30,6 +30,7 @@ import (
 // Request describes a user-triggered run.
 type Request struct {
 	Prompt         string
+	PromptFile     string
 	Mode           string
 	StarterAgent   string
 	WorkingDir     string

@@ -341,17 +341,75 @@ func TestParseRunArgsModes(t *testing.T) {
 	}
 }
 
+func TestParseRunArgsPromptFile(t *testing.T) {
+	t.Parallel()
+
+	req, err := parseRunArgs([]string{"--agent", "my-codex", "--prompt-file", "./prompt.txt"})
+	if err != nil {
+		t.Fatalf("parseRunArgs() with --prompt-file error = %v", err)
+	}
+	if req.PromptFile != "./prompt.txt" {
+		t.Fatalf("prompt file = %q, want %q", req.PromptFile, "./prompt.txt")
+	}
+	if req.Prompt != "" {
+		t.Fatalf("prompt = %q, want empty until prompt file is read", req.Prompt)
+	}
+}
+
 func TestParseRunArgsRequiresPromptFlag(t *testing.T) {
 	t.Parallel()
 
 	_, err := parseRunArgs([]string{"--agent", "my-codex"})
-	if err == nil || !strings.Contains(err.Error(), "--prompt is required") {
-		t.Fatalf("parseRunArgs() error = %v, want --prompt is required", err)
+	if err == nil || !strings.Contains(err.Error(), "one of --prompt or --prompt-file is required") {
+		t.Fatalf("parseRunArgs() error = %v, want prompt or prompt-file requirement", err)
 	}
 
 	_, err = parseRunArgs([]string{"--agent", "my-codex", "build", "feature"})
-	if err == nil || !strings.Contains(err.Error(), `unexpected positional argument "build"; use --prompt`) {
+	if err == nil || !strings.Contains(err.Error(), `unexpected positional argument "build"; use --prompt or --prompt-file`) {
 		t.Fatalf("parseRunArgs() error = %v, want positional argument guidance", err)
+	}
+}
+
+func TestParseRunArgsRejectsPromptAndPromptFileTogether(t *testing.T) {
+	t.Parallel()
+
+	_, err := parseRunArgs([]string{"--agent", "my-codex", "--prompt", "build feature", "--prompt-file", "./prompt.txt"})
+	if err == nil || !strings.Contains(err.Error(), "provide only one of --prompt or --prompt-file") {
+		t.Fatalf("parseRunArgs() error = %v, want mutual exclusion guidance", err)
+	}
+}
+
+func TestReadPromptFile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "prompt.txt")
+	want := "line one\nline two\n"
+	if err := os.WriteFile(path, []byte(want), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	got, err := readPromptFile(path)
+	if err != nil {
+		t.Fatalf("readPromptFile() error = %v", err)
+	}
+	if got != want {
+		t.Fatalf("prompt = %q, want %q", got, want)
+	}
+}
+
+func TestReadPromptFileRejectsEmptyContent(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "prompt.txt")
+	if err := os.WriteFile(path, []byte(" \n\t"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	_, err := readPromptFile(path)
+	if err == nil || !strings.Contains(err.Error(), "is empty") {
+		t.Fatalf("readPromptFile() error = %v, want empty prompt file error", err)
 	}
 }
 
@@ -692,7 +750,7 @@ func TestPrintUsageIncludesActualCommands(t *testing.T) {
 	for _, want := range []string{
 		"  roma --help",
 		"  roma check [job_id] [--raw]",
-		`  roma run --prompt "<prompt>" [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`,
+		`  roma run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`,
 		"  roma <command> --help",
 		"  roma result show <session_id>",
 		"  roma acp status",
@@ -724,6 +782,7 @@ func TestPrintTopicUsageRunIncludesActualFlags(t *testing.T) {
 	for _, want := range []string{
 		"roma run usage:",
 		"--prompt <text>",
+		"--prompt-file <path>",
 		"--mode <name>",
 		"collab, senate, or rage",
 		"default mode selection:",

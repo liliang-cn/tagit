@@ -331,6 +331,12 @@ func runPrompt(ctx context.Context, registry *agents.Registry, args []string) er
 	if err != nil {
 		return err
 	}
+	if strings.TrimSpace(req.PromptFile) != "" {
+		req.Prompt, err = readPromptFile(req.PromptFile)
+		if err != nil {
+			return err
+		}
+	}
 	if req.StarterAgent == "" {
 		profile, err := registry.DefaultProfile(ctx)
 		if err != nil {
@@ -3425,6 +3431,8 @@ func syncWorkspace(ctx context.Context, workDir string) error {
 
 func parseRunArgs(args []string) (runsvc.Request, error) {
 	req := runsvc.Request{}
+	var promptFlagSet bool
+	var promptFileFlagSet bool
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -3481,7 +3489,18 @@ func parseRunArgs(args []string) (runsvc.Request, error) {
 			if i >= len(args) {
 				return runsvc.Request{}, fmt.Errorf("--prompt requires a value")
 			}
-			req.Prompt = strings.TrimSpace(args[i])
+			req.Prompt = args[i]
+			promptFlagSet = true
+		case "--prompt-file":
+			i++
+			if i >= len(args) {
+				return runsvc.Request{}, fmt.Errorf("--prompt-file requires a value")
+			}
+			req.PromptFile = strings.TrimSpace(args[i])
+			if req.PromptFile == "" {
+				return runsvc.Request{}, fmt.Errorf("--prompt-file requires a non-empty path")
+			}
+			promptFileFlagSet = true
 		case "--max-rounds":
 			i++
 			if i >= len(args) {
@@ -3493,17 +3512,35 @@ func parseRunArgs(args []string) (runsvc.Request, error) {
 			}
 			req.MaxRounds = n
 		default:
-			return runsvc.Request{}, fmt.Errorf("unexpected positional argument %q; use --prompt", args[i])
+			return runsvc.Request{}, fmt.Errorf("unexpected positional argument %q; use --prompt or --prompt-file", args[i])
 		}
 	}
 
-	if req.Prompt == "" {
-		return runsvc.Request{}, fmt.Errorf("--prompt is required")
+	if promptFlagSet && promptFileFlagSet {
+		return runsvc.Request{}, fmt.Errorf("provide only one of --prompt or --prompt-file")
+	}
+	if !promptFlagSet && !promptFileFlagSet {
+		return runsvc.Request{}, fmt.Errorf("one of --prompt or --prompt-file is required")
+	}
+	if promptFlagSet && strings.TrimSpace(req.Prompt) == "" {
+		return runsvc.Request{}, fmt.Errorf("--prompt requires a non-empty value")
 	}
 	if req.PolicyOverride && req.OverrideActor == "" {
 		req.OverrideActor = policy.OverrideActor()
 	}
 	return req, nil
+}
+
+func readPromptFile(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read prompt file %q: %w", path, err)
+	}
+	prompt := string(data)
+	if strings.TrimSpace(prompt) == "" {
+		return "", fmt.Errorf("prompt file %q is empty", path)
+	}
+	return prompt, nil
 }
 
 func printUsage() {
@@ -3514,7 +3551,7 @@ func printUsage() {
 	fmt.Println("  roma --help")
 	fmt.Println("  roma check [job_id] [--raw]")
 	fmt.Println("  roma tui [--cwd <dir>]")
-	fmt.Println(`  roma run --prompt "<prompt>" [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`)
+	fmt.Println(`  roma run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`)
 	fmt.Println("  roma status")
 	fmt.Println("  roma result show <session_id>")
 	fmt.Println("  roma <command> --help")
@@ -3547,6 +3584,7 @@ func printUsage() {
 	fmt.Println("  roma tui")
 	fmt.Println(`  roma agent add my-codex "My Codex" /usr/bin/codex --arg exec --arg --full-auto --arg {prompt} --pty`)
 	fmt.Println(`  roma run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
+	fmt.Println(`  roma run --prompt-file ./prompt.txt --agent my-codex`)
 	fmt.Println(`  roma run --mode collab --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
 	fmt.Println(`  roma run --mode senate --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
 	fmt.Println(`  roma run --mode rage --prompt "keep going until the feature is actually complete" --agent my-codex`)
@@ -3770,10 +3808,11 @@ func printTopicUsage(topic string) {
 		fmt.Println(`  roma policy check --agent <id> --prompt "<prompt>" [--with <id,...>] [--cwd <dir>]`)
 	case "run":
 		fmt.Println("roma run usage:")
-		fmt.Println(`  roma run --prompt "<prompt>" [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <name>]`)
+		fmt.Println(`  roma run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <name>]`)
 		fmt.Println("")
 		fmt.Println("Flags:")
-		fmt.Println("  --prompt <text>      task prompt (required)")
+		fmt.Println("  --prompt <text>      task prompt")
+		fmt.Println("  --prompt-file <path> read task prompt from a file")
 		fmt.Println("  --mode <name>        orchestration mode: collab, senate, or rage")
 		fmt.Println("  --agent <id>         starter agent ID (default: first available)")
 		fmt.Println("  --with <id,...>      delegate agent IDs (comma-separated)")

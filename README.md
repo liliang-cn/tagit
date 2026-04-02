@@ -53,7 +53,7 @@ curl -fsSL https://raw.githubusercontent.com/liliang-cn/roma/main/install.sh | I
 
 The installer:
 - Detects your OS and architecture (linux/darwin × amd64/arm64)
-- Uses `go install` if Go ≥ 1.22 is available, otherwise downloads a prebuilt binary from GitHub Releases
+- Uses `go install` if Go ≥ 1.22 is available; otherwise, it downloads a prebuilt binary from GitHub Releases
 - Creates `~/.roma/` (ROMA home directory)
 - Verifies the binaries actually run after installation
 - Warns if the install directory is not in `PATH`

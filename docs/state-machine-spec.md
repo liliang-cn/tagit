@@ -245,7 +245,9 @@ Allowed transitions:
 
 ## 4.4 Strategy-Specific Transition Constraints
 
-### Direct
+This section describes internal task-graph strategies such as `direct`, `relay`, and `curia`. These are not the current user-facing `roma run --mode` values; the CLI exposes `rage`, `collab`, and `senate`.
+
+### `direct` task strategy
 
 Typical flow:
 
@@ -257,13 +259,13 @@ Optional branches:
 * `Running -> BlockedByPolicy`
 * `Running -> FailedRecoverable`
 
-### Relay
+### `relay` task strategy
 
 Typical flow:
 
 `Pending -> Ready -> Running -> Succeeded`
 
-Relay-specific rule:
+`relay`-specific rule:
 
 * node may only start when required upstream artifacts are present and valid
 

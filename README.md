@@ -11,7 +11,7 @@ ROMA runs **multiple coding agents simultaneously** — Claude, Codex, Gemini, C
 Instead of asking one agent for the answer, ROMA can:
 
 - **Parallelize**: run the same problem across multiple agents at the same time
-- **Coordinate**: let a Caesar (coordinator) agent break down the task, dispatch subtasks to delegate agents, and synthesize the results
+- **Coordinate**: let a starter agent scope work, dispatch subtasks to delegate agents, and synthesize the results
 - **Vote**: agents propose solutions independently, ROMA collects their outputs and runs anonymous peer review — the best proposal wins
 - **Merge safely**: each agent works in an isolated `git worktree`; ROMA merges the winning implementation back to your main branch automatically via `git apply --3way`
 
@@ -22,16 +22,18 @@ The result is not just "what one agent said" — it's the outcome of a structure
 **`romad`** is the kernel. It owns the queue, sessions, task states, policy checks, workspaces, artifacts, and recovery.
 **`roma`** is the client. You use it to run work, inspect progress, approve plans, and debug sessions.
 
-ROMA supports these execution modes:
+ROMA supports these `roma run` modes:
 
 | Mode | Description |
 |------|-------------|
-| **Direct** | One agent, one task — fast and simple |
-| **Fanout** | Starter clarifies once, then delegate agents execute in parallel. The starter does not implement code. This is the default multi-agent `run` mode. |
-| **Caesar** | Starter acts as an active coordinator and contributor: clarify, bootstrap, review rounds, follow-up delegation, and possible starter-side implementation. |
+| **Rage** | Single-agent execution with worker/foreman rounds until the job is truly done. This is the default when you run with one agent. |
+| **Collab** | Starter scopes work, delegates implement in parallel workspaces, and the starter reviews and synthesizes the result. |
 | **Senate** | Multi-stage voting flow: agents propose plans, vote on the plan, implement against the accepted plan, then vote again on the implementations before merging the winner. |
-| **Curia** | Curia decision flow that produces a `DecisionPack` + `ExecutionPlan` for approval-oriented execution paths. |
-| **Graph** | DAG-based execution with explicit dependencies; any node can use any mode |
+
+Other execution surfaces:
+
+- **Curia**: approval-oriented decision flow that produces a `DecisionPack` plus `ExecutionPlan`
+- **Graph**: DAG execution via `roma debug graph run`, separate from `roma run`
 
 ---
 
@@ -104,20 +106,23 @@ roma start
 ### 3. Run a task
 
 ```sh
-# single agent — direct mode
+# single agent — defaults to rage
 roma run --prompt "add input validation to the user registration handler" --agent claude
 
-# multi-agent — default fanout mode
+# single agent from a prompt file
+roma run --prompt-file ./prompt.txt --agent claude
+
+# multi-agent — defaults to senate
 roma run --prompt "refactor the payment module and add unit tests" --agent claude --with codex
 
-# explicit fanout mode
-roma run --mode fanout --prompt "answer a repo question" --agent codex --with claude
-
-# starter participates, with bootstrap / review / follow-up
-roma run --mode caesar --prompt "build a feature across two agents" --agent codex --with gemini,claude
+# explicit collab mode
+roma run --mode collab --prompt "answer a repo question" --agent codex --with claude
 
 # two-stage plan vote + implementation vote
 roma run --mode senate --prompt "build a feature and pick the best implementation" --agent codex --with gemini,claude
+
+# explicit rage mode
+roma run --mode rage --prompt "keep going until the feature is actually complete" --agent codex
 ```
 
 ### 4. Inspect progress
@@ -152,14 +157,17 @@ Logs are written to `~/.roma/romad.log`. PID is stored in `~/.roma/romad.pid`.
 ### Running tasks
 
 ```sh
-roma run --prompt "<prompt>" [--mode <fanout|caesar|senate>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [-d] [-f] [--verbose]
+roma run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]
 ```
 
 Notes:
-- Default mode is `fanout`.
+- Default mode selection is automatic: one agent uses `rage`; multiple agents use `senate`.
+- `--prompt` and `--prompt-file` are mutually exclusive; one of them is required.
 - Default behavior is `-f`: submit, follow progress, and print the final result when the run completes.
 - Use `-d` to submit in the background and return immediately.
 - `--verbose` prints per-node execution details instead of only the main progress lines.
+- `rage` is single-agent only.
+- `collab` uses the starter agent plus delegates named by `--with`.
 
 ### Queue management
 
@@ -193,7 +201,7 @@ roma debug artifact list --session <session_id>
 roma debug artifact show <artifact_id>
 ```
 
-### Graph (DAG) mode
+### Graph (DAG) execution
 
 ```sh
 roma debug graph run --file examples/curia-test.json
@@ -206,7 +214,6 @@ roma debug graph run --file examples/curia-test.json
 Launch the interactive terminal UI:
 
 ```sh
-roma          # defaults to TUI
 roma tui
 romatui
 ```

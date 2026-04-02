@@ -65,7 +65,7 @@ ROMA v1 should:
 
 * manage interactive AI CLIs through a daemonized runtime
 * decouple sessions from any frontend client
-* support `Direct`, `Relay`, and staged `Curia` execution
+* support `rage`, `collab`, and `senate` as the user-facing `roma run` modes, plus staged `Curia` execution where policy or graph orchestration requires it
 * enforce artifact-only handoff between task nodes
 * isolate writes with Git worktrees
 * persist session state, artifacts, transcripts, and decisions
@@ -208,26 +208,32 @@ Owns:
 
 Gateway services never become execution truth.
 
-## 5. Execution Modes
+## 5. User-Facing Run Modes
 
-### 5.1 Direct
+The current `roma run` CLI exposes three orchestration modes:
 
-Single agent, single workspace, minimal orchestration. Intended for low-risk tasks.
+### 5.1 Rage
 
-### 5.2 Relay
+Single-agent execution with explicit worker/foreman rounds. This is the default when the run has one agent and no delegates. The loop continues until the worker emits `ROMA_DONE:` or the round budget is exhausted.
 
-Multiple DAG nodes where downstream nodes consume validated upstream artifacts rather than raw chain-of-thought or transcript text.
+### 5.2 Collab
 
-### 5.3 Curia
+Starter-led collaboration. The starter agent scopes the work, delegates execute in isolated workspaces, and the starter reviews, synthesizes, and prepares merge-back output.
 
-Consensus mode for high-risk or disputed work. Curia has four phases:
+### 5.3 Senate
+
+Multi-agent proposal, voting, implementation, and winner-selection flow. This is the default when the run has multiple agents.
+
+### 5.4 Curia
+
+Consensus mode for high-risk or disputed work outside the normal `roma run` mode list. Curia has four phases:
 
 1. `Scatter`
 2. `BlindReview`
 3. `DisputeDetection`
 4. `Arbitration`
 
-Curia is not the default mode and must be triggered by scheduler policy or explicit user request.
+Curia is not a normal `roma run --mode` value. It is triggered by scheduler policy, graph execution, or explicit Curia-oriented flows.
 
 ## 6. Curia Triggering
 
@@ -244,9 +250,9 @@ The scheduler may upgrade a task into Curia when any of the following hold:
 
 The chosen execution level should be recorded as:
 
-* `L1`: Direct
-* `L2`: Relay
-* `L3`: Curia
+* `L1`: `rage`
+* `L2`: `collab` or `senate`
+* `L3`: `curia`
 
 ## 7. Core Subsystems
 
@@ -887,7 +893,7 @@ Gateway adapters should evolve independently from orchestration logic. New remot
 
 ## 16. Roadmap
 
-### Phase 1: Daemon + Direct
+### Phase 1: Daemon + Rage
 
 Current status: largely implemented
 
@@ -895,18 +901,18 @@ Current status: largely implemented
 * SQLite event store
 * PTY provider
 * minimal classifier
-* Direct mode
+* rage mode
 * basic TUI
 * attach, detach, replay
 
-### Phase 2: Relay + Workspace
+### Phase 2: Collab/Senate + Workspace
 
 Current status: largely implemented
 
 * DAG scheduler
 * artifact envelope validation
 * worktree lifecycle
-* Relay mode
+* collab and senate orchestration
 * basic policy broker
 * diff approval flow
 
@@ -989,8 +995,8 @@ The correct build order is:
 1. domain schemas and validation
 2. event model and state machines
 3. `romad` module interfaces
-4. Direct mode end-to-end
-5. Relay with isolated worktrees
+4. rage mode end-to-end
+5. collab and senate with isolated worktrees
 6. gateway basics
 7. minimal Curia
 

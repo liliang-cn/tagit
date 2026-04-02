@@ -435,7 +435,7 @@ Owns:
 
 ## 5. Cross-Module Flows
 
-## 5.1 Direct Execution Flow
+## 5.1 Single-Agent Execution Flow (`direct` task strategy)
 
 1. `api` creates session and submits task graph through `sessions` and `scheduler`
 2. `scheduler` evaluates dependencies and marks node `Ready`
@@ -630,4 +630,4 @@ The next useful step after this document is to create:
 
 1. Go interface files under `internal/...`
 2. event and domain type definitions
-3. a minimal `romad` bootstrap path for `CreateSession -> Direct Task -> Replay`
+3. a minimal `romad` bootstrap path for `CreateSession -> single-agent task -> Replay`

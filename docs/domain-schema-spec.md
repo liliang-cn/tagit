@@ -65,6 +65,8 @@ Allowed producer roles:
 
 Allowed task strategies:
 
+These are internal scheduler strategy labels for task-graph nodes, not the user-facing `roma run --mode` values. The current CLI modes are `rage`, `collab`, and `senate`.
+
 * `direct`
 * `relay`
 * `curia`

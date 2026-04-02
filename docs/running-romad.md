@@ -109,7 +109,7 @@ If you specifically want a Windows service, wrap `romad.exe` with a service mana
 
 ## Notes
 
-- `romad` control-plane state lives in `$HOME/.roma`; target repositories are chosen per command via `roma run --cwd <repo>` or by running `roma` from that repository.
+- `romad` control-plane state lives in `$HOME/.roma`; target repositories are chosen per command via `roma run --cwd <repo> --prompt "<prompt>"`, `roma run --cwd <repo> --prompt-file <path>`, or by running `roma` from that repository.
 - Agent execution should happen in isolated worktrees under the target repository, not directly inside `$HOME/.roma`.
 - If you change the binary install path, update the systemd unit or launchd plist path.
 - On all platforms, check the daemon health with:

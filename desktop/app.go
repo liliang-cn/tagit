@@ -15,6 +15,8 @@ import (
 	"github.com/liliang-cn/roma/internal/api"
 	"github.com/liliang-cn/roma/internal/app"
 	"github.com/liliang-cn/roma/internal/domain"
+	"github.com/liliang-cn/roma/internal/events"
+	"github.com/liliang-cn/roma/internal/history"
 	"github.com/liliang-cn/roma/internal/policy"
 	"github.com/liliang-cn/roma/internal/queue"
 	"github.com/liliang-cn/roma/internal/romapath"
@@ -29,6 +31,11 @@ type App struct {
 	workingDir      string
 	embedded        *embeddedDaemon
 	lastDaemonError string
+	streams         map[string]*streamHandle
+}
+
+type streamHandle struct {
+	cancel context.CancelFunc
 }
 
 type embeddedDaemon struct {
@@ -85,7 +92,7 @@ func NewApp() *App {
 			wd = "."
 		}
 	}
-	return &App{workingDir: wd}
+	return &App{workingDir: wd, streams: make(map[string]*streamHandle)}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -97,6 +104,10 @@ func (a *App) startup(ctx context.Context) {
 
 func (a *App) shutdown(ctx context.Context) {
 	a.mu.Lock()
+	for jobID, handle := range a.streams {
+		handle.cancel()
+		delete(a.streams, jobID)
+	}
 	cancel := a.stopEmbeddedLocked()
 	a.mu.Unlock()
 	if cancel != nil {
@@ -193,6 +204,168 @@ func (a *App) ListAgents() ([]domain.AgentProfile, error) {
 		return nil, err
 	}
 	return registry.WithResolvedAvailability(context.Background()), nil
+}
+
+// AgentMutateRequest is the desktop payload for adding an agent profile.
+// For known ids (claude, codex, gemini, copilot) the command arguments are
+// filled in automatically, so only id/name/command are strictly required.
+type AgentMutateRequest struct {
+	ID          string   `json:"id"`
+	DisplayName string   `json:"display_name"`
+	Command     string   `json:"command"`
+	Args        []string `json:"args"`
+	Aliases     []string `json:"aliases"`
+	UsePTY      bool     `json:"use_pty"`
+}
+
+// AddAgent registers a user agent profile and returns a refreshed snapshot.
+func (a *App) AddAgent(req AgentMutateRequest) (BootstrapResponse, error) {
+	id := strings.TrimSpace(req.ID)
+	if id == "" {
+		return BootstrapResponse{}, fmt.Errorf("agent id is required")
+	}
+	command := strings.TrimSpace(req.Command)
+	if command == "" {
+		return BootstrapResponse{}, fmt.Errorf("agent command is required")
+	}
+	displayName := strings.TrimSpace(req.DisplayName)
+	if displayName == "" {
+		displayName = id
+	}
+	registry, err := loadRegistry()
+	if err != nil {
+		return BootstrapResponse{}, err
+	}
+	profile := domain.AgentProfile{
+		ID:           id,
+		DisplayName:  displayName,
+		Command:      command,
+		Args:         trimStrings(req.Args),
+		Aliases:      trimStrings(req.Aliases),
+		UsePTY:       req.UsePTY,
+		Availability: domain.AgentAvailabilityPlanned,
+	}
+	if err := registry.AddUserProfile(profile); err != nil {
+		return BootstrapResponse{}, fmt.Errorf("add agent: %w", err)
+	}
+	return a.Bootstrap()
+}
+
+// RemoveAgent deletes a user agent profile and returns a refreshed snapshot.
+func (a *App) RemoveAgent(id string) (BootstrapResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return BootstrapResponse{}, fmt.Errorf("agent id is required")
+	}
+	registry, err := loadRegistry()
+	if err != nil {
+		return BootstrapResponse{}, err
+	}
+	if err := registry.RemoveUserProfile(id); err != nil {
+		return BootstrapResponse{}, fmt.Errorf("remove agent: %w", err)
+	}
+	return a.Bootstrap()
+}
+
+// SessionHistory returns persisted sessions, newest first.
+func (a *App) SessionHistory() ([]history.SessionRecord, error) {
+	if err := a.ensureDaemon(); err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	records, err := a.currentClient().SessionList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	slices.SortFunc(records, func(x, y history.SessionRecord) int {
+		return y.UpdatedAt.Compare(x.UpdatedAt)
+	})
+	return records, nil
+}
+
+// ArtifactList returns artifacts produced for a session.
+func (a *App) ArtifactList(sessionID string) ([]domain.ArtifactEnvelope, error) {
+	if err := a.ensureDaemon(); err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return a.currentClient().ArtifactList(ctx, strings.TrimSpace(sessionID))
+}
+
+// ArtifactGet returns a single artifact envelope by id.
+func (a *App) ArtifactGet(artifactID string) (domain.ArtifactEnvelope, error) {
+	if err := a.ensureDaemon(); err != nil {
+		return domain.ArtifactEnvelope{}, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return a.currentClient().ArtifactGet(ctx, strings.TrimSpace(artifactID))
+}
+
+// StreamJob opens a live event stream for a job and emits each record to the
+// frontend as a "job:event" Wails event. Calling it again for the same job
+// restarts the stream. Use StopJobStream to stop it.
+func (a *App) StreamJob(jobID string) error {
+	jobID = strings.TrimSpace(jobID)
+	if jobID == "" {
+		return fmt.Errorf("job id is required")
+	}
+	if err := a.ensureDaemon(); err != nil {
+		return err
+	}
+	client := a.currentClient()
+
+	a.mu.Lock()
+	if a.streams == nil {
+		a.streams = make(map[string]*streamHandle)
+	}
+	if existing, ok := a.streams[jobID]; ok {
+		existing.cancel()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	handle := &streamHandle{cancel: cancel}
+	a.streams[jobID] = handle
+	emitCtx := a.requestContextLocked()
+	a.mu.Unlock()
+
+	go func() {
+		defer func() {
+			a.mu.Lock()
+			if a.streams[jobID] == handle {
+				delete(a.streams, jobID)
+			}
+			a.mu.Unlock()
+			runtime.EventsEmit(emitCtx, "job:stream-done", jobID)
+		}()
+		ch := make(chan events.Record, 64)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			for record := range ch {
+				runtime.EventsEmit(emitCtx, "job:event", map[string]any{
+					"job_id": jobID,
+					"record": record,
+				})
+			}
+		}()
+		_ = client.StreamJobEvents(ctx, jobID, ch)
+		close(ch)
+		<-done
+	}()
+	return nil
+}
+
+// StopJobStream stops a live event stream previously started with StreamJob.
+func (a *App) StopJobStream(jobID string) {
+	jobID = strings.TrimSpace(jobID)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if handle, ok := a.streams[jobID]; ok {
+		handle.cancel()
+		delete(a.streams, jobID)
+	}
 }
 
 func (a *App) SubmitRun(req RunSubmitRequest) (api.SubmitResponse, error) {
@@ -455,6 +628,18 @@ func resolveWorkingDir(dir string) (string, error) {
 		return "", fmt.Errorf("working directory is not a directory: %s", resolved)
 	}
 	return resolved, nil
+}
+
+func trimStrings(items []string) []string {
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 func normalizeDelegates(items []string, starter string) []string {

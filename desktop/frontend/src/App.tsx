@@ -1,5 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import './App.css';
+import { AgentsPanel } from './AgentsPanel';
+import { HistoryPanel } from './HistoryPanel';
+import { LiveLog } from './LiveLog';
 import {
   approvePlan,
   bootstrapApp,
@@ -27,14 +30,14 @@ import type {
 } from './types';
 
 const modeOptions = [
-  { value: 'fanout', label: 'Fanout' },
-  { value: 'caesar', label: 'Caesar' },
-  { value: 'senate', label: 'Senate' },
+  { value: 'rage', label: 'Rage — single agent, worker/foreman rounds' },
+  { value: 'collab', label: 'Collab — starter delegates in parallel' },
+  { value: 'senate', label: 'Senate — propose, vote, implement, vote' },
 ] as const;
 
 const emptyRunForm: RunSubmitRequest = {
   prompt: '',
-  mode: 'fanout',
+  mode: 'rage',
   starter_agent: '',
   delegates: [],
   working_dir: '',
@@ -43,7 +46,8 @@ const emptyRunForm: RunSubmitRequest = {
   policy_override: false,
 };
 
-type DetailTab = 'overview' | 'result' | 'plans';
+type DetailTab = 'overview' | 'live' | 'result' | 'plans';
+type ViewMode = 'console' | 'history' | 'agents';
 
 function App() {
   const [boot, setBoot] = useState<BootstrapResponse | null>(null);
@@ -57,9 +61,21 @@ function App() {
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
   const [delegatesText, setDelegatesText] = useState('');
   const [runForm, setRunForm] = useState<RunSubmitRequest>(emptyRunForm);
+  const [view, setView] = useState<ViewMode>('console');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('Starting desktop control plane...');
   const [error, setError] = useState('');
+
+  function applyBootstrap(data: BootstrapResponse) {
+    setBoot(data);
+    setSnapshot(toSnapshot(data));
+    setAgents(data.agents);
+    setRunForm((current) => ({
+      ...current,
+      starter_agent: current.starter_agent || firstAvailableAgent(data.agents),
+      working_dir: current.working_dir || data.working_dir,
+    }));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -264,6 +280,17 @@ function App() {
           <p className="masthead-copy">Run work, watch the queue, inspect one session at a time.</p>
         </div>
         <div className="masthead-actions">
+          <nav className="view-nav">
+            <button className={view === 'console' ? 'view-nav-active' : ''} onClick={() => setView('console')} type="button">
+              Console
+            </button>
+            <button className={view === 'history' ? 'view-nav-active' : ''} onClick={() => setView('history')} type="button">
+              History
+            </button>
+            <button className={view === 'agents' ? 'view-nav-active' : ''} onClick={() => setView('agents')} type="button">
+              Agents
+            </button>
+          </nav>
           <div className={`connection-badge ${boot?.embedded_daemon ? 'connection-badge-embedded' : ''}`}>
             {boot?.embedded_daemon ? 'embedded romad' : 'connected romad'}
           </div>
@@ -299,6 +326,20 @@ function App() {
         </section>
       )}
 
+      {view === 'agents' ? (
+        <main className="single-view">
+          <AgentsPanel
+            agents={agents}
+            configPath={boot?.agent_config_path}
+            onChange={applyBootstrap}
+            onError={setError}
+          />
+        </main>
+      ) : view === 'history' ? (
+        <main className="single-view">
+          <HistoryPanel onError={setError} />
+        </main>
+      ) : (
       <main className="workspace-grid">
         <aside className="sidebar">
           <section className="panel panel-quiet">
@@ -477,6 +518,13 @@ function App() {
                   Overview
                 </button>
                 <button
+                  className={detailTab === 'live' ? 'tab-active' : ''}
+                  onClick={() => setDetailTab('live')}
+                  type="button"
+                >
+                  Live
+                </button>
+                <button
                   className={detailTab === 'result' ? 'tab-active' : ''}
                   onClick={() => setDetailTab('result')}
                   type="button"
@@ -552,6 +600,12 @@ function App() {
                 </section>
               ) : null}
 
+              {detailTab === 'live' ? (
+                <section className="content-stack">
+                  <LiveLog jobID={inspect.job.id} />
+                </section>
+              ) : null}
+
               {detailTab === 'result' ? (
                 <section className="content-stack">
                   {result ? (
@@ -617,6 +671,7 @@ function App() {
           )}
         </section>
       </main>
+      )}
     </div>
   );
 }

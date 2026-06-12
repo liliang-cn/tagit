@@ -135,7 +135,35 @@ export interface SessionRecord {
   delegates?: string[];
   status: string;
   working_dir: string;
+  artifact_ids?: string[];
   final_artifact_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AgentMutateRequest {
+  id: string;
+  display_name: string;
+  command: string;
+  args: string[];
+  aliases: string[];
+  use_pty: boolean;
+}
+
+export interface EventRecord {
+  id: string;
+  session_id?: string;
+  task_id?: string;
+  type: string;
+  actor_type?: string;
+  occurred_at?: string;
+  reason_code?: string;
+  payload?: Record<string, unknown>;
+}
+
+export interface JobEventPayload {
+  job_id: string;
+  record: EventRecord;
 }
 
 export interface ArtifactEnvelope {

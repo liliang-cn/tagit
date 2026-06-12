@@ -250,6 +250,34 @@ export namespace api {
 		    return a;
 		}
 	}
+	export class RageReviewSummary {
+	    artifact_id?: string;
+	    round: number;
+	    progress?: string;
+	    missing?: string;
+	    next?: string;
+	    files?: string;
+	    verify?: string;
+	    plan_only?: string;
+	    blockers?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RageReviewSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.artifact_id = source["artifact_id"];
+	        this.round = source["round"];
+	        this.progress = source["progress"];
+	        this.missing = source["missing"];
+	        this.next = source["next"];
+	        this.files = source["files"];
+	        this.verify = source["verify"];
+	        this.plan_only = source["plan_only"];
+	        this.blockers = source["blockers"];
+	    }
+	}
 	export class SemanticSummary {
 	    intent?: string;
 	    risk?: string;
@@ -372,6 +400,7 @@ export namespace api {
 	    plans?: PlanActionSummary[];
 	    curia?: CuriaSummary;
 	    semantic?: SemanticSummary;
+	    rage_reviews?: RageReviewSummary[];
 	
 	    static createFrom(source: any = {}) {
 	        return new QueueInspectResponse(source);
@@ -394,6 +423,7 @@ export namespace api {
 	        this.plans = this.convertValues(source["plans"], PlanActionSummary);
 	        this.curia = this.convertValues(source["curia"], CuriaSummary);
 	        this.semantic = this.convertValues(source["semantic"], SemanticSummary);
+	        this.rage_reviews = this.convertValues(source["rage_reviews"], RageReviewSummary);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -414,11 +444,13 @@ export namespace api {
 		    return a;
 		}
 	}
+	
 	export class ResultShowResponse {
 	    session: history.SessionRecord;
 	    pending?: boolean;
 	    message?: string;
 	    artifact?: domain.ArtifactEnvelope;
+	    rage_reviews?: RageReviewSummary[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ResultShowResponse(source);
@@ -430,6 +462,7 @@ export namespace api {
 	        this.pending = source["pending"];
 	        this.message = source["message"];
 	        this.artifact = this.convertValues(source["artifact"], domain.ArtifactEnvelope);
+	        this.rage_reviews = this.convertValues(source["rage_reviews"], RageReviewSummary);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -465,6 +498,7 @@ export namespace api {
 	    plans?: PlanActionSummary[];
 	    curia?: CuriaSummary;
 	    semantic?: SemanticSummary;
+	    rage_reviews?: RageReviewSummary[];
 	
 	    static createFrom(source: any = {}) {
 	        return new SessionInspectResponse(source);
@@ -484,6 +518,7 @@ export namespace api {
 	        this.plans = this.convertValues(source["plans"], PlanActionSummary);
 	        this.curia = this.convertValues(source["curia"], CuriaSummary);
 	        this.semantic = this.convertValues(source["semantic"], SemanticSummary);
+	        this.rage_reviews = this.convertValues(source["rage_reviews"], RageReviewSummary);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -508,6 +543,7 @@ export namespace api {
 	    queue_items: number;
 	    sessions: number;
 	    artifacts: number;
+	    rage_reviews: number;
 	    events: number;
 	    active_leases: number;
 	    released_leases: number;
@@ -531,6 +567,7 @@ export namespace api {
 	        this.queue_items = source["queue_items"];
 	        this.sessions = source["sessions"];
 	        this.artifacts = source["artifacts"];
+	        this.rage_reviews = source["rage_reviews"];
 	        this.events = source["events"];
 	        this.active_leases = source["active_leases"];
 	        this.released_leases = source["released_leases"];
@@ -620,6 +657,7 @@ export namespace domain {
 	    use_pty?: boolean;
 	    supports_mcp: boolean;
 	    supports_json_output: boolean;
+	    prompt_transport?: string;
 	    capabilities?: string[];
 	    metadata?: Record<string, string>;
 	    availability: string;
@@ -639,6 +677,7 @@ export namespace domain {
 	        this.use_pty = source["use_pty"];
 	        this.supports_mcp = source["supports_mcp"];
 	        this.supports_json_output = source["supports_json_output"];
+	        this.prompt_transport = source["prompt_transport"];
 	        this.capabilities = source["capabilities"];
 	        this.metadata = source["metadata"];
 	        this.availability = source["availability"];
@@ -899,6 +938,28 @@ export namespace history {
 
 export namespace main {
 	
+	export class AgentMutateRequest {
+	    id: string;
+	    display_name: string;
+	    command: string;
+	    args: string[];
+	    aliases: string[];
+	    use_pty: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new AgentMutateRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.display_name = source["display_name"];
+	        this.command = source["command"];
+	        this.args = source["args"];
+	        this.aliases = source["aliases"];
+	        this.use_pty = source["use_pty"];
+	    }
+	}
 	export class BootstrapResponse {
 	    working_dir: string;
 	    daemon_available: boolean;
@@ -1456,3 +1517,4 @@ export namespace workspace {
 	}
 
 }
+

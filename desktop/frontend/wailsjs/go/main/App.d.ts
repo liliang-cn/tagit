@@ -5,6 +5,13 @@ import {domain} from '../models';
 import {plans} from '../models';
 import {api} from '../models';
 import {queue} from '../models';
+import {history} from '../models';
+
+export function AddAgent(arg1:main.AgentMutateRequest):Promise<main.BootstrapResponse>;
+
+export function ArtifactGet(arg1:string):Promise<domain.ArtifactEnvelope>;
+
+export function ArtifactList(arg1:string):Promise<Array<domain.ArtifactEnvelope>>;
 
 export function Bootstrap():Promise<main.BootstrapResponse>;
 
@@ -24,12 +31,20 @@ export function QueueCancel(arg1:string):Promise<queue.Request>;
 
 export function QueueInspect(arg1:string):Promise<api.QueueInspectResponse>;
 
+export function RemoveAgent(arg1:string):Promise<main.BootstrapResponse>;
+
 export function ResultShow(arg1:string):Promise<api.ResultShowResponse>;
+
+export function SessionHistory():Promise<Array<history.SessionRecord>>;
 
 export function SessionInspect(arg1:string):Promise<api.SessionInspectResponse>;
 
 export function SetWorkingDir(arg1:string):Promise<main.BootstrapResponse>;
 
 export function Snapshot():Promise<main.SnapshotResponse>;
+
+export function StopJobStream(arg1:string):Promise<void>;
+
+export function StreamJob(arg1:string):Promise<void>;
 
 export function SubmitRun(arg1:main.RunSubmitRequest):Promise<api.SubmitResponse>;

@@ -412,9 +412,258 @@
   color: var(--ink-soft);
 }
 
+/* --- view navigation --- */
+.view-nav {
+  display: inline-flex;
+  gap: 4px;
+  background: rgba(58, 52, 44, 0.06);
+  border-radius: 999px;
+  padding: 4px;
+}
+
+.view-nav button {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 7px 14px;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.view-nav button:hover {
+  color: var(--ink);
+}
+
+.view-nav .view-nav-active {
+  background: var(--ink);
+  color: #fcfaf6;
+}
+
+.single-view {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 360px minmax(0, 1fr);
+}
+
+.mono {
+  font-family: "SF Mono", "JetBrains Mono", "Menlo", monospace;
+  font-size: 0.78rem;
+}
+
+.form-hint {
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+  margin: 2px 0 0;
+}
+
+/* --- live log --- */
+.live-log {
+  display: grid;
+  gap: 12px;
+}
+
+.live-log-head {
+  align-items: center;
+  color: var(--ink-soft);
+  display: flex;
+  font-size: 0.82rem;
+  font-weight: 700;
+  gap: 10px;
+}
+
+.live-log-count {
+  margin-left: auto;
+  background: rgba(58, 52, 44, 0.06);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.stream-dot {
+  background: var(--ink-muted);
+  border-radius: 999px;
+  height: 9px;
+  width: 9px;
+}
+
+.stream-dot-on {
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(45, 98, 74, 0.16);
+}
+
+.live-log-body {
+  background: rgba(42, 37, 32, 0.92);
+  border-radius: 14px;
+  color: #f1ece3;
+  font-family: "SF Mono", "JetBrains Mono", "Menlo", monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  max-height: 460px;
+  overflow-y: auto;
+  padding: 14px 16px;
+}
+
+.log-line {
+  display: flex;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.log-time {
+  color: #8d8275;
+  flex-shrink: 0;
+}
+
+.log-type {
+  color: var(--gold);
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.log-type-worker {
+  color: #7fd0c4;
+}
+
+.log-type-foreman,
+.log-type-supervisor {
+  color: #e0a96d;
+}
+
+.log-detail {
+  color: #d8d2c7;
+  word-break: break-word;
+}
+
+.live-log-body .empty-state {
+  color: #9a8f80;
+}
+
+/* --- agents panel --- */
+.agents-view {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+.agent-list {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-row {
+  align-items: center;
+  background: rgba(255, 253, 248, 0.92);
+  border: 1px solid rgba(58, 52, 44, 0.1);
+  border-radius: 14px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+
+.agent-row-main {
+  min-width: 0;
+}
+
+.agent-row-top {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.agent-row-meta {
+  color: var(--ink-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 6px 0 0;
+}
+
+.agent-config-path {
+  color: var(--ink-muted);
+  margin: 12px 0 0;
+  word-break: break-all;
+}
+
+/* --- history + artifacts --- */
+.history-view {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 360px minmax(0, 1fr);
+}
+
+.artifact-layout {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 200px minmax(0, 1fr);
+}
+
+.artifact-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.artifact-chip {
+  background: rgba(255, 253, 248, 0.92);
+  border: 1px solid rgba(58, 52, 44, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.artifact-chip-active {
+  border-color: var(--teal);
+  box-shadow: inset 0 0 0 1px var(--teal);
+}
+
+.artifact-chip span {
+  color: var(--ink-muted);
+}
+
+.diff-block {
+  background: rgba(42, 37, 32, 0.92);
+  border-radius: 12px;
+  color: #e8e2d7;
+  max-height: 360px;
+  overflow: auto;
+  padding: 12px 14px;
+}
+
+.diff-add {
+  color: #8fd49a;
+  display: block;
+}
+
+.diff-del {
+  color: #e08b76;
+  display: block;
+}
+
+.diff-hunk {
+  color: #7fb8d0;
+  display: block;
+}
+
+.diff-ctx {
+  color: #b9b2a6;
+  display: block;
+}
+
 @media (max-width: 1180px) {
   .summary-strip,
   .workspace-grid,
+  .single-view,
+  .agents-view,
+  .history-view,
+  .artifact-layout,
   .overview-grid,
   .split-grid,
   .inline-fields {

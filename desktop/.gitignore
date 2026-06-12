@@ -3,3 +3,4 @@ frontend/dist/*
 !frontend/dist/gitkeep
 build/bin/
 desktop
+frontend/package.json.md5

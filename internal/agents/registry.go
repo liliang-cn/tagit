@@ -326,15 +326,22 @@ func normalizeProfile(profile domain.AgentProfile) domain.AgentProfile {
 	case "codex":
 		profile.Args = []string{"exec", "--full-auto", "--skip-git-repo-check", "--ephemeral", "-C", "{cwd}", "{prompt}"}
 		profile.UsePTY = true
+		profile.PromptTransport = domain.PromptTransportStdin
 	case "gemini":
 		profile.Args = []string{"-p", "{prompt}", "--approval-mode", "auto_edit"}
 		profile.UsePTY = true
+		profile.PromptTransport = domain.PromptTransportArgv
 	case "copilot":
 		profile.Args = []string{"-p", "{prompt}", "--allow-all-tools", "--allow-all-paths", "--allow-all-urls", "-s"}
 		profile.UsePTY = true
+		profile.PromptTransport = domain.PromptTransportArgv
 	case "claude":
 		profile.Args = []string{"-p", "{prompt}", "--permission-mode", "acceptEdits"}
 		profile.UsePTY = true
+		profile.PromptTransport = domain.PromptTransportArgv
+	}
+	if profile.PromptTransport == "" {
+		profile.PromptTransport = domain.PromptTransportArgv
 	}
 	return profile
 }

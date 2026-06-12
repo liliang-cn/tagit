@@ -148,10 +148,9 @@ main() {
 
     printf '\n'
     info "ROMA installed. Next steps:"
-    printf '  1. Register an agent:\n'
+    printf '  1. Register an agent (any installed CLI works; claude and codex shown):\n'
     printf '       roma agent add claude "Claude" $(which claude)\n'
     printf '       roma agent add codex  "Codex"  $(which codex)\n'
-    printf '       roma agent add gemini "Gemini" $(which gemini)\n'
     printf '\n'
     printf '  2. Start the daemon:\n'
     printf '       roma start\n'

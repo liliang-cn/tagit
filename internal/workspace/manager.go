@@ -203,6 +203,13 @@ func (m *Manager) CapturePatch(ctx context.Context, prepared Prepared) ([]byte, 
 		}
 		patch.Write(diff)
 	}
+	if patch.Len() == 0 {
+		committed, err := gitCommittedPatch(ctx, prepared.BaseDir, prepared.EffectiveDir)
+		if err != nil {
+			return nil, err
+		}
+		patch.Write(committed)
+	}
 	return patch.Bytes(), nil
 }
 
@@ -222,6 +229,13 @@ func (m *Manager) ChangedPaths(ctx context.Context, prepared Prepared) ([]string
 	out := append(tracked, untracked...)
 	slices.Sort(out)
 	out = slices.Compact(out)
+	if len(out) == 0 {
+		committed, err := gitCommittedChangedPaths(ctx, prepared.BaseDir, prepared.EffectiveDir)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, committed...)
+	}
 	return out, nil
 }
 
@@ -575,6 +589,52 @@ func gitNoIndexPatch(ctx context.Context, dir, path string) ([]byte, error) {
 		return output, nil
 	}
 	return nil, fmt.Errorf("git diff --binary --no-index %s: %w (%s)", path, err, strings.TrimSpace(string(output)))
+}
+
+func gitCommittedPatch(ctx context.Context, baseDir, worktreeDir string) ([]byte, error) {
+	baseHead, err := gitHeadRev(ctx, baseDir)
+	if err != nil {
+		return nil, nil
+	}
+	worktreeHead, err := gitHeadRev(ctx, worktreeDir)
+	if err != nil {
+		return nil, nil
+	}
+	if baseHead == "" || worktreeHead == "" || baseHead == worktreeHead {
+		return nil, nil
+	}
+	output, err := gitOutput(ctx, worktreeDir, "diff", "--binary", baseHead+".."+worktreeHead)
+	if err != nil {
+		return nil, fmt.Errorf("git diff --binary %s..%s: %w", baseHead, worktreeHead, err)
+	}
+	return output, nil
+}
+
+func gitCommittedChangedPaths(ctx context.Context, baseDir, worktreeDir string) ([]string, error) {
+	baseHead, err := gitHeadRev(ctx, baseDir)
+	if err != nil {
+		return nil, nil
+	}
+	worktreeHead, err := gitHeadRev(ctx, worktreeDir)
+	if err != nil {
+		return nil, nil
+	}
+	if baseHead == "" || worktreeHead == "" || baseHead == worktreeHead {
+		return nil, nil
+	}
+	paths, err := gitPathList(ctx, worktreeDir, "diff", "--name-only", "-z", baseHead+".."+worktreeHead)
+	if err != nil {
+		return nil, fmt.Errorf("git diff --name-only %s..%s: %w", baseHead, worktreeHead, err)
+	}
+	return paths, nil
+}
+
+func gitHeadRev(ctx context.Context, dir string) (string, error) {
+	output, err := gitOutput(ctx, dir, "rev-parse", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 
 func buildConflictContext(patch string, conflictPaths []string) []ConflictSnippet {

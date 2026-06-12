@@ -2,7 +2,9 @@ package runtime
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -20,9 +22,10 @@ func TestBuildCommandForProfileArgs(t *testing.T) {
 	supervisor := DefaultSupervisor()
 	cmd, err := supervisor.BuildCommand(context.Background(), StartRequest{
 		Profile: domain.AgentProfile{
-			ID:      "my-codex",
-			Command: "codex",
-			Args:    []string{"exec", "--full-auto", "-C", "{cwd}", "{prompt}"},
+			ID:              "my-codex",
+			Command:         "codex",
+			Args:            []string{"exec", "--full-auto", "-C", "{cwd}", "{prompt}"},
+			PromptTransport: domain.PromptTransportStdin,
 		},
 		Prompt:     "test prompt",
 		WorkingDir: "/tmp/work",
@@ -33,8 +36,11 @@ func TestBuildCommandForProfileArgs(t *testing.T) {
 	if got := cmd.Args[0]; got != "codex" {
 		t.Fatalf("command = %s, want codex", got)
 	}
-	if got := strings.Join(cmd.Args[1:], " "); got != "exec --full-auto -C /tmp/work test prompt --add-dir /tmp/work/.git" {
-		t.Fatalf("args = %q, want %q", got, "exec --full-auto -C /tmp/work test prompt --add-dir /tmp/work/.git")
+	if got := strings.Join(cmd.Args[1:], " "); got != "exec --full-auto -C /tmp/work - --add-dir /tmp/work/.git" {
+		t.Fatalf("args = %q, want %q", got, "exec --full-auto -C /tmp/work - --add-dir /tmp/work/.git")
+	}
+	if cmd.Stdin == nil {
+		t.Fatal("Stdin = nil, want prompt passed via stdin for codex")
 	}
 }
 
@@ -44,9 +50,10 @@ func TestBuildCommandForCodexDoesNotDuplicateGitAddDir(t *testing.T) {
 	supervisor := DefaultSupervisor()
 	cmd, err := supervisor.BuildCommand(context.Background(), StartRequest{
 		Profile: domain.AgentProfile{
-			ID:      "my-codex",
-			Command: "codex",
-			Args:    []string{"exec", "--full-auto", "-C", "{cwd}", "{prompt}", "--add-dir", "{cwd}/.git"},
+			ID:              "my-codex",
+			Command:         "codex",
+			Args:            []string{"exec", "--full-auto", "-C", "{cwd}", "{prompt}", "--add-dir", "{cwd}/.git"},
+			PromptTransport: domain.PromptTransportStdin,
 		},
 		Prompt:     "test prompt",
 		WorkingDir: "/tmp/work",
@@ -54,8 +61,53 @@ func TestBuildCommandForCodexDoesNotDuplicateGitAddDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildCommand() error = %v", err)
 	}
-	if got := strings.Join(cmd.Args[1:], " "); got != "exec --full-auto -C /tmp/work test prompt --add-dir /tmp/work/.git" {
+	if got := strings.Join(cmd.Args[1:], " "); got != "exec --full-auto -C /tmp/work - --add-dir /tmp/work/.git" {
 		t.Fatalf("args = %q, want single git add-dir", got)
+	}
+}
+
+func TestBuildCommandForCodexAddsWorktreeGitDirs(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	workDir := filepath.Join(root, "repo")
+	gitDir := filepath.Join(root, "git-meta", "worktrees", "root1")
+	commonDir := filepath.Join(root, "git-meta")
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(workDir) error = %v", err)
+	}
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(gitDir) error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workDir, ".git"), []byte("gitdir: "+gitDir+"\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(.git) error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(gitDir, "commondir"), []byte("../..\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(commondir) error = %v", err)
+	}
+
+	supervisor := DefaultSupervisor()
+	cmd, err := supervisor.BuildCommand(context.Background(), StartRequest{
+		Profile: domain.AgentProfile{
+			ID:              "my-codex",
+			Command:         "codex",
+			Args:            []string{"exec", "--full-auto", "-C", "{cwd}", "{prompt}"},
+			PromptTransport: domain.PromptTransportStdin,
+		},
+		Prompt:     "test prompt",
+		WorkingDir: workDir,
+	})
+	if err != nil {
+		t.Fatalf("BuildCommand() error = %v", err)
+	}
+	got := strings.Join(cmd.Args[1:], " ")
+	for _, want := range []string{
+		"--add-dir " + gitDir,
+		"--add-dir " + commonDir,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("args = %q, missing %q", got, want)
+		}
 	}
 }
 
@@ -151,6 +203,26 @@ func TestRunCapturedContinuous(t *testing.T) {
 	}
 	if !strings.Contains(result.Stdout, "ROMA_DONE:") {
 		t.Fatalf("continuous output missing completion marker: %s", result.Stdout)
+	}
+}
+
+func TestShouldUsePTYDisablesPTYForCodexPromptStdin(t *testing.T) {
+	t.Parallel()
+
+	supervisor := NewSupervisor(ProfileAdapter{})
+	req := StartRequest{
+		Profile: domain.AgentProfile{
+			ID:              "codex",
+			Command:         "codex",
+			Args:            []string{"exec", "--full-auto", "-C", "{cwd}", "{prompt}"},
+			UsePTY:          true,
+			PromptTransport: domain.PromptTransportStdin,
+		},
+		Prompt:     "stdin prompt",
+		WorkingDir: ".",
+	}
+	if supervisor.shouldUsePTY(ProfileAdapter{}, req) {
+		t.Fatal("shouldUsePTY() = true, want false for codex stdin transport")
 	}
 }
 

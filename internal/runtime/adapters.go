@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -23,11 +24,15 @@ func (ProfileAdapter) BuildCommand(ctx context.Context, req StartRequest) (*exec
 	if strings.TrimSpace(req.Profile.Command) == "" {
 		return nil, fmt.Errorf("agent %q has no command configured", req.Profile.ID)
 	}
-	args, err := buildProfileArgs(req)
+	args, promptViaStdin, err := buildProfileArgs(req)
 	if err != nil {
 		return nil, err
 	}
-	return exec.CommandContext(ctx, req.Profile.Command, args...), nil
+	command := exec.CommandContext(ctx, req.Profile.Command, args...)
+	if promptViaStdin {
+		command.Stdin = strings.NewReader(req.Prompt)
+	}
+	return command, nil
 }
 
 // RequiresPTY reports whether the profile should be launched in a PTY.
@@ -41,11 +46,12 @@ func (ProfileAdapter) RequiresPTY(profile domain.AgentProfile) bool {
 	return truthy(profile.Metadata["pty"]) || truthy(profile.Metadata["use_pty"])
 }
 
-func buildProfileArgs(req StartRequest) ([]string, error) {
+func buildProfileArgs(req StartRequest) ([]string, bool, error) {
 	args := make([]string, 0, len(req.Profile.Args)+1)
 	promptReferenced := false
+	promptViaStdin := shouldUsePromptStdin(req)
 	for _, arg := range req.Profile.Args {
-		expanded, usedPrompt := expandProfileArg(arg, req)
+		expanded, usedPrompt := expandProfileArg(arg, req, promptViaStdin)
 		promptReferenced = promptReferenced || usedPrompt
 		if strings.TrimSpace(expanded) == "" {
 			continue
@@ -53,10 +59,14 @@ func buildProfileArgs(req StartRequest) ([]string, error) {
 		args = append(args, expanded)
 	}
 	if !promptReferenced && strings.TrimSpace(req.Prompt) != "" {
-		args = append(args, req.Prompt)
+		if promptViaStdin {
+			args = append(args, "-")
+		} else {
+			args = append(args, req.Prompt)
+		}
 	}
 	args = maybeInjectCodexGitWriteAccess(req, args)
-	return args, nil
+	return args, promptViaStdin, nil
 }
 
 func maybeInjectCodexGitWriteAccess(req StartRequest, args []string) []string {
@@ -64,20 +74,101 @@ func maybeInjectCodexGitWriteAccess(req StartRequest, args []string) []string {
 	if command != "codex" || strings.TrimSpace(req.WorkingDir) == "" {
 		return args
 	}
+	out := append([]string{}, args...)
+	for _, root := range gitWritableRoots(req.WorkingDir) {
+		if hasAddDirArg(out, root) {
+			continue
+		}
+		out = append(out, "--add-dir", root)
+	}
+	return out
+}
+
+func gitWritableRoots(workDir string) []string {
+	gitPath := filepath.Clean(filepath.Join(workDir, ".git"))
+	info, err := os.Stat(gitPath)
+	if err != nil {
+		return []string{gitPath}
+	}
+	if info.IsDir() {
+		return []string{gitPath}
+	}
+	gitDir, ok := resolveGitDirFromPointer(workDir, gitPath)
+	if !ok {
+		return []string{gitPath}
+	}
+	roots := []string{gitDir}
+	if commonDir, ok := resolveGitCommonDir(gitDir); ok {
+		roots = append(roots, commonDir)
+	}
+	return uniqueCleanPaths(roots)
+}
+
+func resolveGitDirFromPointer(workDir, gitPath string) (string, bool) {
+	data, err := os.ReadFile(gitPath)
+	if err != nil {
+		return "", false
+	}
+	line := strings.TrimSpace(string(data))
+	if !strings.HasPrefix(strings.ToLower(line), "gitdir:") {
+		return "", false
+	}
+	target := strings.TrimSpace(line[len("gitdir:"):])
+	if target == "" {
+		return "", false
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(workDir, target)
+	}
+	return filepath.Clean(target), true
+}
+
+func resolveGitCommonDir(gitDir string) (string, bool) {
+	data, err := os.ReadFile(filepath.Join(gitDir, "commondir"))
+	if err != nil {
+		return "", false
+	}
+	target := strings.TrimSpace(string(data))
+	if target == "" {
+		return "", false
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(gitDir, target)
+	}
+	return filepath.Clean(target), true
+}
+
+func hasAddDirArg(args []string, root string) bool {
+	cleanRoot := filepath.Clean(root)
 	for i := 0; i < len(args)-1; i++ {
 		if args[i] != "--add-dir" {
 			continue
 		}
-		if filepath.Clean(args[i+1]) == filepath.Join(req.WorkingDir, ".git") {
-			return args
+		if filepath.Clean(args[i+1]) == cleanRoot {
+			return true
 		}
 	}
-	out := append([]string{}, args...)
-	out = append(out, "--add-dir", filepath.Join(req.WorkingDir, ".git"))
+	return false
+}
+
+func uniqueCleanPaths(paths []string) []string {
+	out := make([]string, 0, len(paths))
+	seen := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		clean := filepath.Clean(path)
+		if clean == "" {
+			continue
+		}
+		if _, ok := seen[clean]; ok {
+			continue
+		}
+		seen[clean] = struct{}{}
+		out = append(out, clean)
+	}
 	return out
 }
 
-func expandProfileArg(arg string, req StartRequest) (string, bool) {
+func expandProfileArg(arg string, req StartRequest, promptViaStdin bool) (string, bool) {
 	replacements := map[string]string{
 		"{prompt}":       req.Prompt,
 		"{cwd}":          req.WorkingDir,
@@ -92,11 +183,18 @@ func expandProfileArg(arg string, req StartRequest) (string, bool) {
 		if strings.Contains(expanded, placeholder) {
 			if placeholder == "{prompt}" {
 				promptReferenced = true
+				if promptViaStdin {
+					value = "-"
+				}
 			}
 			expanded = strings.ReplaceAll(expanded, placeholder, value)
 		}
 	}
 	return expanded, promptReferenced
+}
+
+func shouldUsePromptStdin(req StartRequest) bool {
+	return req.Profile.PromptTransport == domain.PromptTransportStdin && strings.TrimSpace(req.Prompt) != ""
 }
 
 func truthy(raw string) bool {

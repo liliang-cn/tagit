@@ -85,12 +85,12 @@ make install        # installs to ~/.local/bin
 ### 1. Register agents
 
 ROMA has no built-in agents. Register whichever CLI coding tools you have installed.
-For `claude`, `codex`, and `gemini`, command arguments are filled in automatically:
+For `claude`, `codex`, `gemini`, and `copilot`, command arguments are filled in
+automatically — add only the ones you actually have on `PATH`:
 
 ```sh
 roma agent add claude "Claude" $(which claude)
 roma agent add codex  "Codex"  $(which codex)
-roma agent add gemini "Gemini" $(which gemini)
 
 # confirm
 roma agent list
@@ -119,7 +119,7 @@ roma run --prompt "refactor the payment module and add unit tests" --agent claud
 roma run --mode collab --prompt "answer a repo question" --agent codex --with claude
 
 # two-stage plan vote + implementation vote
-roma run --mode senate --prompt "build a feature and pick the best implementation" --agent codex --with gemini,claude
+roma run --mode senate --prompt "build a feature and pick the best implementation" --agent codex --with claude
 
 # explicit rage mode
 roma run --mode rage --prompt "keep going until the feature is actually complete" --agent codex

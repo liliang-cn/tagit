@@ -151,6 +151,30 @@ func TestRegistryGetAlias(t *testing.T) {
 	}
 }
 
+func TestNormalizeProfileSetsPromptTransportDefaults(t *testing.T) {
+	t.Parallel()
+
+	codex := normalizeProfile(domain.AgentProfile{
+		ID:           "codex",
+		DisplayName:  "Codex",
+		Command:      "codex",
+		Availability: domain.AgentAvailabilityAvailable,
+	})
+	if codex.PromptTransport != domain.PromptTransportStdin {
+		t.Fatalf("codex prompt transport = %q, want %q", codex.PromptTransport, domain.PromptTransportStdin)
+	}
+
+	claude := normalizeProfile(domain.AgentProfile{
+		ID:           "claude",
+		DisplayName:  "Claude",
+		Command:      "claude",
+		Availability: domain.AgentAvailabilityAvailable,
+	})
+	if claude.PromptTransport != domain.PromptTransportArgv {
+		t.Fatalf("claude prompt transport = %q, want %q", claude.PromptTransport, domain.PromptTransportArgv)
+	}
+}
+
 func TestRegistryDefaultProfileUsesFirstConfiguredAgent(t *testing.T) {
 	t.Parallel()
 

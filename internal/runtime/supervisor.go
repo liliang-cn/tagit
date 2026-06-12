@@ -150,7 +150,7 @@ func (s *Supervisor) RunAttached(ctx context.Context, req StartRequest) error {
 	}
 
 	command.Dir = req.WorkingDir
-	if s.shouldUsePTY(adapter, req.Profile) {
+	if s.shouldUsePTY(adapter, req) {
 		if err := s.runAttachedPTY(req, execID, command); err == nil {
 			return nil
 		} else if !canFallbackPTY(err) {
@@ -201,7 +201,7 @@ func (s *Supervisor) runCapturedSingle(ctx context.Context, req StartRequest) (R
 	}
 
 	command.Dir = req.WorkingDir
-	if s.shouldUsePTY(adapter, req.Profile) {
+	if s.shouldUsePTY(adapter, req) {
 		result, err := s.runCapturedPTY(req, execID, command)
 		if err == nil {
 			return result, nil
@@ -541,15 +541,18 @@ func (s *Supervisor) analyzeSignal(execID string, req StartRequest, signal polic
 	}()
 }
 
-func (s *Supervisor) shouldUsePTY(adapter Adapter, profile domain.AgentProfile) bool {
+func (s *Supervisor) shouldUsePTY(adapter Adapter, req StartRequest) bool {
 	if s.pty == nil {
+		return false
+	}
+	if shouldUsePromptStdin(req) {
 		return false
 	}
 	preference, ok := adapter.(PTYPreference)
 	if !ok {
 		return false
 	}
-	return preference.RequiresPTY(profile)
+	return preference.RequiresPTY(req.Profile)
 }
 
 func (s *Supervisor) runAttachedPTY(req StartRequest, execID string, command *exec.Cmd) error {
@@ -590,6 +593,7 @@ func (s *Supervisor) runAttachedPTY(req StartRequest, execID string, command *ex
 
 func (s *Supervisor) runCapturedPTY(req StartRequest, execID string, command *exec.Cmd) (Result, error) {
 	ensurePTYEnv(command)
+	stdinSource := command.Stdin
 	log.Printf("[DEBUG] runCapturedPTY: command=%s, dir=%s, env=%v", command.Path, command.Dir, command.Env)
 	session, err := s.pty.Start(command)
 	if err != nil {
@@ -607,8 +611,21 @@ func (s *Supervisor) runCapturedPTY(req StartRequest, execID string, command *ex
 	go func() {
 		readErrCh <- s.streamOutput(req, execID, session, &output, "pty")
 	}()
+	stdinErrCh := make(chan error, 1)
+	if stdinSource != nil {
+		go func() {
+			_, copyErr := io.Copy(session, stdinSource)
+			stdinErrCh <- copyErr
+		}()
+	} else {
+		close(stdinErrCh)
+	}
 	waitErr := session.Wait()
 	readErr := <-readErrCh
+	stdinErr := error(nil)
+	if stdinSource != nil {
+		stdinErr = <-stdinErrCh
+	}
 	s.markFinished(execID, req.Profile, mapExecutionState(waitErr))
 
 	combined := output.String()
@@ -619,6 +636,9 @@ func (s *Supervisor) runCapturedPTY(req StartRequest, execID string, command *ex
 	}
 	if readErr != nil && !isExpectedPTYReadError(readErr) {
 		return result, fmt.Errorf("read PTY output for %s: %w", req.Profile.ID, readErr)
+	}
+	if stdinErr != nil && !errors.Is(stdinErr, io.EOF) {
+		return result, fmt.Errorf("write PTY input for %s: %w", req.Profile.ID, stdinErr)
 	}
 	if waitErr != nil {
 		return result, fmt.Errorf("run agent %s: %w", req.Profile.ID, waitErr)

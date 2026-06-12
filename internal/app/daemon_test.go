@@ -41,10 +41,12 @@ func TestDaemonReloadsUserAgentConfigBeforeProcessingQueueItem(t *testing.T) {
 	updated := []domain.AgentProfile{
 		initial[0],
 		{
-			ID:           "my-opencode",
-			DisplayName:  "My OpenCode",
-			Command:      "sh",
-			Args:         []string{"-c", "printf 'opencode ok\n'"},
+			ID:          "my-opencode",
+			DisplayName: "My OpenCode",
+			Command:     "sh",
+			// Emit a foreman review that reads as complete so the rage loop
+			// finishes on round 1 instead of grinding to its max-round cap.
+			Args:         []string{"-c", "printf 'Progress: done\nFiles: changed\nVerify: passed\nPlanOnly: no\nBlockers: resolved\n'"},
 			Availability: domain.AgentAvailabilityPlanned,
 		},
 	}

@@ -283,6 +283,51 @@ func TestManagerCapturePatchAndMergeBackIncludesUntrackedFiles(t *testing.T) {
 	}
 }
 
+func TestManagerCapturePatchAndMergeBackIncludesCommittedWorktreeChanges(t *testing.T) {
+	root := t.TempDir()
+	initGitRepo(t, root)
+
+	manager := NewManager(root, store.NewMemoryStore())
+	prepared, err := manager.Prepare(context.Background(), "sess_merge_commit", "task_merge_commit", root, domain.TaskStrategyDirect)
+	if err != nil {
+		t.Fatalf("Prepare returned error: %v", err)
+	}
+
+	target := filepath.Join(prepared.EffectiveDir, "README.md")
+	if err := os.WriteFile(target, []byte("roma committed\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	runGitCommand(t, prepared.EffectiveDir, "add", "README.md")
+	runGitCommand(t, prepared.EffectiveDir, "commit", "-m", "update readme in worktree")
+
+	patch, err := manager.CapturePatch(context.Background(), prepared)
+	if err != nil {
+		t.Fatalf("CapturePatch() error = %v", err)
+	}
+	if len(patch) == 0 {
+		t.Fatal("expected non-empty patch for committed worktree change")
+	}
+
+	paths, err := manager.ChangedPaths(context.Background(), prepared)
+	if err != nil {
+		t.Fatalf("ChangedPaths() error = %v", err)
+	}
+	if len(paths) != 1 || paths[0] != "README.md" {
+		t.Fatalf("paths = %#v, want [README.md]", paths)
+	}
+
+	if err := manager.MergeBack(context.Background(), prepared); err != nil {
+		t.Fatalf("MergeBack() error = %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if strings.TrimSpace(string(content)) != "roma committed" {
+		t.Fatalf("base README = %q, want roma committed", strings.TrimSpace(string(content)))
+	}
+}
+
 func initGitRepo(t *testing.T, dir string) {
 	t.Helper()
 	runGitCommand(t, dir, "init")

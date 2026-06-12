@@ -10,6 +10,14 @@ const (
 	AgentAvailabilityAvailable AgentAvailability = "available"
 )
 
+// PromptTransport defines how the agent should receive its prompt payload.
+type PromptTransport string
+
+const (
+	PromptTransportArgv  PromptTransport = "argv"
+	PromptTransportStdin PromptTransport = "stdin"
+)
+
 // AgentProfile describes an external coding agent runtime.
 type AgentProfile struct {
 	ID                 string            `json:"id"`
@@ -21,6 +29,7 @@ type AgentProfile struct {
 	UsePTY             bool              `json:"use_pty,omitempty"`
 	SupportsMCP        bool              `json:"supports_mcp"`
 	SupportsJSONOutput bool              `json:"supports_json_output"`
+	PromptTransport    PromptTransport   `json:"prompt_transport,omitempty"`
 	Capabilities       []string          `json:"capabilities,omitempty"`
 	Metadata           map[string]string `json:"metadata,omitempty"`
 	Availability       AgentAvailability `json:"availability"`
@@ -39,8 +48,13 @@ func ValidateAgentProfile(profile AgentProfile) error {
 	}
 	switch profile.Availability {
 	case AgentAvailabilityPlanned, AgentAvailabilityAvailable:
-		return nil
 	default:
 		return fmt.Errorf("unknown agent availability %q", profile.Availability)
+	}
+	switch profile.PromptTransport {
+	case "", PromptTransportArgv, PromptTransportStdin:
+		return nil
+	default:
+		return fmt.Errorf("unknown prompt transport %q", profile.PromptTransport)
 	}
 }

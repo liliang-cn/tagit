@@ -30,7 +30,7 @@ type RunRecord struct {
 // Episode is a recalled past run.
 type Episode struct {
 	Summary    string
-	Agent      string
+	Agent      string // metadata only; memory is shared
 	Mode       string
 	Success    bool
 	OccurredAt time.Time
@@ -39,7 +39,7 @@ type Episode struct {
 // Fact is a recalled durable note about the repo.
 type Fact struct {
 	Text string
-	Tags []string
+	Tags []string // free-form labels for scoped recall; nil when unknown
 }
 
 // Recollection is what Recall returns; ContextText is ready to inject into a prompt.

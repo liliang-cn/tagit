@@ -4,11 +4,11 @@ import (
 	"context"
 	"log"
 
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/chatbot"
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	larkws "github.com/larksuite/oapi-sdk-go/v3/ws"
+	"github.com/liliang-cn/roma/internal/api"
+	"github.com/liliang-cn/roma/internal/chatbot"
 )
 
 // Bot runs the Feishu long-connection event loop and routes @mentions to the shared handler.

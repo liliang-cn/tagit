@@ -8,6 +8,7 @@ import (
 )
 
 type recordedReply struct {
+	chat string
 	root string
 	text string
 }
@@ -17,10 +18,10 @@ type fakeSender struct {
 	replies []recordedReply
 }
 
-func (f *fakeSender) Reply(_ context.Context, root, text string) error {
+func (f *fakeSender) Reply(_ context.Context, chat, root, text string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.replies = append(f.replies, recordedReply{root: root, text: text})
+	f.replies = append(f.replies, recordedReply{chat: chat, root: root, text: text})
 	return nil
 }
 
@@ -52,7 +53,7 @@ func (f *fakeEnqueuer) count() int {
 	return len(f.args)
 }
 
-func noopProgress(string, string) {}
+func noopProgress(string, string, string) {}
 
 func TestHandleBoundChatEnqueuesAndAcks(t *testing.T) {
 	snd := &fakeSender{}

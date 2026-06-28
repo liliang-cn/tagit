@@ -18,7 +18,9 @@ func NewSender(appID, appSecret string) chatbot.Sender {
 	return &larkSender{cli: lark.NewClient(appID, appSecret)}
 }
 
-func (s *larkSender) Reply(ctx context.Context, rootMessageID, text string) error {
+// Reply ignores chatID: Feishu replies target the message_id (rootMessageID),
+// which already implies the chat.
+func (s *larkSender) Reply(ctx context.Context, _ string, rootMessageID, text string) error {
 	req := larkim.NewReplyMessageReqBuilder().
 		MessageId(rootMessageID).
 		Body(larkim.NewReplyMessageReqBodyBuilder().

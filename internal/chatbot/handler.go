@@ -20,8 +20,9 @@ type Enqueuer interface {
 }
 
 // ProgressFunc streams progress for a job back into the chat thread rooted at
-// rootMessageID. It is run in its own goroutine and must not block the caller.
-type ProgressFunc func(jobID, rootMessageID string)
+// rootMessageID in chatID. It is run in its own goroutine and must not block the
+// caller.
+type ProgressFunc func(jobID, chatID, rootMessageID string)
 
 // Handler turns an @mention in a bound group chat into a ROMA run and acks it.
 type Handler struct {
@@ -56,11 +57,11 @@ func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
 
 	binding, ok := h.bindings.For(msg.ChatID)
 	if !ok {
-		h.reply(ctx, msg.MessageID, "This chat isn't linked to a repo yet. Link it before mentioning me.")
+		h.reply(ctx, msg.ChatID, msg.MessageID, "This chat isn't linked to a repo yet. Link it before mentioning me.")
 		return
 	}
 
-	h.reply(ctx, msg.MessageID, "收到，开始干 🛠️")
+	h.reply(ctx, msg.ChatID, msg.MessageID, "收到，开始干 🛠️")
 
 	mode := binding.Mode
 	if mode == "" {
@@ -73,12 +74,12 @@ func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
 		Mode:   mode,
 	})
 	if err != nil {
-		h.reply(ctx, msg.MessageID, "Failed to start: "+err.Error())
+		h.reply(ctx, msg.ChatID, msg.MessageID, "Failed to start: "+err.Error())
 		return
 	}
 
 	if h.progress != nil {
-		go h.progress(jobID, msg.MessageID)
+		go h.progress(jobID, msg.ChatID, msg.MessageID)
 	}
 }
 
@@ -93,8 +94,8 @@ func (h *Handler) markSeen(messageID string) bool {
 	return true
 }
 
-func (h *Handler) reply(ctx context.Context, rootMessageID, text string) {
-	if err := h.snd.Reply(ctx, rootMessageID, text); err != nil {
+func (h *Handler) reply(ctx context.Context, chatID, rootMessageID, text string) {
+	if err := h.snd.Reply(ctx, chatID, rootMessageID, text); err != nil {
 		log.Printf("chatbot: reply failed: %v", err)
 	}
 }

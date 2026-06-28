@@ -9,10 +9,10 @@ import (
 )
 
 // streamProgress posts throttled progress lines into the thread rooted at
-// rootMessageID, draining ch until it closes or ctx is cancelled. It handles
-// progress only: the caller fetches and posts the final summary once the stream
-// closes. now supplies the clock so throttling is testable.
-func streamProgress(ctx context.Context, snd Sender, rootMessageID string, ch <-chan events.Record, throttle time.Duration, now func() time.Time) {
+// rootMessageID in chatID, draining ch until it closes or ctx is cancelled. It
+// handles progress only: the caller fetches and posts the final summary once the
+// stream closes. now supplies the clock so throttling is testable.
+func streamProgress(ctx context.Context, snd Sender, chatID, rootMessageID string, ch <-chan events.Record, throttle time.Duration, now func() time.Time) {
 	var last time.Time
 	var haveLast bool
 
@@ -34,7 +34,7 @@ func streamProgress(ctx context.Context, snd Sender, rootMessageID string, ch <-
 			}
 			last = t
 			haveLast = true
-			_ = snd.Reply(ctx, rootMessageID, line)
+			_ = snd.Reply(ctx, chatID, rootMessageID, line)
 		}
 	}
 }

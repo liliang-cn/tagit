@@ -17,7 +17,7 @@ func TestStreamProgressPostsThrottledPhases(t *testing.T) {
 	close(ch)
 
 	fixed := time.Unix(0, 0)
-	streamProgress(context.Background(), snd, "root", ch, 0, func() time.Time { return fixed })
+	streamProgress(context.Background(), snd, "chat", "root", ch, 0, func() time.Time { return fixed })
 
 	replies := snd.all()
 	if len(replies) < 1 {
@@ -38,7 +38,7 @@ func TestStreamProgressThrottleSkips(t *testing.T) {
 	close(ch)
 
 	fixed := time.Unix(100, 0)
-	streamProgress(context.Background(), snd, "root", ch, time.Hour, func() time.Time { return fixed })
+	streamProgress(context.Background(), snd, "chat", "root", ch, time.Hour, func() time.Time { return fixed })
 
 	if got := len(snd.all()); got > 1 {
 		t.Fatalf("throttle: expected at most 1 reply, got %d", got)

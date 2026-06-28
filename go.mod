@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/creack/pty v1.1.24
+	github.com/larksuite/oapi-sdk-go/v3 v3.9.7
 	github.com/liliang-cn/agent-go/v2 v2.95.0
 	github.com/mattn/go-sqlite3 v1.14.24
 )

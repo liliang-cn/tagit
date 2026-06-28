@@ -4,21 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-)
 
-// Binding maps one Feishu group chat to a repo and run defaults.
-type Binding struct {
-	ChatID string `json:"chat_id"`
-	Repo   string `json:"repo"`
-	Agent  string `json:"agent,omitempty"`
-	Mode   string `json:"mode,omitempty"`
-}
+	"github.com/liliang-cn/roma/internal/chatbot"
+)
 
 // Config is the on-disk Feishu bot configuration (~/.roma/feishu.json).
 type Config struct {
-	AppID     string    `json:"app_id"`
-	AppSecret string    `json:"app_secret"`
-	Bindings  []Binding `json:"bindings"`
+	AppID     string           `json:"app_id"`
+	AppSecret string           `json:"app_secret"`
+	Bindings  chatbot.Bindings `json:"bindings"`
 }
 
 // Load reads the config. A missing file means the feature is disabled:
@@ -42,11 +36,6 @@ func Load(path string) (*Config, bool, error) {
 }
 
 // BindingFor returns the binding for a chat id.
-func (c *Config) BindingFor(chatID string) (Binding, bool) {
-	for _, b := range c.Bindings {
-		if b.ChatID == chatID {
-			return b, true
-		}
-	}
-	return Binding{}, false
+func (c *Config) BindingFor(chatID string) (chatbot.Binding, bool) {
+	return c.Bindings.For(chatID)
 }

@@ -7,17 +7,14 @@ import (
 
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
-)
 
-// Sender posts text into a Feishu thread, replying to the triggering message.
-type Sender interface {
-	Reply(ctx context.Context, rootMessageID, text string) error
-}
+	"github.com/liliang-cn/roma/internal/chatbot"
+)
 
 type larkSender struct{ cli *lark.Client }
 
-// NewSender builds a Feishu-API-backed Sender.
-func NewSender(appID, appSecret string) Sender {
+// NewSender builds a Feishu-API-backed chatbot.Sender.
+func NewSender(appID, appSecret string) chatbot.Sender {
 	return &larkSender{cli: lark.NewClient(appID, appSecret)}
 }
 

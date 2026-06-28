@@ -6,15 +6,6 @@ import (
 	"strings"
 )
 
-// IncomingMessage is the normalized form of a received Feishu message.
-type IncomingMessage struct {
-	MessageID string
-	ChatID    string
-	ChatType  string // "group" | "p2p" | "topic_group"
-	Text      string // mention tokens stripped
-	Mentioned bool   // the bot was @mentioned
-}
-
 var mentionToken = regexp.MustCompile(`@_user_\d+\s*`)
 
 // parseTextContent extracts plain text from a Feishu text-message Content JSON

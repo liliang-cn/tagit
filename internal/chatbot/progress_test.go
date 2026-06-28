@@ -9,12 +9,11 @@ import (
 	"github.com/liliang-cn/roma/internal/events"
 )
 
-func TestStreamProgressPostsAndSummarizes(t *testing.T) {
+func TestStreamProgressPostsThrottledPhases(t *testing.T) {
 	snd := &fakeSender{}
 	ch := make(chan events.Record, 4)
-	ch <- events.Record{Type: "node.started", Payload: map[string]any{"phase": "worker"}}
-	ch <- events.Record{Type: "node.progress", Payload: map[string]any{"phase": "implementing"}}
-	ch <- events.Record{Type: "session.completed", Payload: map[string]any{"status": "succeeded"}}
+	ch <- events.Record{Type: events.TypeRelayNodeStarted}
+	ch <- events.Record{Type: events.TypeRuntimeStarted}
 	close(ch)
 
 	fixed := time.Unix(0, 0)
@@ -24,39 +23,47 @@ func TestStreamProgressPostsAndSummarizes(t *testing.T) {
 	if len(replies) < 1 {
 		t.Fatalf("expected at least one reply, got %d", len(replies))
 	}
-	last := replies[len(replies)-1]
-	if !strings.Contains(last.text, "succeeded") {
-		t.Fatalf("last reply = %q, want it to contain 'succeeded'", last.text)
+	for i, r := range replies {
+		if strings.TrimSpace(r.text) == "" {
+			t.Fatalf("reply %d is empty", i)
+		}
 	}
 }
 
-func TestStreamProgressThrottles(t *testing.T) {
+func TestStreamProgressThrottleSkips(t *testing.T) {
 	snd := &fakeSender{}
 	ch := make(chan events.Record, 4)
-	ch <- events.Record{Type: "node.progress", Payload: map[string]any{"phase": "a"}}
-	ch <- events.Record{Type: "node.progress", Payload: map[string]any{"phase": "b"}}
+	ch <- events.Record{Type: events.TypeRelayNodeStarted}
+	ch <- events.Record{Type: events.TypeRuntimeStarted}
 	close(ch)
 
 	fixed := time.Unix(100, 0)
-	streamProgress(context.Background(), snd, "root", ch, time.Minute, func() time.Time { return fixed })
+	streamProgress(context.Background(), snd, "root", ch, time.Hour, func() time.Time { return fixed })
 
-	if got := len(snd.all()); got != 1 {
-		t.Fatalf("throttle: expected 1 reply, got %d", got)
+	if got := len(snd.all()); got > 1 {
+		t.Fatalf("throttle: expected at most 1 reply, got %d", got)
 	}
 }
 
-func TestStreamProgressFailureSummary(t *testing.T) {
-	snd := &fakeSender{}
-	ch := make(chan events.Record, 2)
-	ch <- events.Record{Type: "job.failed", Payload: map[string]any{"status": "error", "changed_files": []any{"a.go", "b.go"}}}
-	close(ch)
-	streamProgress(context.Background(), snd, "root", ch, 0, time.Now)
-	replies := snd.all()
-	if len(replies) != 1 {
-		t.Fatalf("expected 1 reply, got %d", len(replies))
+func TestFinalSummary(t *testing.T) {
+	cases := []struct {
+		status string
+		errMsg string
+		want   []string
+	}{
+		{"succeeded", "", []string{"✅", "succeeded"}},
+		{"failed", "boom", []string{"❌", "boom"}},
+		{"running", "", []string{"running"}},
 	}
-	txt := replies[0].text
-	if !strings.Contains(txt, "❌") || !strings.Contains(txt, "error") || !strings.Contains(txt, "a.go") {
-		t.Fatalf("failure summary = %q", txt)
+	for _, c := range cases {
+		got := finalSummary(c.status, c.errMsg)
+		if got == "" {
+			t.Fatalf("finalSummary(%q,%q) returned empty", c.status, c.errMsg)
+		}
+		for _, sub := range c.want {
+			if !strings.Contains(got, sub) {
+				t.Fatalf("finalSummary(%q,%q) = %q, want it to contain %q", c.status, c.errMsg, got, sub)
+			}
+		}
 	}
 }

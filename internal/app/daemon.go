@@ -17,6 +17,7 @@ import (
 	"github.com/liliang-cn/roma/internal/artifacts"
 	"github.com/liliang-cn/roma/internal/domain"
 	"github.com/liliang-cn/roma/internal/events"
+	"github.com/liliang-cn/roma/internal/feishu"
 	"github.com/liliang-cn/roma/internal/gateway"
 	"github.com/liliang-cn/roma/internal/history"
 	"github.com/liliang-cn/roma/internal/memory"
@@ -26,6 +27,7 @@ import (
 	"github.com/liliang-cn/roma/internal/run"
 	"github.com/liliang-cn/roma/internal/scheduler"
 	"github.com/liliang-cn/roma/internal/sessions"
+	"github.com/liliang-cn/roma/internal/slack"
 	"github.com/liliang-cn/roma/internal/store"
 	"github.com/liliang-cn/roma/internal/syncdb"
 	"github.com/liliang-cn/roma/internal/taskstore"
@@ -152,6 +154,27 @@ func NewDaemonWithOptions(opts DaemonOptions) (*Daemon, error) {
 		canceled:  make(map[string]bool),
 	}
 	server.SetQueueCanceler(daemon)
+
+	// Chat bots (Feishu / Slack): best-effort; absent config => disabled, daemon unaffected.
+	startChatBot := func(name string, start func(context.Context) error) {
+		go func() {
+			if err := start(context.Background()); err != nil {
+				log.Printf("%s: bot stopped: %v", name, err)
+			}
+		}()
+	}
+	chatAPIClient := api.NewClientForControlDir(wd, romapath.HomeDir())
+	if fcfg, enabled, err := feishu.Load(filepath.Join(romapath.HomeDir(), "feishu.json")); err != nil {
+		log.Printf("feishu: disabled (%v)", err)
+	} else if enabled {
+		startChatBot("feishu", feishu.NewBot(fcfg, chatAPIClient).Start)
+	}
+	if scfg, enabled, err := slack.Load(filepath.Join(romapath.HomeDir(), "slack.json")); err != nil {
+		log.Printf("slack: disabled (%v)", err)
+	} else if enabled {
+		startChatBot("slack", slack.NewBot(scfg, chatAPIClient).Start)
+	}
+
 	return daemon, nil
 }
 

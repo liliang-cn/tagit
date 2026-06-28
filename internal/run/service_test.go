@@ -12,6 +12,7 @@ import (
 	"github.com/liliang-cn/roma/internal/artifacts"
 	"github.com/liliang-cn/roma/internal/domain"
 	"github.com/liliang-cn/roma/internal/history"
+	"github.com/liliang-cn/roma/internal/memory"
 	"github.com/liliang-cn/roma/internal/runtime"
 	"github.com/liliang-cn/roma/internal/scheduler"
 	"github.com/liliang-cn/roma/internal/taskstore"
@@ -314,6 +315,98 @@ func TestRunWithResultRageContinuesUntilDone(t *testing.T) {
 	}
 	if !strings.Contains(payload.Answer, "ROMA_DONE: objective implemented for real") {
 		t.Fatalf("final answer missing second-round completion marker:\n%s", payload.Answer)
+	}
+}
+
+type fakeMemory struct{ recorded int }
+
+func (f *fakeMemory) Recall(context.Context, memory.Scope, string, int) (memory.Recollection, error) {
+	return memory.Recollection{ContextText: "MEMORY-CONTEXT-MARKER"}, nil
+}
+func (f *fakeMemory) Record(context.Context, memory.RunRecord) error             { f.recorded++; return nil }
+func (f *fakeMemory) Note(context.Context, memory.Scope, string, []string) error { return nil }
+
+func TestRunWithResultRageRecallsAndRecordsMemory(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+	controlDir := t.TempDir()
+	initRunGitRepo(t, workDir)
+
+	promptDump := filepath.Join(controlDir, "worker_prompt.txt")
+
+	// Single-round rage run (MaxRounds: 1). The worker dumps the prompt it
+	// received in round 1 so the test can assert the injected memory context.
+	// Whether the foreman approves completion or the loop hits the round cap,
+	// the run finishes deterministically after one round and Record is invoked.
+	script := strings.Join([]string{
+		`prompt="$1"`,
+		`if printf '%s' "$prompt" | grep -q "You are ROMA's semantic runtime classifier."; then`,
+		`  printf 'intent: test rage review\n'`,
+		`  printf 'risk: low\n'`,
+		`  printf 'needs_approval: false\n'`,
+		`  printf 'recommend_curia: false\n'`,
+		`  printf 'summary: test semantic review\n'`,
+		`elif printf '%s' "$prompt" | grep -q "ROMA rage foreman mode"; then`,
+		`  printf 'Progress: implementation complete and verified\n'`,
+		`  printf 'Missing:\n'`,
+		`  printf 'Files: changed rage.txt\n'`,
+		`  printf 'Verify: tests passed\n'`,
+		`  printf 'PlanOnly: no\n'`,
+		`  printf 'Blockers: resolved\n'`,
+		`  printf 'Next:\n'`,
+		`elif printf '%s' "$prompt" | grep -q "ROMA rage worker mode"; then`,
+		`  printf '%s' "$prompt" > "` + promptDump + `"`,
+		`  printf 'done\n' > rage.txt`,
+		`  printf 'ROMA_DONE: objective implemented for real\n'`,
+		`  printf 'ROMA_MERGE_BACK: direct_merge | rage mode complete\n'`,
+		`  printf 'ROMA_MERGE_FILE: rage.txt\n'`,
+		`else`,
+		`  printf 'fallback worker output\n'`,
+		`fi`,
+	}, "\n")
+
+	registry, err := agents.NewRegistry(domain.AgentProfile{
+		ID:           "starter",
+		DisplayName:  "Starter",
+		Command:      "sh",
+		Args:         []string{"-c", script, "starter", "{prompt}"},
+		Availability: domain.AgentAvailabilityAvailable,
+	})
+	if err != nil {
+		t.Fatalf("NewRegistry() error = %v", err)
+	}
+
+	mem := &fakeMemory{}
+	svc := NewService(registry)
+	svc.SetControlDir(controlDir)
+	svc.Memory = mem
+
+	// MaxRounds: 1 keeps the run deterministic (exactly one worker round) so the
+	// captured prompt and the Record call are stable under -race. The run may
+	// finish as succeeded (foreman approves) or as a controlled max-rounds
+	// failure; either way recall/inject/record must have run.
+	_, _ = svc.RunWithResult(context.Background(), Request{
+		Prompt:       "implement the objective fully",
+		Mode:         RunModeRage,
+		StarterAgent: "starter",
+		WorkingDir:   workDir,
+		MaxRounds:    1,
+	})
+
+	if mem.recorded == 0 {
+		t.Fatal("memory Record was not called, want recorded > 0")
+	}
+
+	sentPrompt, err := os.ReadFile(promptDump)
+	if err != nil {
+		t.Fatalf("ReadFile(worker prompt) error = %v", err)
+	}
+	if !strings.Contains(string(sentPrompt), "MEMORY-CONTEXT-MARKER") {
+		t.Fatalf("worker prompt missing injected memory context:\n%s", string(sentPrompt))
+	}
+	if !strings.Contains(string(sentPrompt), "Current round: 1") {
+		t.Fatalf("captured prompt is not the first-round worker prompt:\n%s", string(sentPrompt))
 	}
 }
 

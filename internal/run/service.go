@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 	"github.com/liliang-cn/roma/internal/domain"
 	"github.com/liliang-cn/roma/internal/events"
 	"github.com/liliang-cn/roma/internal/history"
+	"github.com/liliang-cn/roma/internal/memory"
 	"github.com/liliang-cn/roma/internal/policy"
 	"github.com/liliang-cn/roma/internal/romapath"
 	"github.com/liliang-cn/roma/internal/runtime"
@@ -62,6 +64,9 @@ type Service struct {
 	supervisor *runtime.Supervisor
 	tasks      store.TaskStore
 	controlDir string
+	// Memory is ROMA's advisory, best-effort cross-agent memory. It is never
+	// allowed to fail a run; recall/record errors are logged and ignored.
+	Memory memory.Memory
 }
 
 const rageDefaultMaxRounds = 10000
@@ -75,6 +80,7 @@ func NewService(registry *agents.Registry) *Service {
 		store:      nil,
 		supervisor: runtime.DefaultSupervisor(),
 		tasks:      nil,
+		Memory:     memory.Nop(),
 	}
 }
 
@@ -467,7 +473,24 @@ func (s *Service) runRageDirect(ctx context.Context, req Request, profile domain
 		}
 	}
 
-	workerPrompt := buildRageWorkerPrompt(req.Prompt, "", "", 1)
+	scope := memory.Scope{Repo: filepath.Clean(req.WorkingDir)}
+	memoryContext := s.recallMemory(ctx, scope, req.Prompt)
+	if strings.TrimSpace(memoryContext) != "" {
+		s.appendEvent(ctx, events.Record{
+			ID:         "evt_" + record.ID + "_" + record.TaskID + "_memory_recalled",
+			SessionID:  record.ID,
+			TaskID:     record.TaskID,
+			Type:       events.TypeMemoryRecalled,
+			ActorType:  events.ActorTypeSystem,
+			OccurredAt: time.Now().UTC(),
+			Payload: map[string]any{
+				"repo":          scope.Repo,
+				"context_chars": len(memoryContext),
+			},
+		})
+	}
+
+	workerPrompt := buildRageWorkerPrompt(req.Prompt, "", "", 1, memoryContext)
 	var workerStdout strings.Builder
 	var workerStderr strings.Builder
 	var foremanTrail strings.Builder
@@ -527,7 +550,7 @@ func (s *Service) runRageDirect(ctx context.Context, req Request, profile domain
 		if foremanDeterminesDone(reviewArtifact) {
 			break
 		}
-		workerPrompt = buildRageWorkerPrompt(req.Prompt, workerStdout.String(), rageMergeOutput(foremanResult.Stdout, foremanResult.Stderr), round+1)
+		workerPrompt = buildRageWorkerPrompt(req.Prompt, workerStdout.String(), rageMergeOutput(foremanResult.Stdout, foremanResult.Stderr), round+1, "")
 		if round == req.MaxRounds {
 			runErr = fmt.Errorf("rage execution reached max rounds (%d) without foreman completion approval", req.MaxRounds)
 		}
@@ -574,6 +597,39 @@ func (s *Service) runRageDirect(ctx context.Context, req Request, profile domain
 	} else {
 		record.Status = "succeeded"
 	}
+
+	resultSummary := strings.TrimSpace(artifacts.SummaryFromEnvelope(report))
+	if resultSummary == "" {
+		resultSummary = strings.TrimSpace(foremanTrail.String())
+	}
+	s.recordMemory(ctx, memory.RunRecord{
+		Scope:         scope,
+		SessionID:     record.ID,
+		TaskID:        record.TaskID,
+		Agent:         req.StarterAgent,
+		Mode:          req.Mode,
+		Prompt:        req.Prompt,
+		ResultSummary: resultSummary,
+		Verdict:       record.Status,
+		Success:       runErr == nil,
+		OccurredAt:    time.Now().UTC(),
+	})
+	s.appendEvent(ctx, events.Record{
+		ID:         "evt_" + record.ID + "_" + record.TaskID + "_memory_recorded",
+		SessionID:  record.ID,
+		TaskID:     record.TaskID,
+		Type:       events.TypeMemoryRecorded,
+		ActorType:  events.ActorTypeSystem,
+		OccurredAt: time.Now().UTC(),
+		ReasonCode: record.Status,
+		Payload: map[string]any{
+			"repo":    scope.Repo,
+			"agent":   req.StarterAgent,
+			"mode":    req.Mode,
+			"success": runErr == nil,
+		},
+	})
+
 	if s.tasks != nil {
 		if err := lifecycle.MarkFinished(ctx, record.ID, record.TaskID, report.ID, runErr); err != nil {
 			return Result{}, fmt.Errorf("finish rage task: %w", err)
@@ -600,8 +656,12 @@ func (s *Service) runRageDirect(ctx context.Context, req Request, profile domain
 	}, runErr
 }
 
-func buildRageWorkerPrompt(originalPrompt, previousWorkerOutput, foremanInstruction string, round int) string {
+func buildRageWorkerPrompt(originalPrompt, previousWorkerOutput, foremanInstruction string, round int, memoryContext string) string {
 	var b strings.Builder
+	if strings.TrimSpace(memoryContext) != "" {
+		b.WriteString(strings.TrimSpace(memoryContext))
+		b.WriteString("\n\n")
+	}
 	b.WriteString("ROMA rage worker mode.\n")
 	b.WriteString("You are the implementation instance.\n")
 	b.WriteString("A separate foreman instance will inspect your progress after this round and push you again if the work is not done.\n")
@@ -848,6 +908,35 @@ func (s *Service) appendSessionStateEvent(ctx context.Context, record history.Se
 			"artifact_ids": record.ArtifactIDs,
 		},
 	})
+}
+
+// recallMemory best-effort recalls cross-agent memory context for the scope.
+// Failures (and a nil Memory) are logged and ignored; it never fails the run.
+func (s *Service) recallMemory(ctx context.Context, scope memory.Scope, query string) string {
+	if s == nil || s.Memory == nil {
+		return ""
+	}
+	recallCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	recollection, err := s.Memory.Recall(recallCtx, scope, query, 5)
+	if err != nil {
+		log.Printf("run: memory recall failed (ignored): %v", err)
+		return ""
+	}
+	return recollection.ContextText
+}
+
+// recordMemory best-effort records the completed run into cross-agent memory.
+// Failures (and a nil Memory) are logged and ignored; it never fails the run.
+func (s *Service) recordMemory(ctx context.Context, rec memory.RunRecord) {
+	if s == nil || s.Memory == nil {
+		return
+	}
+	recordCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	if err := s.Memory.Record(recordCtx, rec); err != nil {
+		log.Printf("run: memory record failed (ignored): %v", err)
+	}
 }
 
 func (s *Service) appendEvent(ctx context.Context, event events.Record) {

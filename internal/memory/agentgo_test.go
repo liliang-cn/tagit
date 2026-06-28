@@ -58,3 +58,52 @@ func TestAgentGoScopeIsolation(t *testing.T) {
 		t.Fatalf("scope isolation failed: beta saw alpha's memory: %+v", rec)
 	}
 }
+
+func TestAgentGoRecallIsCrossAgent(t *testing.T) {
+	mem := newTestMemory(t)
+	ctx := context.Background()
+	scope := Scope{Repo: "/repo/beta"}
+
+	if err := mem.Record(ctx, RunRecord{
+		Scope: scope, Agent: "codex", Mode: "rage",
+		Prompt: "refactor the payment module", Success: true, OccurredAt: time.Unix(1, 0),
+	}); err != nil {
+		t.Fatalf("Record() error = %v", err)
+	}
+	// A later run by a DIFFERENT agent (claude) must see codex's memory.
+	rec, err := mem.Recall(ctx, scope, "payment module refactor", 5)
+	if err != nil {
+		t.Fatalf("Recall() error = %v", err)
+	}
+	if len(rec.Episodes) == 0 || rec.Episodes[0].Agent != "codex" {
+		t.Fatalf("cross-agent recall failed: %#v", rec.Episodes)
+	}
+}
+
+func TestAgentGoNoteThenRecall(t *testing.T) {
+	mem := newTestMemory(t)
+	ctx := context.Background()
+	scope := Scope{Repo: "/repo/gamma"}
+
+	if err := mem.Note(ctx, scope, "This repo builds with GOWORK=off", []string{"build"}); err != nil {
+		t.Fatalf("Note() error = %v", err)
+	}
+	rec, err := mem.Recall(ctx, scope, "how to build GOWORK", 5)
+	if err != nil {
+		t.Fatalf("Recall() error = %v", err)
+	}
+	if len(rec.Knowledge) == 0 || !strings.Contains(rec.Knowledge[0].Text, "GOWORK") {
+		t.Fatalf("note recall failed: %#v", rec.Knowledge)
+	}
+}
+
+func TestAgentGoRecallEmptyRepoReturnsEmpty(t *testing.T) {
+	mem := newTestMemory(t)
+	rec, err := mem.Recall(context.Background(), Scope{Repo: "/repo/none"}, "anything", 5)
+	if err != nil {
+		t.Fatalf("Recall() error = %v", err)
+	}
+	if len(rec.Episodes) != 0 || len(rec.Knowledge) != 0 || rec.ContextText != "" {
+		t.Fatalf("expected empty recollection, got %#v", rec)
+	}
+}

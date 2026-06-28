@@ -42,3 +42,19 @@ func TestAgentGoRecordThenRecall(t *testing.T) {
 		t.Fatalf("ContextText = %q, want it to mention the past run", rec.ContextText)
 	}
 }
+
+func TestAgentGoScopeIsolation(t *testing.T) {
+	mem := newTestMemory(t)
+	ctx := context.Background()
+	if err := mem.Record(ctx, RunRecord{Scope: Scope{Repo: "/repo/alpha"}, Agent: "codex", Mode: "rage",
+		Prompt: "fix auth token expiry", Success: true}); err != nil {
+		t.Fatalf("Record alpha: %v", err)
+	}
+	rec, err := mem.Recall(ctx, Scope{Repo: "/repo/beta"}, "auth token expiry", 5)
+	if err != nil {
+		t.Fatalf("Recall beta: %v", err)
+	}
+	if len(rec.Episodes) != 0 || len(rec.Knowledge) != 0 {
+		t.Fatalf("scope isolation failed: beta saw alpha's memory: %+v", rec)
+	}
+}

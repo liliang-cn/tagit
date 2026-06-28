@@ -10,6 +10,12 @@ import (
 	agstore "github.com/liliang-cn/agent-go/v2/pkg/store"
 )
 
+// recallOverfetchFactor controls how many raw hits Recall asks the store for
+// relative to the caller's limit. We over-fetch because the app-level scope
+// filter (defense in depth against cross-repo leakage) may drop hits before we
+// reach the requested count.
+const recallOverfetchFactor = 3
+
 // agentGoMemory is a Memory backed by agent-go's CortexDB memory service in
 // lexical mode (no embedder, no LLM, no network). Search uses FTS5/BM25 with an
 // n-gram/LIKE fallback, so recall is purely text-based and offline.
@@ -31,6 +37,7 @@ func NewAgentGo(dbPath string) (Memory, error) {
 func (m *agentGoMemory) Record(ctx context.Context, rec RunRecord) error {
 	mem := &agdomain.Memory{
 		Type:       agdomain.MemoryTypeObservation,
+		ScopeType:  agdomain.MemoryScopeUser,
 		ScopeID:    rec.Scope.Repo,
 		Content:    renderRunRecord(rec),
 		Tags:       []string{rec.Scope.Repo},
@@ -58,6 +65,7 @@ func (m *agentGoMemory) Note(ctx context.Context, scope Scope, fact string, tags
 	allTags = append(allTags, tags...)
 	mem := &agdomain.Memory{
 		Type:       agdomain.MemoryTypeFact,
+		ScopeType:  agdomain.MemoryScopeUser,
 		ScopeID:    scope.Repo,
 		Content:    fact,
 		Tags:       allTags,
@@ -76,7 +84,7 @@ func (m *agentGoMemory) Recall(ctx context.Context, scope Scope, query string, l
 	if limit <= 0 {
 		limit = 5
 	}
-	hits, err := m.svc.Search(ctx, query, limit*3)
+	hits, err := m.svc.Search(ctx, query, limit*recallOverfetchFactor)
 	if err != nil {
 		return Recollection{}, fmt.Errorf("recall for scope %q: %w", scope.Repo, err)
 	}

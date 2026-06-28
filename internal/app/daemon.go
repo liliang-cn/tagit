@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/liliang-cn/roma/internal/events"
 	"github.com/liliang-cn/roma/internal/gateway"
 	"github.com/liliang-cn/roma/internal/history"
+	"github.com/liliang-cn/roma/internal/memory"
 	"github.com/liliang-cn/roma/internal/plans"
 	"github.com/liliang-cn/roma/internal/queue"
 	"github.com/liliang-cn/roma/internal/romapath"
@@ -106,6 +108,19 @@ func NewDaemonWithOptions(opts DaemonOptions) (*Daemon, error) {
 	}
 	runner := run.NewService(registry)
 	runner.SetControlDir(controlDir)
+	// Enable ROMA's advisory cross-agent memory backend, best-effort. Any
+	// failure leaves the run.Service on its Nop default so the daemon still
+	// starts and runs are unaffected.
+	memPath := filepath.Join(romapath.HomeDir(), "memory", "cortex.db")
+	if err := os.MkdirAll(filepath.Dir(memPath), 0o755); err == nil {
+		if m, err := memory.NewAgentGo(memPath); err == nil {
+			runner.Memory = m
+		} else {
+			log.Printf("[memory] disabled (init failed): %v", err)
+		}
+	} else {
+		log.Printf("[memory] disabled (mkdir failed): %v", err)
+	}
 	queueBackend := newQueueBackend(controlDir)
 	historyBackend := newHistoryBackend(controlDir)
 	artifactBackend := newArtifactBackend(controlDir)

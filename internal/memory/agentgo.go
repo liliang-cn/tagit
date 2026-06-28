@@ -42,7 +42,7 @@ func (m *agentGoMemory) Record(ctx context.Context, rec RunRecord) error {
 		Content:    renderRunRecord(rec),
 		Tags:       []string{rec.Scope.Repo},
 		Importance: 0.5,
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			"agent":   rec.Agent,
 			"mode":    rec.Mode,
 			"success": rec.Success,
@@ -70,7 +70,7 @@ func (m *agentGoMemory) Note(ctx context.Context, scope Scope, fact string, tags
 		Content:    fact,
 		Tags:       allTags,
 		Importance: 0.7,
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			"kind": "note",
 		},
 	}
@@ -163,7 +163,7 @@ func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func metaString(m map[string]interface{}, key string) string {
+func metaString(m map[string]any, key string) string {
 	if m == nil {
 		return ""
 	}
@@ -173,7 +173,7 @@ func metaString(m map[string]interface{}, key string) string {
 	return ""
 }
 
-func metaBool(m map[string]interface{}, key string) bool {
+func metaBool(m map[string]any, key string) bool {
 	if m == nil {
 		return false
 	}

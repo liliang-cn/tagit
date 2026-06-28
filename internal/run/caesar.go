@@ -13,6 +13,7 @@ import (
 	"github.com/liliang-cn/roma/internal/domain"
 	"github.com/liliang-cn/roma/internal/events"
 	"github.com/liliang-cn/roma/internal/history"
+	"github.com/liliang-cn/roma/internal/memory"
 	"github.com/liliang-cn/roma/internal/scheduler"
 )
 
@@ -33,6 +34,7 @@ func (s *Service) continueCaesarCoordination(
 	assignments []scheduler.NodeAssignment,
 	result scheduler.DispatchResult,
 	dispatcher *scheduler.Dispatcher,
+	dispatchPrompt string,
 ) ([]scheduler.NodeAssignment, scheduler.DispatchResult, error) {
 	if len(assignments) <= 1 {
 		return assignments, result, nil
@@ -60,7 +62,7 @@ func (s *Service) continueCaesarCoordination(
 		}
 		currentAssignments = append(currentAssignments, reviewNode)
 
-		resumeResult, err := dispatcher.Resume(ctx, sessionID, req.WorkingDir, req.Prompt, currentAssignments, cloneArtifacts(currentResult.Artifacts))
+		resumeResult, err := dispatcher.Resume(ctx, sessionID, req.WorkingDir, dispatchPrompt, currentAssignments, cloneArtifacts(currentResult.Artifacts))
 		currentResult = resumeResult
 		s.handleMergeBackRequests(ctx, req.WorkingDir, collectUnprocessedArtifacts(currentResult, processedArtifacts))
 		if err != nil {
@@ -116,7 +118,7 @@ func (s *Service) continueCaesarCoordination(
 			return currentAssignments, currentResult, fmt.Errorf("caesar emitted no actionable delegate requests")
 		}
 
-		resumeResult, err = dispatcher.Resume(ctx, sessionID, req.WorkingDir, req.Prompt, currentAssignments, cloneArtifacts(currentResult.Artifacts))
+		resumeResult, err = dispatcher.Resume(ctx, sessionID, req.WorkingDir, dispatchPrompt, currentAssignments, cloneArtifacts(currentResult.Artifacts))
 		currentResult = resumeResult
 		s.handleMergeBackRequests(ctx, req.WorkingDir, collectUnprocessedArtifacts(currentResult, processedArtifacts))
 		if err != nil {
@@ -169,15 +171,21 @@ func (s *Service) runCaesar(ctx context.Context, req Request, starter domain.Age
 			"mode":      RunModeCollab,
 		},
 	})
+	scope := memory.Scope{Repo: filepath.Clean(req.WorkingDir)}
+	memCtx := s.recallMemory(ctx, scope, req.Prompt)
+	dispatchPrompt := dispatchPromptWithMemory(req.Prompt, memCtx)
+	if strings.TrimSpace(memCtx) != "" {
+		s.appendMemoryRecalledEvent(ctx, sessionID, taskID, scope, len(memCtx))
+	}
 	helpOutputs := make(map[string]string, len(delegates))
 	for _, d := range delegates {
 		helpOutputs[d.ID] = probeAgentHelp(ctx, d)
 	}
 	assignments := buildCaesarAssignments(taskID, starter, delegates, req.Continuous, req.MaxRounds, helpOutputs)
 	dispatcher := scheduler.NewDispatcherWithControlDir(req.WorkingDir, s.controlRoot(req.WorkingDir), s.supervisor, s.events, s.tasks)
-	execResult, err := dispatcher.Execute(ctx, sessionID, req.WorkingDir, req.Prompt, assignments)
+	execResult, err := dispatcher.Execute(ctx, sessionID, req.WorkingDir, dispatchPrompt, assignments)
 	if err == nil {
-		if updatedAssignments, updatedResult, caesarErr := s.continueCaesarCoordination(ctx, req, sessionID, taskID, starter, assignments, execResult, dispatcher); caesarErr != nil {
+		if updatedAssignments, updatedResult, caesarErr := s.continueCaesarCoordination(ctx, req, sessionID, taskID, starter, assignments, execResult, dispatcher, dispatchPrompt); caesarErr != nil {
 			assignments = updatedAssignments
 			execResult = updatedResult
 			err = caesarErr
@@ -208,6 +216,18 @@ func (s *Service) runCaesar(ctx context.Context, req Request, starter domain.Age
 	}
 	record.UpdatedAt = time.Now().UTC()
 	record.ArtifactIDs = collectRelayArtifactIDs(execResult)
+	s.recordMemory(ctx, memory.RunRecord{
+		Scope:      scope,
+		SessionID:  record.ID,
+		TaskID:     record.TaskID,
+		Agent:      req.StarterAgent,
+		Mode:       req.Mode,
+		Prompt:     req.Prompt,
+		Verdict:    record.Status,
+		Success:    runErr == nil,
+		OccurredAt: time.Now().UTC(),
+	})
+	s.appendMemoryRecordedEvent(ctx, record.ID, record.TaskID, scope, req.StarterAgent, req.Mode, record.Status, runErr == nil)
 	if finalID, finalErr := s.persistFinalAnswer(ctx, record, starter.ID, req.Prompt, collectRelayArtifacts(execResult), runErr); finalErr != nil {
 		return Result{}, finalErr
 	} else if finalID != "" {

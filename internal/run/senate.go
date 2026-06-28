@@ -9,10 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"path/filepath"
+
 	"github.com/liliang-cn/roma/internal/artifacts"
 	"github.com/liliang-cn/roma/internal/domain"
 	"github.com/liliang-cn/roma/internal/events"
 	"github.com/liliang-cn/roma/internal/history"
+	"github.com/liliang-cn/roma/internal/memory"
 	"github.com/liliang-cn/roma/internal/policy"
 	"github.com/liliang-cn/roma/internal/scheduler"
 	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
@@ -79,75 +82,82 @@ func (s *Service) runSenate(ctx context.Context, req Request, starter domain.Age
 		},
 	})
 
+	scope := memory.Scope{Repo: filepath.Clean(req.WorkingDir)}
+	memCtx := s.recallMemory(ctx, scope, req.Prompt)
+	dispatchPrompt := dispatchPromptWithMemory(req.Prompt, memCtx)
+	if strings.TrimSpace(memCtx) != "" {
+		s.appendMemoryRecalledEvent(ctx, sessionID, taskID, scope, len(memCtx))
+	}
+
 	participants := senateParticipants(starter, delegates)
 	dispatcher := scheduler.NewDispatcherWithControlDir(req.WorkingDir, s.controlRoot(req.WorkingDir), s.supervisor, s.events, s.tasks)
 
 	assignments := buildSenatePlanProposalAssignments(taskID, participants, req.Continuous, req.MaxRounds)
-	result, err := dispatcher.Execute(ctx, sessionID, req.WorkingDir, req.Prompt, assignments)
+	result, err := dispatcher.Execute(ctx, sessionID, req.WorkingDir, dispatchPrompt, assignments)
 	if err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, nil, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, nil, result, err, w)
 	}
 
 	planProposalIDs := assignmentNodeIDs(assignments)
 	planCandidates, err := senateCandidatesForNodeIDs(assignments, result, planProposalIDs)
 	if err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, nil, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, nil, result, err, w)
 	}
 	planVoteAssignments := buildSenateVoteAssignments(taskID, "plan_vote", "Senate plan vote", participants, planCandidates, planProposalIDs, req.Continuous, req.MaxRounds)
 	if err := s.registerAssignments(ctx, sessionID, planVoteAssignments); err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, nil, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, nil, result, err, w)
 	}
 	assignments = append(assignments, planVoteAssignments...)
-	result, err = dispatcher.Resume(ctx, sessionID, req.WorkingDir, req.Prompt, assignments, cloneArtifacts(result.Artifacts))
+	result, err = dispatcher.Resume(ctx, sessionID, req.WorkingDir, dispatchPrompt, assignments, cloneArtifacts(result.Artifacts))
 	if err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, nil, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, nil, result, err, w)
 	}
 
 	planVotes := extractSenateVotes(result, planVoteAssignments)
-	winnerPlan, assignments, result, err := s.resolveSenateWinner(ctx, dispatcher, req, sessionID, taskID, starter, assignments, result, "plan", planCandidates, planVotes)
+	winnerPlan, assignments, result, err := s.resolveSenateWinner(ctx, dispatcher, req, dispatchPrompt, sessionID, taskID, starter, assignments, result, "plan", planCandidates, planVotes)
 	if err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, nil, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, nil, result, err, w)
 	}
 
 	implementationAssignments := buildSenateImplementationAssignments(taskID, starter, delegates, winnerPlan, req.Continuous, req.MaxRounds)
 	if err := s.registerAssignments(ctx, sessionID, implementationAssignments); err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
 	}
 	assignments = append(assignments, implementationAssignments...)
-	result, err = dispatcher.Resume(ctx, sessionID, req.WorkingDir, req.Prompt, assignments, cloneArtifacts(result.Artifacts))
+	result, err = dispatcher.Resume(ctx, sessionID, req.WorkingDir, dispatchPrompt, assignments, cloneArtifacts(result.Artifacts))
 	if err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
 	}
 
 	implementationIDs := assignmentNodeIDs(implementationAssignments)
 	implementationCandidates, err := senateCandidatesForNodeIDs(assignments, result, implementationIDs)
 	if err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
 	}
 	implementationVoteAssignments := buildSenateVoteAssignments(taskID, "implementation_vote", "Senate implementation vote", participants, implementationCandidates, implementationIDs, req.Continuous, req.MaxRounds)
 	if err := s.registerAssignments(ctx, sessionID, implementationVoteAssignments); err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
 	}
 	assignments = append(assignments, implementationVoteAssignments...)
-	result, err = dispatcher.Resume(ctx, sessionID, req.WorkingDir, req.Prompt, assignments, cloneArtifacts(result.Artifacts))
+	result, err = dispatcher.Resume(ctx, sessionID, req.WorkingDir, dispatchPrompt, assignments, cloneArtifacts(result.Artifacts))
 	if err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
 	}
 
 	implementationVotes := extractSenateVotes(result, implementationVoteAssignments)
-	winnerImplementation, assignments, result, err := s.resolveSenateWinner(ctx, dispatcher, req, sessionID, taskID, starter, assignments, result, "implementation", implementationCandidates, implementationVotes)
+	winnerImplementation, assignments, result, err := s.resolveSenateWinner(ctx, dispatcher, req, dispatchPrompt, sessionID, taskID, starter, assignments, result, "implementation", implementationCandidates, implementationVotes)
 	if err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact}, result, err, w)
 	}
 
 	if err := s.mergeSenateWinner(ctx, req, sessionID, winnerImplementation); err != nil {
-		return s.finalizeSenateResult(ctx, record, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact, winnerImplementation.Artifact}, result, err, w)
+		return s.finalizeSenateResult(ctx, record, scope, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact, winnerImplementation.Artifact}, result, err, w)
 	}
 
-	return s.finalizeSenateResult(ctx, record, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact, winnerImplementation.Artifact}, result, nil, w)
+	return s.finalizeSenateResult(ctx, record, scope, starter.ID, []domain.ArtifactEnvelope{winnerPlan.Artifact, winnerImplementation.Artifact}, result, nil, w)
 }
 
-func (s *Service) finalizeSenateResult(ctx context.Context, record history.SessionRecord, starterID string, finalArtifacts []domain.ArtifactEnvelope, result scheduler.DispatchResult, runErr error, w io.Writer) (Result, error) {
+func (s *Service) finalizeSenateResult(ctx context.Context, record history.SessionRecord, scope memory.Scope, starterID string, finalArtifacts []domain.ArtifactEnvelope, result scheduler.DispatchResult, runErr error, w io.Writer) (Result, error) {
 	if err := s.saveDispatchArtifacts(ctx, result); err != nil {
 		return Result{}, err
 	}
@@ -158,6 +168,18 @@ func (s *Service) finalizeSenateResult(ctx context.Context, record history.Sessi
 	}
 	record.UpdatedAt = time.Now().UTC()
 	record.ArtifactIDs = collectRelayArtifactIDs(result)
+	s.recordMemory(ctx, memory.RunRecord{
+		Scope:      scope,
+		SessionID:  record.ID,
+		TaskID:     record.TaskID,
+		Agent:      starterID,
+		Mode:       RunModeSenate,
+		Prompt:     record.Prompt,
+		Verdict:    record.Status,
+		Success:    runErr == nil,
+		OccurredAt: time.Now().UTC(),
+	})
+	s.appendMemoryRecordedEvent(ctx, record.ID, record.TaskID, scope, starterID, RunModeSenate, record.Status, runErr == nil)
 	artifactsForFinal := finalArtifacts
 	if len(artifactsForFinal) == 0 {
 		artifactsForFinal = collectRelayArtifacts(result)
@@ -518,7 +540,7 @@ func extractSenatePick(output string) (string, string, bool) {
 	return "", "", false
 }
 
-func (s *Service) resolveSenateWinner(ctx context.Context, dispatcher *scheduler.Dispatcher, req Request, sessionID, taskID string, starter domain.AgentProfile, assignments []scheduler.NodeAssignment, result scheduler.DispatchResult, stage string, candidates []senateCandidate, votes []senateVote) (senateCandidate, []scheduler.NodeAssignment, scheduler.DispatchResult, error) {
+func (s *Service) resolveSenateWinner(ctx context.Context, dispatcher *scheduler.Dispatcher, req Request, dispatchPrompt, sessionID, taskID string, starter domain.AgentProfile, assignments []scheduler.NodeAssignment, result scheduler.DispatchResult, stage string, candidates []senateCandidate, votes []senateVote) (senateCandidate, []scheduler.NodeAssignment, scheduler.DispatchResult, error) {
 	counts := map[string]int{}
 	for _, vote := range votes {
 		counts[vote.TargetID]++
@@ -550,7 +572,7 @@ func (s *Service) resolveSenateWinner(ctx context.Context, dispatcher *scheduler
 		}
 	}
 	assignments = append(assignments, tiebreak)
-	resumeResult, err := dispatcher.Resume(ctx, sessionID, req.WorkingDir, req.Prompt, assignments, cloneArtifacts(result.Artifacts))
+	resumeResult, err := dispatcher.Resume(ctx, sessionID, req.WorkingDir, dispatchPrompt, assignments, cloneArtifacts(result.Artifacts))
 	if err != nil {
 		return senateCandidate{}, assignments, resumeResult, err
 	}

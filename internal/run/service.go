@@ -247,6 +247,12 @@ func (s *Service) runOrchestrated(ctx context.Context, req Request, starter doma
 			"delegates": req.Delegates,
 		},
 	})
+	scope := memory.Scope{Repo: filepath.Clean(req.WorkingDir)}
+	memCtx := s.recallMemory(ctx, scope, req.Prompt)
+	dispatchPrompt := dispatchPromptWithMemory(req.Prompt, memCtx)
+	if strings.TrimSpace(memCtx) != "" {
+		s.appendMemoryRecalledEvent(ctx, sessionID, taskID, scope, len(memCtx))
+	}
 	helpOutputs := make(map[string]string, len(delegates))
 	for _, d := range delegates {
 		helpOutputs[d.ID] = probeAgentHelp(ctx, d)
@@ -270,7 +276,7 @@ func (s *Service) runOrchestrated(ctx context.Context, req Request, starter doma
 	}
 
 	dispatcher := scheduler.NewDispatcherWithControlDir(req.WorkingDir, s.controlRoot(req.WorkingDir), s.supervisor, s.events, s.tasks)
-	execResult, err := dispatcher.Execute(ctx, sessionID, req.WorkingDir, req.Prompt, assignments)
+	execResult, err := dispatcher.Execute(ctx, sessionID, req.WorkingDir, dispatchPrompt, assignments)
 	if req.Verbose {
 		writeRelayResult(w, assignments, execResult)
 	}
@@ -310,6 +316,18 @@ func (s *Service) runOrchestrated(ctx context.Context, req Request, starter doma
 	}
 	record.UpdatedAt = time.Now().UTC()
 	record.ArtifactIDs = collectRelayArtifactIDs(execResult)
+	s.recordMemory(ctx, memory.RunRecord{
+		Scope:      scope,
+		SessionID:  record.ID,
+		TaskID:     record.TaskID,
+		Agent:      req.StarterAgent,
+		Mode:       req.Mode,
+		Prompt:     req.Prompt,
+		Verdict:    record.Status,
+		Success:    runErr == nil,
+		OccurredAt: time.Now().UTC(),
+	})
+	s.appendMemoryRecordedEvent(ctx, record.ID, record.TaskID, scope, req.StarterAgent, req.Mode, record.Status, runErr == nil)
 	if finalID, finalErr := s.persistFinalAnswer(ctx, record, starter.ID, req.Prompt, collectRelayArtifacts(execResult), runErr); finalErr != nil {
 		return Result{}, finalErr
 	} else if finalID != "" {
@@ -937,6 +955,54 @@ func (s *Service) recordMemory(ctx context.Context, rec memory.RunRecord) {
 	if err := s.Memory.Record(recordCtx, rec); err != nil {
 		log.Printf("run: memory record failed (ignored): %v", err)
 	}
+}
+
+// appendMemoryRecalledEvent emits a TypeMemoryRecalled event for a run whose
+// dispatch prompt was augmented with recalled cross-agent memory context. It is
+// best-effort and never fails the run.
+func (s *Service) appendMemoryRecalledEvent(ctx context.Context, sessionID, taskID string, scope memory.Scope, contextChars int) {
+	s.appendEvent(ctx, events.Record{
+		ID:         "evt_" + sessionID + "_" + taskID + "_memory_recalled",
+		SessionID:  sessionID,
+		TaskID:     taskID,
+		Type:       events.TypeMemoryRecalled,
+		ActorType:  events.ActorTypeSystem,
+		OccurredAt: time.Now().UTC(),
+		Payload: map[string]any{
+			"repo":          scope.Repo,
+			"context_chars": contextChars,
+		},
+	})
+}
+
+// appendMemoryRecordedEvent emits a TypeMemoryRecorded event after a run was
+// recorded into cross-agent memory. It is best-effort and never fails the run.
+func (s *Service) appendMemoryRecordedEvent(ctx context.Context, sessionID, taskID string, scope memory.Scope, agent, mode, status string, success bool) {
+	s.appendEvent(ctx, events.Record{
+		ID:         "evt_" + sessionID + "_" + taskID + "_memory_recorded",
+		SessionID:  sessionID,
+		TaskID:     taskID,
+		Type:       events.TypeMemoryRecorded,
+		ActorType:  events.ActorTypeSystem,
+		OccurredAt: time.Now().UTC(),
+		ReasonCode: status,
+		Payload: map[string]any{
+			"repo":    scope.Repo,
+			"agent":   agent,
+			"mode":    mode,
+			"success": success,
+		},
+	})
+}
+
+// dispatchPromptWithMemory prepends recalled memory context to the dispatch
+// prompt without mutating the original prompt (which must stay pure for policy
+// evaluation and the recorded RunRecord).
+func dispatchPromptWithMemory(prompt, memoryContext string) string {
+	if strings.TrimSpace(memoryContext) == "" {
+		return prompt
+	}
+	return memoryContext + "\n\n" + prompt
 }
 
 func (s *Service) appendEvent(ctx context.Context, event events.Record) {

@@ -410,6 +410,210 @@ func TestRunWithResultRageRecallsAndRecordsMemory(t *testing.T) {
 	}
 }
 
+func TestRunCollabRecallsAndRecordsMemory(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+	controlDir := t.TempDir()
+	initRunGitRepo(t, workDir)
+
+	delegatePromptDump := filepath.Join(controlDir, "collab_delegate_prompt.txt")
+
+	starterScript := strings.Join([]string{
+		`prompt="$1"`,
+		`if printf '%s' "$prompt" | grep -q "Starter prompt clarification"; then`,
+		`  printf 'clarified spec\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Starter Caesar coordination"; then`,
+		`  printf 'bootstrap ready\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Caesar review round"; then`,
+		`  printf 'ROMA_DONE: delegated work is complete\n'`,
+		`else`,
+		`  printf 'starter should only clarify, bootstrap, and review\n' >&2`,
+		`  exit 9`,
+		`fi`,
+	}, "\n")
+	workerScript := strings.Join([]string{
+		`prompt="$1"`,
+		`printf '%s' "$prompt" > "` + delegatePromptDump + `"`,
+		`printf 'delegated work\n' > delegated.txt`,
+		`printf 'delegated work complete\nROMA_MERGE_BACK: direct_merge | delegated work ready\nROMA_MERGE_FILE: delegated.txt\n'`,
+	}, "\n")
+
+	registry, err := agents.NewRegistry(
+		domain.AgentProfile{
+			ID:           "caesar",
+			DisplayName:  "Caesar",
+			Command:      "sh",
+			Args:         []string{"-c", starterScript, "starter", "{prompt}"},
+			Availability: domain.AgentAvailabilityAvailable,
+		},
+		domain.AgentProfile{
+			ID:           "worker",
+			DisplayName:  "Worker",
+			Command:      "sh",
+			Args:         []string{"-c", workerScript, "worker", "{prompt}"},
+			Availability: domain.AgentAvailabilityAvailable,
+		},
+	)
+	if err != nil {
+		t.Fatalf("NewRegistry() error = %v", err)
+	}
+
+	mem := &fakeMemory{}
+	svc := NewService(registry)
+	svc.SetControlDir(controlDir)
+	svc.Memory = mem
+
+	result, err := svc.RunWithResult(context.Background(), Request{
+		Prompt:       "coordinate a low-risk sample file update",
+		Mode:         RunModeCollab,
+		StarterAgent: "caesar",
+		Delegates:    []string{"worker"},
+		WorkingDir:   workDir,
+	})
+	if err != nil {
+		t.Fatalf("RunWithResult() error = %v", err)
+	}
+	if result.Status != "succeeded" {
+		t.Fatalf("status = %s, want succeeded", result.Status)
+	}
+	if mem.recorded == 0 {
+		t.Fatal("memory Record was not called, want recorded > 0")
+	}
+
+	sentPrompt, err := os.ReadFile(delegatePromptDump)
+	if err != nil {
+		t.Fatalf("ReadFile(delegate prompt) error = %v", err)
+	}
+	if !strings.Contains(string(sentPrompt), "MEMORY-CONTEXT-MARKER") {
+		t.Fatalf("delegate prompt missing injected memory context:\n%s", string(sentPrompt))
+	}
+}
+
+func TestRunSenateRecallsAndRecordsMemory(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+	controlDir := t.TempDir()
+	initRunGitRepo(t, workDir)
+
+	planPromptDump := filepath.Join(controlDir, "senate_plan_prompt.txt")
+
+	starterScript := strings.Join([]string{
+		`prompt="$1"`,
+		`if printf '%s' "$prompt" | grep -q "Senate plan proposal"; then`,
+		`  printf '%s' "$prompt" > "` + planPromptDump + `"`,
+		`  printf 'STARTER PLAN\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Senate plan vote"; then`,
+		`  printf 'starter abstains\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Senate plan tiebreak"; then`,
+		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_plan_3\)$/\1/p' | head -n1)`,
+		`  printf 'ROMA_PICK: %s | choose delegate two plan\n' "$target"`,
+		`elif printf '%s' "$prompt" | grep -q "Senate implementation vote"; then`,
+		`  printf 'starter abstains\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Senate implementation tiebreak"; then`,
+		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_implementation_1\)$/\1/p' | head -n1)`,
+		`  printf 'ROMA_PICK: %s | choose delegate one implementation\n' "$target"`,
+		`else`,
+		`  printf 'unexpected starter prompt\n' >&2`,
+		`  exit 9`,
+		`fi`,
+	}, "\n")
+	workerOneScript := strings.Join([]string{
+		`prompt="$1"`,
+		`if printf '%s' "$prompt" | grep -q "Senate plan proposal"; then`,
+		`  printf 'PLAN ONE\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Senate plan vote"; then`,
+		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_plan_2\)$/\1/p' | head -n1)`,
+		`  printf 'ROMA_PICK: %s | vote for plan one\n' "$target"`,
+		`elif printf '%s' "$prompt" | grep -q "Senate implementation candidate"; then`,
+		`  printf 'delegate one\n' > winner.txt`,
+		`  printf 'ROMA_MERGE_BACK: require_vote | candidate ready\nROMA_MERGE_FILE: winner.txt\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Senate implementation vote"; then`,
+		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_implementation_1\)$/\1/p' | head -n1)`,
+		`  printf 'ROMA_PICK: %s | vote for implementation one\n' "$target"`,
+		`else`,
+		`  printf 'unexpected worker one prompt\n' >&2`,
+		`  exit 11`,
+		`fi`,
+	}, "\n")
+	workerTwoScript := strings.Join([]string{
+		`prompt="$1"`,
+		`if printf '%s' "$prompt" | grep -q "Senate plan proposal"; then`,
+		`  printf 'PLAN TWO\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Senate plan vote"; then`,
+		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_plan_3\)$/\1/p' | head -n1)`,
+		`  printf 'ROMA_PICK: %s | vote for plan two\n' "$target"`,
+		`elif printf '%s' "$prompt" | grep -q "Senate implementation candidate"; then`,
+		`  printf 'delegate two\n' > loser.txt`,
+		`  printf 'ROMA_MERGE_BACK: require_vote | candidate ready\nROMA_MERGE_FILE: loser.txt\n'`,
+		`elif printf '%s' "$prompt" | grep -q "Senate implementation vote"; then`,
+		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_implementation_2\)$/\1/p' | head -n1)`,
+		`  printf 'ROMA_PICK: %s | vote for implementation two\n' "$target"`,
+		`else`,
+		`  printf 'unexpected worker two prompt\n' >&2`,
+		`  exit 13`,
+		`fi`,
+	}, "\n")
+
+	registry, err := agents.NewRegistry(
+		domain.AgentProfile{
+			ID:           "starter",
+			DisplayName:  "Starter",
+			Command:      "sh",
+			Args:         []string{"-c", starterScript, "starter", "{prompt}"},
+			Availability: domain.AgentAvailabilityAvailable,
+		},
+		domain.AgentProfile{
+			ID:           "worker-one",
+			DisplayName:  "Worker One",
+			Command:      "sh",
+			Args:         []string{"-c", workerOneScript, "worker-one", "{prompt}"},
+			Availability: domain.AgentAvailabilityAvailable,
+		},
+		domain.AgentProfile{
+			ID:           "worker-two",
+			DisplayName:  "Worker Two",
+			Command:      "sh",
+			Args:         []string{"-c", workerTwoScript, "worker-two", "{prompt}"},
+			Availability: domain.AgentAvailabilityAvailable,
+		},
+	)
+	if err != nil {
+		t.Fatalf("NewRegistry() error = %v", err)
+	}
+
+	mem := &fakeMemory{}
+	svc := NewService(registry)
+	svc.SetControlDir(controlDir)
+	svc.Memory = mem
+
+	result, err := svc.RunWithResult(context.Background(), Request{
+		Prompt:       "implement a winner-takes-all senate flow",
+		Mode:         RunModeSenate,
+		StarterAgent: "starter",
+		Delegates:    []string{"worker-one", "worker-two"},
+		WorkingDir:   workDir,
+	})
+	if err != nil {
+		t.Fatalf("RunWithResult() error = %v", err)
+	}
+	if result.Status != "succeeded" {
+		t.Fatalf("status = %s, want succeeded", result.Status)
+	}
+	if mem.recorded == 0 {
+		t.Fatal("memory Record was not called, want recorded > 0")
+	}
+
+	sentPrompt, err := os.ReadFile(planPromptDump)
+	if err != nil {
+		t.Fatalf("ReadFile(plan prompt) error = %v", err)
+	}
+	if !strings.Contains(string(sentPrompt), "MEMORY-CONTEXT-MARKER") {
+		t.Fatalf("senate plan prompt missing injected memory context:\n%s", string(sentPrompt))
+	}
+}
+
 func TestWriteRelayResult(t *testing.T) {
 	var buf strings.Builder
 	writeRelayResult(&buf, []scheduler.NodeAssignment{

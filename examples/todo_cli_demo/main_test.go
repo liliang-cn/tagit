@@ -14,7 +14,7 @@ func TestRunAddAndList(t *testing.T) {
 
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	
+
 	// Test adding a todo
 	if code := run([]string{"--file", todoPath, "add", "buy milk"}, stdout, stderr); code != 0 {
 		t.Fatalf("run(add) code = %d, stderr = %q", code, stderr.String())
@@ -41,7 +41,7 @@ func TestRunDoneAndRemove(t *testing.T) {
 
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	
+
 	// Add a todo first
 	run([]string{"--file", todoPath, "add", "write tests"}, stdout, stderr)
 	stdout.Reset()

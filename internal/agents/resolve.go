@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
+	"github.com/liliang-cn/tagit/internal/domain"
 )
 
 // Resolve finds an agent by id, command, or alias and refreshes availability from PATH.

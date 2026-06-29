@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/policy"
-	"github.com/liliang-cn/roma/internal/store"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/policy"
+	"github.com/liliang-cn/tagit/internal/store"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 type ApplyOptions struct {
@@ -361,12 +361,12 @@ func (s *Service) apply(ctx context.Context, sessionID, taskID, artifactID strin
 		} else {
 			result.RemediationHint = "Preview passed. Approve and apply the execution plan when ready."
 			result.ResolutionOptions = []string{
-				fmt.Sprintf("roma plan approve %s", artifactID),
-				fmt.Sprintf("roma plan apply %s %s %s", sessionID, taskID, artifactID),
+				fmt.Sprintf("tagit plan approve %s", artifactID),
+				fmt.Sprintf("tagit plan apply %s %s %s", sessionID, taskID, artifactID),
 			}
 			result.ResolutionSteps = []ResolutionStep{
-				{Kind: "approve", Title: "Approve the execution plan", Command: fmt.Sprintf("roma plan approve %s", artifactID)},
-				{Kind: "apply", Title: "Apply the approved plan", Command: fmt.Sprintf("roma plan apply %s %s %s", sessionID, taskID, artifactID)},
+				{Kind: "approve", Title: "Approve the execution plan", Command: fmt.Sprintf("tagit plan approve %s", artifactID)},
+				{Kind: "apply", Title: "Apply the approved plan", Command: fmt.Sprintf("tagit plan apply %s %s %s", sessionID, taskID, artifactID)},
 			}
 		}
 		if recordEvents {
@@ -413,8 +413,8 @@ func (s *Service) apply(ctx context.Context, sessionID, taskID, artifactID strin
 		result.ResolutionOptions = resolutionOptionsChecks(artifactID, sessionID, taskID)
 		result.ResolutionSteps = []ResolutionStep{
 			{Kind: "inspect", Title: "Review failing checks", Detail: err.Error()},
-			{Kind: "preview", Title: "Re-run plan preview", Command: fmt.Sprintf("roma plan preview %s %s %s", sessionID, taskID, artifactID)},
-			{Kind: "apply", Title: "Apply again after fixes", Command: fmt.Sprintf("roma plan apply %s %s %s", sessionID, taskID, artifactID)},
+			{Kind: "preview", Title: "Re-run plan preview", Command: fmt.Sprintf("tagit plan preview %s %s %s", sessionID, taskID, artifactID)},
+			{Kind: "apply", Title: "Apply again after fixes", Command: fmt.Sprintf("tagit plan apply %s %s %s", sessionID, taskID, artifactID)},
 		}
 		applyErr := &ApplyError{Kind: ErrorKindCheckFailed, Message: err.Error()}
 		if recordEvents {
@@ -425,12 +425,12 @@ func (s *Service) apply(ctx context.Context, sessionID, taskID, artifactID strin
 	result.Applied = true
 	result.RemediationHint = "Apply succeeded. Review the merged result and keep the rollback hint for follow-up validation."
 	result.ResolutionOptions = []string{
-		fmt.Sprintf("roma result show %s", sessionID),
-		fmt.Sprintf("roma plan rollback %s %s %s", sessionID, taskID, artifactID),
+		fmt.Sprintf("tagit result show %s", sessionID),
+		fmt.Sprintf("tagit plan rollback %s %s %s", sessionID, taskID, artifactID),
 	}
 	result.ResolutionSteps = []ResolutionStep{
-		{Kind: "review", Title: "Review the final result", Command: fmt.Sprintf("roma result show %s", sessionID)},
-		{Kind: "rollback", Title: "Rollback if validation later fails", Command: fmt.Sprintf("roma plan rollback %s %s %s", sessionID, taskID, artifactID)},
+		{Kind: "review", Title: "Review the final result", Command: fmt.Sprintf("tagit result show %s", sessionID)},
+		{Kind: "rollback", Title: "Rollback if validation later fails", Command: fmt.Sprintf("tagit plan rollback %s %s %s", sessionID, taskID, artifactID)},
 	}
 	if recordEvents {
 		s.appendAppliedEvent(ctx, result, plan, "applied")
@@ -467,12 +467,12 @@ func (s *Service) Rollback(ctx context.Context, sessionID, taskID, artifactID st
 		RequiredChecks:  append([]string(nil), plan.RequiredChecks...),
 		RemediationHint: "Rollback completed. Rerun plan preview before attempting another apply.",
 		ResolutionOptions: []string{
-			fmt.Sprintf("roma plan preview %s %s %s", sessionID, taskID, artifactID),
-			fmt.Sprintf("roma plan apply %s %s %s", sessionID, taskID, artifactID),
+			fmt.Sprintf("tagit plan preview %s %s %s", sessionID, taskID, artifactID),
+			fmt.Sprintf("tagit plan apply %s %s %s", sessionID, taskID, artifactID),
 		},
 		ResolutionSteps: []ResolutionStep{
-			{Kind: "preview", Title: "Preview the refreshed plan", Command: fmt.Sprintf("roma plan preview %s %s %s", sessionID, taskID, artifactID)},
-			{Kind: "apply", Title: "Apply again when ready", Command: fmt.Sprintf("roma plan apply %s %s %s", sessionID, taskID, artifactID)},
+			{Kind: "preview", Title: "Preview the refreshed plan", Command: fmt.Sprintf("tagit plan preview %s %s %s", sessionID, taskID, artifactID)},
+			{Kind: "apply", Title: "Apply again when ready", Command: fmt.Sprintf("tagit plan apply %s %s %s", sessionID, taskID, artifactID)},
 		},
 	}
 	if err := s.workspaces.RollbackMerge(ctx, prepared); err != nil {
@@ -739,9 +739,9 @@ func applyInboxGuidance(entry InboxEntry) InboxEntry {
 		}
 		if len(entry.ResolutionSteps) == 0 {
 			entry.ResolutionSteps = []ResolutionStep{
-				{Kind: "inbox", Title: "Review the approval inbox", Command: fmt.Sprintf("roma plan inbox --session %s", entry.SessionID)},
-				{Kind: "approve", Title: "Approve the execution plan", Command: fmt.Sprintf("roma plan approve %s", entry.ArtifactID)},
-				{Kind: "apply", Title: "Apply after approval", Command: fmt.Sprintf("roma plan apply %s %s %s", entry.SessionID, entry.TaskID, entry.ArtifactID)},
+				{Kind: "inbox", Title: "Review the approval inbox", Command: fmt.Sprintf("tagit plan inbox --session %s", entry.SessionID)},
+				{Kind: "approve", Title: "Approve the execution plan", Command: fmt.Sprintf("tagit plan approve %s", entry.ArtifactID)},
+				{Kind: "apply", Title: "Apply after approval", Command: fmt.Sprintf("tagit plan apply %s %s %s", entry.SessionID, entry.TaskID, entry.ArtifactID)},
 			}
 		}
 	case "rejected":
@@ -753,7 +753,7 @@ func applyInboxGuidance(entry InboxEntry) InboxEntry {
 		}
 		if len(entry.ResolutionSteps) == 0 {
 			entry.ResolutionSteps = []ResolutionStep{
-				{Kind: "inspect", Title: "Inspect the rejected plan", Command: fmt.Sprintf("roma plan inspect %s", entry.ArtifactID)},
+				{Kind: "inspect", Title: "Inspect the rejected plan", Command: fmt.Sprintf("tagit plan inspect %s", entry.ArtifactID)},
 				{Kind: "revise", Title: "Revise or regenerate the task output", Detail: "Update the plan scope before requesting approval again."},
 			}
 		}
@@ -773,17 +773,17 @@ func applyInboxGuidance(entry InboxEntry) InboxEntry {
 		}
 	case "approved":
 		if len(entry.ResolutionOptions) == 0 {
-			entry.ResolutionOptions = []string{fmt.Sprintf("roma plan apply %s %s %s", entry.SessionID, entry.TaskID, entry.ArtifactID)}
+			entry.ResolutionOptions = []string{fmt.Sprintf("tagit plan apply %s %s %s", entry.SessionID, entry.TaskID, entry.ArtifactID)}
 		}
 		if len(entry.ResolutionSteps) == 0 {
-			entry.ResolutionSteps = []ResolutionStep{{Kind: "apply", Title: "Apply the approved plan", Command: fmt.Sprintf("roma plan apply %s %s %s", entry.SessionID, entry.TaskID, entry.ArtifactID)}}
+			entry.ResolutionSteps = []ResolutionStep{{Kind: "apply", Title: "Apply the approved plan", Command: fmt.Sprintf("tagit plan apply %s %s %s", entry.SessionID, entry.TaskID, entry.ArtifactID)}}
 		}
 	case "previewed", "ready":
 		if len(entry.ResolutionOptions) == 0 {
-			entry.ResolutionOptions = []string{fmt.Sprintf("roma plan preview %s %s %s", entry.SessionID, entry.TaskID, entry.ArtifactID)}
+			entry.ResolutionOptions = []string{fmt.Sprintf("tagit plan preview %s %s %s", entry.SessionID, entry.TaskID, entry.ArtifactID)}
 		}
 		if len(entry.ResolutionSteps) == 0 {
-			entry.ResolutionSteps = []ResolutionStep{{Kind: "preview", Title: "Preview the execution plan", Command: fmt.Sprintf("roma plan preview %s %s %s", entry.SessionID, entry.TaskID, entry.ArtifactID)}}
+			entry.ResolutionSteps = []ResolutionStep{{Kind: "preview", Title: "Preview the execution plan", Command: fmt.Sprintf("tagit plan preview %s %s %s", entry.SessionID, entry.TaskID, entry.ArtifactID)}}
 		}
 	}
 	return entry
@@ -919,23 +919,23 @@ func classifyConflictKind(preview workspacepkg.MergePreview) string {
 
 func resolutionOptionsApproval(artifactID, sessionID, taskID string) []string {
 	return []string{
-		fmt.Sprintf("roma plan inbox --session %s", sessionID),
-		fmt.Sprintf("roma plan approve %s", artifactID),
-		fmt.Sprintf("roma plan apply %s %s %s", sessionID, taskID, artifactID),
+		fmt.Sprintf("tagit plan inbox --session %s", sessionID),
+		fmt.Sprintf("tagit plan approve %s", artifactID),
+		fmt.Sprintf("tagit plan apply %s %s %s", sessionID, taskID, artifactID),
 	}
 }
 
 func resolutionOptionsRejected(artifactID, sessionID string) []string {
 	return []string{
-		fmt.Sprintf("roma plan inbox --session %s", sessionID),
-		fmt.Sprintf("roma plan inspect %s", artifactID),
+		fmt.Sprintf("tagit plan inbox --session %s", sessionID),
+		fmt.Sprintf("tagit plan inspect %s", artifactID),
 		"Revise the plan or regenerate the task output before requesting approval again.",
 	}
 }
 
 func resolutionOptionsValidation(artifactID, sessionID, taskID string) []string {
 	return []string{
-		fmt.Sprintf("roma plan preview %s %s %s", sessionID, taskID, artifactID),
+		fmt.Sprintf("tagit plan preview %s %s %s", sessionID, taskID, artifactID),
 		"Align the workspace diff with execution_plan.expected_files and forbidden_paths.",
 		"Regenerate the execution plan if the scope has changed.",
 	}
@@ -943,16 +943,16 @@ func resolutionOptionsValidation(artifactID, sessionID, taskID string) []string 
 
 func resolutionOptionsConflict(artifactID, sessionID, taskID string) []string {
 	return []string{
-		fmt.Sprintf("roma plan preview %s %s %s", sessionID, taskID, artifactID),
-		fmt.Sprintf("roma workspace show %s %s", sessionID, taskID),
+		fmt.Sprintf("tagit plan preview %s %s %s", sessionID, taskID, artifactID),
+		fmt.Sprintf("tagit workspace show %s %s", sessionID, taskID),
 		"Refresh the base branch or regenerate the plan against the latest code before applying.",
 	}
 }
 
 func resolutionStepsConflict(artifactID, sessionID, taskID, conflictKind string, preview workspacepkg.MergePreview) []ResolutionStep {
 	steps := []ResolutionStep{
-		{Kind: "workspace", Title: "Inspect the isolated workspace", Command: fmt.Sprintf("roma workspace show %s %s", sessionID, taskID)},
-		{Kind: "preview", Title: "Re-run plan preview after refreshing the base", Command: fmt.Sprintf("roma plan preview %s %s %s", sessionID, taskID, artifactID)},
+		{Kind: "workspace", Title: "Inspect the isolated workspace", Command: fmt.Sprintf("tagit workspace show %s %s", sessionID, taskID)},
+		{Kind: "preview", Title: "Re-run plan preview after refreshing the base", Command: fmt.Sprintf("tagit plan preview %s %s %s", sessionID, taskID, artifactID)},
 		{Kind: "regenerate", Title: "Regenerate the plan against the latest code", Detail: "If the conflict persists, rerun the task so the worktree patch is rebuilt against the current base."},
 	}
 	if len(preview.ConflictPaths) > 0 {
@@ -968,9 +968,9 @@ func resolutionStepsConflict(artifactID, sessionID, taskID, conflictKind string,
 
 func resolutionOptionsChecks(artifactID, sessionID, taskID string) []string {
 	return []string{
-		fmt.Sprintf("roma plan preview %s %s %s", sessionID, taskID, artifactID),
+		fmt.Sprintf("tagit plan preview %s %s %s", sessionID, taskID, artifactID),
 		"Fix the required checks in the isolated workspace.",
-		fmt.Sprintf("roma plan apply %s %s %s", sessionID, taskID, artifactID),
+		fmt.Sprintf("tagit plan apply %s %s %s", sessionID, taskID, artifactID),
 	}
 }
 

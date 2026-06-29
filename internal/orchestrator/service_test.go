@@ -5,8 +5,8 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/runtime"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/runtime"
 )
 
 func TestRunSequentialBuildsDelegateChain(t *testing.T) {

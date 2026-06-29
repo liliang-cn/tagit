@@ -11,25 +11,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/curia"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/plans"
-	"github.com/liliang-cn/roma/internal/policy"
-	"github.com/liliang-cn/roma/internal/queue"
-	"github.com/liliang-cn/roma/internal/replay"
-	"github.com/liliang-cn/roma/internal/romapath"
-	runsvc "github.com/liliang-cn/roma/internal/run"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	"github.com/liliang-cn/roma/internal/sqliteutil"
-	storepkg "github.com/liliang-cn/roma/internal/store"
-	"github.com/liliang-cn/roma/internal/syncdb"
-	"github.com/liliang-cn/roma/internal/taskstore"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/curia"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/plans"
+	"github.com/liliang-cn/tagit/internal/policy"
+	"github.com/liliang-cn/tagit/internal/queue"
+	"github.com/liliang-cn/tagit/internal/replay"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
+	runsvc "github.com/liliang-cn/tagit/internal/run"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/sqliteutil"
+	storepkg "github.com/liliang-cn/tagit/internal/store"
+	"github.com/liliang-cn/tagit/internal/syncdb"
+	"github.com/liliang-cn/tagit/internal/taskstore"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 func main() {
@@ -66,7 +66,7 @@ func run(ctx context.Context, args []string) error {
 		printUsage()
 		return nil
 	case "help":
-		return fmt.Errorf(`"roma help" has been removed; use "roma --help" or "roma <command> --help"`)
+		return fmt.Errorf(`"tagit help" has been removed; use "tagit --help" or "tagit <command> --help"`)
 	case "approve":
 		if handled, err := handleTopicHelp("approve", args[1:]); handled {
 			return err
@@ -135,7 +135,7 @@ func run(ctx context.Context, args []string) error {
 		}
 		return runStatus(ctx)
 	case "submit", "tell", "ask":
-		return fmt.Errorf("%q has been removed; use \"roma run\" instead", args[0])
+		return fmt.Errorf("%q has been removed; use \"tagit run\" instead", args[0])
 	case "tui":
 		return runTUI(ctx, args[1:])
 	case "session", "sessions":
@@ -156,7 +156,7 @@ func handleTopicHelp(topic string, args []string) (bool, error) {
 		return false, nil
 	}
 	if strings.TrimSpace(args[0]) == "help" {
-		return true, fmt.Errorf(`"roma %s help" has been removed; use "roma %s --help"`, topic, topic)
+		return true, fmt.Errorf(`"tagit %s help" has been removed; use "tagit %s --help"`, topic, topic)
 	}
 	if isHelpArg(args[0]) {
 		printTopicUsage(topic)
@@ -168,7 +168,7 @@ func handleTopicHelp(topic string, args []string) (bool, error) {
 func handleSubtopicHelp(topic string, args []string) (bool, error) {
 	if len(args) > 0 {
 		if strings.TrimSpace(args[0]) == "help" {
-			return true, fmt.Errorf(`"roma %s help" has been removed; use "roma %s --help"`, topic, topic)
+			return true, fmt.Errorf(`"tagit %s help" has been removed; use "tagit %s --help"`, topic, topic)
 		}
 		if isHelpArg(args[0]) {
 			printTopicUsage(topic)
@@ -177,7 +177,7 @@ func handleSubtopicHelp(topic string, args []string) (bool, error) {
 	}
 	if len(args) > 1 {
 		if strings.TrimSpace(args[1]) == "help" {
-			return true, fmt.Errorf(`"roma %s %s help" has been removed; use "roma %s %s --help"`, topic, args[0], topic, args[0])
+			return true, fmt.Errorf(`"tagit %s %s help" has been removed; use "tagit %s %s --help"`, topic, args[0], topic, args[0])
 		}
 		if isHelpArg(args[1]) {
 			printTopicUsage(topic + " " + args[0])
@@ -193,7 +193,7 @@ func runDebug(ctx context.Context, registry *agents.Registry, args []string) err
 		return nil
 	}
 	if strings.TrimSpace(args[0]) == "help" {
-		return fmt.Errorf(`"roma debug help" has been removed; use "roma debug --help" or "roma debug <topic> --help"`)
+		return fmt.Errorf(`"tagit debug help" has been removed; use "tagit debug --help" or "tagit debug <topic> --help"`)
 	}
 	switch args[0] {
 	case "agent", "agents":
@@ -248,7 +248,7 @@ func runAgents(ctx context.Context, registry *agents.Registry, args []string) er
 	switch args[0] {
 	case "add":
 		if len(args) < 4 {
-			return fmt.Errorf("usage: roma agent add <id> <display_name> <path> [--arg <arg>] [--alias <alias>] [--pty] [--mcp] [--json]")
+			return fmt.Errorf("usage: tagit agent add <id> <display_name> <path> [--arg <arg>] [--alias <alias>] [--pty] [--mcp] [--json]")
 		}
 		profile := domain.AgentProfile{
 			ID:                 args[1],
@@ -290,7 +290,7 @@ func runAgents(ctx context.Context, registry *agents.Registry, args []string) er
 
 	case "remove":
 		if len(args) < 2 {
-			return fmt.Errorf("usage: roma agent remove <id>")
+			return fmt.Errorf("usage: tagit agent remove <id>")
 		}
 		if err := registry.RemoveUserProfile(args[1]); err != nil {
 			return err
@@ -300,7 +300,7 @@ func runAgents(ctx context.Context, registry *agents.Registry, args []string) er
 
 	case "inspect":
 		if len(args) < 2 {
-			return fmt.Errorf("usage: roma agent inspect <id>")
+			return fmt.Errorf("usage: tagit agent inspect <id>")
 		}
 		profile, ok := registry.Get(args[1])
 		if !ok {
@@ -423,7 +423,7 @@ func ensureDaemonAvailable(check func() bool, isRunning func() bool, stop func()
 		}
 		time.Sleep(interval)
 	}
-	return fmt.Errorf("romad did not become ready within %s", timeout)
+	return fmt.Errorf("tagitd did not become ready within %s", timeout)
 }
 
 func followRunJob(ctx context.Context, client *api.Client, jobID string, raw bool) (api.QueueInspectResponse, error) {
@@ -554,7 +554,7 @@ func runGraph(ctx context.Context, registry *agents.Registry, args []string) err
 	}
 
 	svc := runsvc.NewService(registry)
-	svc.SetControlDir(romapath.HomeDir())
+	svc.SetControlDir(tagitpath.HomeDir())
 	return svc.RunGraph(ctx, graphReq, os.Stdout)
 }
 
@@ -593,7 +593,7 @@ func runCuria(ctx context.Context, args []string) error {
 			return err
 		}
 	} else {
-		store := curia.NewReputationStore(romapath.HomeDir())
+		store := curia.NewReputationStore(tagitpath.HomeDir())
 		items, err = store.List(ctx)
 		if err != nil {
 			return err
@@ -621,7 +621,7 @@ func runResults(ctx context.Context, args []string) error {
 		return err
 	}
 	if len(args) < 2 || args[0] != "show" {
-		return fmt.Errorf("usage: roma result show <session_id>")
+		return fmt.Errorf("usage: tagit result show <session_id>")
 	}
 	sessionID := args[1]
 	wd, err := os.Getwd()
@@ -1056,9 +1056,9 @@ func runQueueDecision(ctx context.Context, approved bool, args []string) error {
 	}
 	if len(args) == 0 {
 		if approved {
-			return fmt.Errorf("roma approve requires a job id")
+			return fmt.Errorf("tagit approve requires a job id")
 		}
-		return fmt.Errorf("roma reject requires a job id")
+		return fmt.Errorf("tagit reject requires a job id")
 	}
 	jobID := args[0]
 	wd, err := os.Getwd()
@@ -1343,7 +1343,7 @@ func inspectQueueLocal(ctx context.Context, wd, jobID string, raw bool) (api.Que
 		return resp, nil
 	}
 
-	controlDir := romapath.HomeDir()
+	controlDir := tagitpath.HomeDir()
 	workspaceDir := req.WorkingDir
 	var eventItems []events.Record
 	sessionStore := preferredHistoryStore(controlDir)
@@ -1428,7 +1428,7 @@ func runQueueCancel(ctx context.Context, args []string) error {
 		return err
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("roma cancel requires a job id")
+		return fmt.Errorf("tagit cancel requires a job id")
 	}
 	jobID := args[0]
 	wd, err := os.Getwd()
@@ -1553,7 +1553,7 @@ func findQueueRequestAcrossRoots(ctx context.Context, wd, jobID string) (queue.R
 
 func candidateQueueRoots(wd string) []string {
 	_ = wd
-	return []string{filepath.Clean(romapath.HomeDir())}
+	return []string{filepath.Clean(tagitpath.HomeDir())}
 }
 
 func latestQueueRequestForDir(requests []queue.Request, wd string) (queue.Request, bool) {
@@ -1769,7 +1769,7 @@ func runArtifacts(ctx context.Context, args []string) error {
 
 	if args[0] == "show" {
 		if len(args) < 2 {
-			return fmt.Errorf("roma artifacts show requires an artifact id")
+			return fmt.Errorf("tagit artifacts show requires an artifact id")
 		}
 		envelope, err := store.Get(ctx, args[1])
 		if err != nil {
@@ -1900,7 +1900,7 @@ func runSessions(ctx context.Context, args []string) error {
 
 	if args[0] == "show" {
 		if len(args) < 2 {
-			return fmt.Errorf("roma sessions show requires a session id")
+			return fmt.Errorf("tagit sessions show requires a session id")
 		}
 		record, err := store.Get(ctx, args[1])
 		if err != nil {
@@ -1916,13 +1916,13 @@ func runSessions(ctx context.Context, args []string) error {
 
 	if args[0] == "inspect" {
 		if len(args) < 2 {
-			return fmt.Errorf("roma sessions inspect requires a session id")
+			return fmt.Errorf("tagit sessions inspect requires a session id")
 		}
 		record, err := store.Get(ctx, args[1])
 		if err != nil {
 			return err
 		}
-		controlDir := romapath.HomeDir()
+		controlDir := tagitpath.HomeDir()
 		workspaceDir := record.WorkingDir
 		resp := api.SessionInspectResponse{Session: record, ApprovalResumeReady: true}
 		if leaseStore, err := scheduler.NewLeaseStore(controlDir); err == nil {
@@ -1969,13 +1969,13 @@ func runSessions(ctx context.Context, args []string) error {
 
 	if args[0] == "curia" {
 		if len(args) < 2 {
-			return fmt.Errorf("roma sessions curia requires a session id")
+			return fmt.Errorf("tagit sessions curia requires a session id")
 		}
 		record, err := store.Get(ctx, args[1])
 		if err != nil {
 			return err
 		}
-		controlDir := romapath.HomeDir()
+		controlDir := tagitpath.HomeDir()
 		workspaceDir := record.WorkingDir
 		resp := api.SessionInspectResponse{Session: record, ApprovalResumeReady: true}
 		if leaseStore, err := scheduler.NewLeaseStore(controlDir); err == nil {
@@ -2156,7 +2156,7 @@ func runAcp(ctx context.Context, args []string) error {
 		return err
 	}
 	if len(args) < 1 || args[0] != "status" {
-		return fmt.Errorf("usage: roma acp status")
+		return fmt.Errorf("usage: tagit acp status")
 	}
 
 	wd, err := os.Getwd()
@@ -2295,7 +2295,7 @@ func summarizeCuriaReviewerWeightsCLI(workDir string, items []artifacts.CuriaRev
 	if workDir == "" || len(items) == 0 {
 		return nil
 	}
-	store := curia.NewReputationStore(romapath.HomeDir())
+	store := curia.NewReputationStore(tagitpath.HomeDir())
 	if store == nil {
 		return nil
 	}
@@ -2467,7 +2467,7 @@ func runStatus(ctx context.Context) error {
 		return fmt.Errorf("get working directory: %w", err)
 	}
 	_ = syncWorkspace(ctx, wd)
-	controlDir := romapath.HomeDir()
+	controlDir := tagitpath.HomeDir()
 
 	client := api.NewClient(wd)
 	queueStore := preferredQueueStore(controlDir)
@@ -2637,7 +2637,7 @@ func runReplay(ctx context.Context, args []string) error {
 		return err
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("roma replay requires a session id")
+		return fmt.Errorf("tagit replay requires a session id")
 	}
 
 	wd, err := os.Getwd()
@@ -2773,7 +2773,7 @@ func runPlans(ctx context.Context, args []string) error {
 	switch args[0] {
 	case "approve":
 		if len(args) < 2 {
-			return fmt.Errorf("roma plans approve requires an artifact id")
+			return fmt.Errorf("tagit plans approve requires an artifact id")
 		}
 		actor := policy.OverrideActor()
 		if len(args) > 2 && strings.HasPrefix(args[2], "--actor=") {
@@ -2785,7 +2785,7 @@ func runPlans(ctx context.Context, args []string) error {
 		return service.Approve(ctx, args[1], actor)
 	case "reject":
 		if len(args) < 2 {
-			return fmt.Errorf("roma plans reject requires an artifact id")
+			return fmt.Errorf("tagit plans reject requires an artifact id")
 		}
 		actor := policy.OverrideActor()
 		if len(args) > 2 && strings.HasPrefix(args[2], "--actor=") {
@@ -2840,7 +2840,7 @@ func runPlans(ctx context.Context, args []string) error {
 		return printPlanInbox(apiItems)
 	case "inspect":
 		if len(args) < 2 {
-			return fmt.Errorf("roma plans inspect requires an artifact id")
+			return fmt.Errorf("tagit plans inspect requires an artifact id")
 		}
 		if client.Available() {
 			envelope, err := client.PlanInspect(ctx, args[1])
@@ -2876,7 +2876,7 @@ func runPlans(ctx context.Context, args []string) error {
 		return nil
 	case "apply":
 		if len(args) < 4 {
-			return fmt.Errorf("roma plans apply requires <session_id> <task_id> <artifact_id>")
+			return fmt.Errorf("tagit plans apply requires <session_id> <task_id> <artifact_id>")
 		}
 		dryRun := false
 		policyOverride := false
@@ -2929,7 +2929,7 @@ func runPlans(ctx context.Context, args []string) error {
 		return nil
 	case "preview":
 		if len(args) < 4 {
-			return fmt.Errorf("roma plans preview requires <session_id> <task_id> <artifact_id>")
+			return fmt.Errorf("tagit plans preview requires <session_id> <task_id> <artifact_id>")
 		}
 		if client.Available() {
 			result, err := client.PlanPreview(ctx, api.PlanApplyRequest{
@@ -2959,7 +2959,7 @@ func runPlans(ctx context.Context, args []string) error {
 		return nil
 	case "rollback":
 		if len(args) < 4 {
-			return fmt.Errorf("roma plans rollback requires <session_id> <task_id> <artifact_id>")
+			return fmt.Errorf("tagit plans rollback requires <session_id> <task_id> <artifact_id>")
 		}
 		if client.Available() {
 			result, err := client.PlanRollback(ctx, api.PlanApplyRequest{
@@ -3085,7 +3085,7 @@ func runTasks(ctx context.Context, args []string) error {
 
 	if args[0] == "show" {
 		if len(args) < 2 {
-			return fmt.Errorf("roma tasks show requires a task id")
+			return fmt.Errorf("tagit tasks show requires a task id")
 		}
 		item, err := taskStore.GetTask(ctx, args[1])
 		if err != nil {
@@ -3101,7 +3101,7 @@ func runTasks(ctx context.Context, args []string) error {
 
 	if args[0] == "approve" || args[0] == "reject" {
 		if len(args) < 2 {
-			return fmt.Errorf("roma tasks %s requires a task id", args[0])
+			return fmt.Errorf("tagit tasks %s requires a task id", args[0])
 		}
 		lifecycle := scheduler.NewGraphLifecycle(taskStore, preferredEventStore(wd))
 		if args[0] == "approve" {
@@ -3224,7 +3224,7 @@ func runWorkspaces(ctx context.Context, args []string) error {
 	}
 	if args[0] == "show" {
 		if len(args) < 3 {
-			return fmt.Errorf("roma workspaces show requires a session id and task id")
+			return fmt.Errorf("tagit workspaces show requires a session id and task id")
 		}
 		item, err := manager.Get(ctx, args[1], args[2])
 		if err != nil {
@@ -3253,7 +3253,7 @@ func runWorkspaces(ctx context.Context, args []string) error {
 	}
 	if args[0] == "merge" {
 		if len(args) < 3 {
-			return fmt.Errorf("roma workspaces merge requires a session id and task id")
+			return fmt.Errorf("tagit workspaces merge requires a session id and task id")
 		}
 		item, err := manager.Get(ctx, args[1], args[2])
 		if err != nil {
@@ -3343,7 +3343,7 @@ func runEvents(ctx context.Context, args []string) error {
 
 	if args[0] == "show" {
 		if len(args) < 2 {
-			return fmt.Errorf("roma events show requires an event id")
+			return fmt.Errorf("tagit events show requires an event id")
 		}
 		if client.Available() {
 			record, err := client.EventGet(ctx, args[1])
@@ -3379,7 +3379,7 @@ func runEvents(ctx context.Context, args []string) error {
 }
 
 func preferredHistoryStore(workDir string) history.Backend {
-	controlDir := romapath.HomeDir()
+	controlDir := tagitpath.HomeDir()
 	sqliteStore, err := history.NewSQLiteStore(controlDir)
 	if err == nil {
 		return sqliteStore
@@ -3388,7 +3388,7 @@ func preferredHistoryStore(workDir string) history.Backend {
 }
 
 func preferredEventStore(workDir string) storepkg.EventStore {
-	controlDir := romapath.HomeDir()
+	controlDir := tagitpath.HomeDir()
 	sqliteStore, err := storepkg.NewSQLiteEventStore(controlDir)
 	if err == nil {
 		return sqliteStore
@@ -3397,7 +3397,7 @@ func preferredEventStore(workDir string) storepkg.EventStore {
 }
 
 func preferredTaskStore(workDir string) storepkg.TaskStore {
-	controlDir := romapath.HomeDir()
+	controlDir := tagitpath.HomeDir()
 	sqliteStore, err := taskstore.NewSQLiteStore(controlDir)
 	if err == nil {
 		return sqliteStore
@@ -3406,7 +3406,7 @@ func preferredTaskStore(workDir string) storepkg.TaskStore {
 }
 
 func preferredArtifactStore(workDir string) artifacts.Backend {
-	controlDir := romapath.HomeDir()
+	controlDir := tagitpath.HomeDir()
 	sqliteStore, err := artifacts.NewSQLiteStore(controlDir)
 	if err == nil {
 		return sqliteStore
@@ -3415,7 +3415,7 @@ func preferredArtifactStore(workDir string) artifacts.Backend {
 }
 
 func preferredQueueStore(workDir string) queue.Backend {
-	controlDir := romapath.HomeDir()
+	controlDir := tagitpath.HomeDir()
 	fileStore := queue.NewStore(controlDir)
 	sqliteStore, err := queue.NewSQLiteStore(controlDir)
 	if err == nil {
@@ -3426,7 +3426,7 @@ func preferredQueueStore(workDir string) queue.Backend {
 
 func syncWorkspace(ctx context.Context, workDir string) error {
 	_ = workDir
-	return syncdb.NewWorkspace(romapath.HomeDir()).Run(ctx)
+	return syncdb.NewWorkspace(tagitpath.HomeDir()).Run(ctx)
 }
 
 func parseRunArgs(args []string) (runsvc.Request, error) {
@@ -3544,22 +3544,22 @@ func readPromptFile(path string) (string, error) {
 }
 
 func printUsage() {
-	fmt.Println("roma usage:")
-	fmt.Println("  roma <command> [subcommand] [flags]")
+	fmt.Println("tagit usage:")
+	fmt.Println("  tagit <command> [subcommand] [flags]")
 	fmt.Println("")
 	fmt.Println("Core:")
-	fmt.Println("  roma --help")
-	fmt.Println("  roma check [job_id] [--raw]")
-	fmt.Println("  roma tui [--cwd <dir>]")
-	fmt.Println(`  roma run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`)
-	fmt.Println("  roma status")
-	fmt.Println("  roma result show <session_id>")
-	fmt.Println("  roma <command> --help")
+	fmt.Println("  tagit --help")
+	fmt.Println("  tagit check [job_id] [--raw]")
+	fmt.Println("  tagit tui [--cwd <dir>]")
+	fmt.Println(`  tagit run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`)
+	fmt.Println("  tagit status")
+	fmt.Println("  tagit result show <session_id>")
+	fmt.Println("  tagit <command> --help")
 	fmt.Println("")
 	fmt.Println("Daemon Control:")
-	fmt.Println("  roma start [--acp-port <port>]")
-	fmt.Println("  roma stop")
-	fmt.Println("  roma acp status")
+	fmt.Println("  tagit start [--acp-port <port>]")
+	fmt.Println("  tagit stop")
+	fmt.Println("  tagit acp status")
 	fmt.Println("")
 	fmt.Println("Management:")
 	fmt.Println("  agent       manage coding-agent profiles")
@@ -3573,148 +3573,148 @@ func printUsage() {
 	fmt.Println("  recover                  recover a session")
 	fmt.Println("")
 	fmt.Println("Shortcuts:")
-	fmt.Println("  roma approve <job_id>")
-	fmt.Println("  roma reject <job_id>")
+	fmt.Println("  tagit approve <job_id>")
+	fmt.Println("  tagit reject <job_id>")
 	fmt.Println("")
 	fmt.Println("Examples:")
-	fmt.Println("  roma")
-	fmt.Println("  roma check")
-	fmt.Println("  roma queue --help")
-	fmt.Println("  roma agent --help")
-	fmt.Println("  roma tui")
-	fmt.Println(`  roma agent add my-codex "My Codex" /usr/bin/codex --arg exec --arg --full-auto --arg {prompt} --pty`)
-	fmt.Println(`  roma run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
-	fmt.Println(`  roma run --prompt-file ./prompt.txt --agent my-codex`)
-	fmt.Println(`  roma run --mode collab --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
-	fmt.Println(`  roma run --mode senate --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
-	fmt.Println(`  roma run --mode rage --prompt "keep going until the feature is actually complete" --agent my-codex`)
-	fmt.Println(`  roma run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot -d`)
-	fmt.Println(`  roma run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot --verbose`)
+	fmt.Println("  tagit")
+	fmt.Println("  tagit check")
+	fmt.Println("  tagit queue --help")
+	fmt.Println("  tagit agent --help")
+	fmt.Println("  tagit tui")
+	fmt.Println(`  tagit agent add my-codex "My Codex" /usr/bin/codex --arg exec --arg --full-auto --arg {prompt} --pty`)
+	fmt.Println(`  tagit run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
+	fmt.Println(`  tagit run --prompt-file ./prompt.txt --agent my-codex`)
+	fmt.Println(`  tagit run --mode collab --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
+	fmt.Println(`  tagit run --mode senate --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
+	fmt.Println(`  tagit run --mode rage --prompt "keep going until the feature is actually complete" --agent my-codex`)
+	fmt.Println(`  tagit run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot -d`)
+	fmt.Println(`  tagit run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot --verbose`)
 }
 
 func printTopicUsage(topic string) {
 	switch strings.ToLower(strings.TrimSpace(topic)) {
 	case "acp":
-		fmt.Println("roma acp usage:")
-		fmt.Println("  roma acp status")
+		fmt.Println("tagit acp usage:")
+		fmt.Println("  tagit acp status")
 	case "acp status":
-		fmt.Println("roma acp status usage:")
-		fmt.Println("  roma acp status")
+		fmt.Println("tagit acp status usage:")
+		fmt.Println("  tagit acp status")
 	case "agent", "agents":
-		fmt.Println("roma agent usage:")
-		fmt.Println("  roma agent list")
-		fmt.Println("  roma agent add <id> <name> <path> [--arg <arg>] [--alias <a1,a2>] [--pty] [--mcp] [--json]")
-		fmt.Println("  roma agent remove <id>")
-		fmt.Println("  roma agent inspect <id>")
+		fmt.Println("tagit agent usage:")
+		fmt.Println("  tagit agent list")
+		fmt.Println("  tagit agent add <id> <name> <path> [--arg <arg>] [--alias <a1,a2>] [--pty] [--mcp] [--json]")
+		fmt.Println("  tagit agent remove <id>")
+		fmt.Println("  tagit agent inspect <id>")
 	case "agent add":
-		fmt.Println("roma agent add usage:")
-		fmt.Println("  roma agent add <id> <name> <path> [--arg <arg>] [--alias <a1,a2>] [--pty] [--mcp] [--json]")
+		fmt.Println("tagit agent add usage:")
+		fmt.Println("  tagit agent add <id> <name> <path> [--arg <arg>] [--alias <a1,a2>] [--pty] [--mcp] [--json]")
 	case "agent remove":
-		fmt.Println("roma agent remove usage:")
-		fmt.Println("  roma agent remove <id>")
+		fmt.Println("tagit agent remove usage:")
+		fmt.Println("  tagit agent remove <id>")
 	case "agent inspect":
-		fmt.Println("roma agent inspect usage:")
-		fmt.Println("  roma agent inspect <id>")
+		fmt.Println("tagit agent inspect usage:")
+		fmt.Println("  tagit agent inspect <id>")
 	case "artifact", "artifacts":
-		fmt.Println("roma artifact usage:")
-		fmt.Println("  roma artifact list [--session <session_id>] [--kind <kind>]")
-		fmt.Println("  roma artifact show <artifact_id>")
+		fmt.Println("tagit artifact usage:")
+		fmt.Println("  tagit artifact list [--session <session_id>] [--kind <kind>]")
+		fmt.Println("  tagit artifact show <artifact_id>")
 	case "artifact list":
-		fmt.Println("roma artifact list usage:")
-		fmt.Println("  roma artifact list [--session <session_id>] [--kind <kind>]")
+		fmt.Println("tagit artifact list usage:")
+		fmt.Println("  tagit artifact list [--session <session_id>] [--kind <kind>]")
 	case "artifact show":
-		fmt.Println("roma artifact show usage:")
-		fmt.Println("  roma artifact show <artifact_id>")
+		fmt.Println("tagit artifact show usage:")
+		fmt.Println("  tagit artifact show <artifact_id>")
 	case "event", "events":
-		fmt.Println("roma event usage:")
-		fmt.Println("  roma event list [--session <session_id>] [--task <task_id>] [--type <event_type>]")
-		fmt.Println("  roma event show <event_id>")
+		fmt.Println("tagit event usage:")
+		fmt.Println("  tagit event list [--session <session_id>] [--task <task_id>] [--type <event_type>]")
+		fmt.Println("  tagit event show <event_id>")
 	case "event list":
-		fmt.Println("roma event list usage:")
-		fmt.Println("  roma event list [--session <session_id>] [--task <task_id>] [--type <event_type>]")
+		fmt.Println("tagit event list usage:")
+		fmt.Println("  tagit event list [--session <session_id>] [--task <task_id>] [--type <event_type>]")
 	case "event show":
-		fmt.Println("roma event show usage:")
-		fmt.Println("  roma event show <event_id>")
+		fmt.Println("tagit event show usage:")
+		fmt.Println("  tagit event show <event_id>")
 	case "plan", "plans":
-		fmt.Println("roma plan usage:")
-		fmt.Println("  roma plan inbox [--session <session_id>]")
-		fmt.Println("  roma plan inspect <artifact_id>")
-		fmt.Println("  roma plan preview <session_id> <task_id> <artifact_id>")
-		fmt.Println("  roma plan apply <session_id> <task_id> <artifact_id> [--dry-run] [--policy-override] [--override-actor <name>]")
-		fmt.Println("  roma plan rollback <session_id> <task_id> <artifact_id>")
-		fmt.Println("  roma plan approve <artifact_id>")
-		fmt.Println("  roma plan reject <artifact_id>")
+		fmt.Println("tagit plan usage:")
+		fmt.Println("  tagit plan inbox [--session <session_id>]")
+		fmt.Println("  tagit plan inspect <artifact_id>")
+		fmt.Println("  tagit plan preview <session_id> <task_id> <artifact_id>")
+		fmt.Println("  tagit plan apply <session_id> <task_id> <artifact_id> [--dry-run] [--policy-override] [--override-actor <name>]")
+		fmt.Println("  tagit plan rollback <session_id> <task_id> <artifact_id>")
+		fmt.Println("  tagit plan approve <artifact_id>")
+		fmt.Println("  tagit plan reject <artifact_id>")
 	case "plan inbox":
-		fmt.Println("roma plan inbox usage:")
-		fmt.Println("  roma plan inbox [--session <session_id>]")
+		fmt.Println("tagit plan inbox usage:")
+		fmt.Println("  tagit plan inbox [--session <session_id>]")
 	case "plan inspect":
-		fmt.Println("roma plan inspect usage:")
-		fmt.Println("  roma plan inspect <artifact_id>")
+		fmt.Println("tagit plan inspect usage:")
+		fmt.Println("  tagit plan inspect <artifact_id>")
 	case "plan preview":
-		fmt.Println("roma plan preview usage:")
-		fmt.Println("  roma plan preview <session_id> <task_id> <artifact_id>")
+		fmt.Println("tagit plan preview usage:")
+		fmt.Println("  tagit plan preview <session_id> <task_id> <artifact_id>")
 	case "plan apply":
-		fmt.Println("roma plan apply usage:")
-		fmt.Println("  roma plan apply <session_id> <task_id> <artifact_id> [--dry-run] [--policy-override] [--override-actor <name>]")
+		fmt.Println("tagit plan apply usage:")
+		fmt.Println("  tagit plan apply <session_id> <task_id> <artifact_id> [--dry-run] [--policy-override] [--override-actor <name>]")
 	case "plan rollback":
-		fmt.Println("roma plan rollback usage:")
-		fmt.Println("  roma plan rollback <session_id> <task_id> <artifact_id>")
+		fmt.Println("tagit plan rollback usage:")
+		fmt.Println("  tagit plan rollback <session_id> <task_id> <artifact_id>")
 	case "plan approve":
-		fmt.Println("roma plan approve usage:")
-		fmt.Println("  roma plan approve <artifact_id>")
+		fmt.Println("tagit plan approve usage:")
+		fmt.Println("  tagit plan approve <artifact_id>")
 	case "plan reject":
-		fmt.Println("roma plan reject usage:")
-		fmt.Println("  roma plan reject <artifact_id>")
+		fmt.Println("tagit plan reject usage:")
+		fmt.Println("  tagit plan reject <artifact_id>")
 	case "queue":
-		fmt.Println("roma queue usage:")
-		fmt.Println("  roma queue list [--status <status>] [--mode <direct|graph>]")
-		fmt.Println("  roma queue show <job_id>")
-		fmt.Println("  roma queue inspect <job_id>")
-		fmt.Println("  roma queue attach <job_id> [--raw]")
-		fmt.Println("  roma queue tail <job_id> [--raw]")
-		fmt.Println("  roma queue cancel <job_id>")
+		fmt.Println("tagit queue usage:")
+		fmt.Println("  tagit queue list [--status <status>] [--mode <direct|graph>]")
+		fmt.Println("  tagit queue show <job_id>")
+		fmt.Println("  tagit queue inspect <job_id>")
+		fmt.Println("  tagit queue attach <job_id> [--raw]")
+		fmt.Println("  tagit queue tail <job_id> [--raw]")
+		fmt.Println("  tagit queue cancel <job_id>")
 	case "queue list":
-		fmt.Println("roma queue list usage:")
-		fmt.Println("  roma queue list [--status <status>] [--mode <direct|graph>]")
+		fmt.Println("tagit queue list usage:")
+		fmt.Println("  tagit queue list [--status <status>] [--mode <direct|graph>]")
 	case "queue show":
-		fmt.Println("roma queue show usage:")
-		fmt.Println("  roma queue show <job_id>")
+		fmt.Println("tagit queue show usage:")
+		fmt.Println("  tagit queue show <job_id>")
 	case "queue inspect":
-		fmt.Println("roma queue inspect usage:")
-		fmt.Println("  roma queue inspect <job_id>")
+		fmt.Println("tagit queue inspect usage:")
+		fmt.Println("  tagit queue inspect <job_id>")
 	case "queue attach":
-		fmt.Println("roma queue attach usage:")
-		fmt.Println("  roma queue attach <job_id> [--raw]")
+		fmt.Println("tagit queue attach usage:")
+		fmt.Println("  tagit queue attach <job_id> [--raw]")
 	case "queue tail":
-		fmt.Println("roma queue tail usage:")
-		fmt.Println("  roma queue tail <job_id> [--raw]")
+		fmt.Println("tagit queue tail usage:")
+		fmt.Println("  tagit queue tail <job_id> [--raw]")
 	case "queue cancel":
-		fmt.Println("roma queue cancel usage:")
-		fmt.Println("  roma queue cancel <job_id>")
+		fmt.Println("tagit queue cancel usage:")
+		fmt.Println("  tagit queue cancel <job_id>")
 	case "result", "results":
-		fmt.Println("roma result usage:")
-		fmt.Println("  roma result show <session_id>")
+		fmt.Println("tagit result usage:")
+		fmt.Println("  tagit result show <session_id>")
 	case "result show":
-		fmt.Println("roma result show usage:")
-		fmt.Println("  roma result show <session_id>")
+		fmt.Println("tagit result show usage:")
+		fmt.Println("  tagit result show <session_id>")
 	case "tui":
-		fmt.Println("roma tui usage:")
-		fmt.Println("  roma tui [--cwd <dir>]")
+		fmt.Println("tagit tui usage:")
+		fmt.Println("  tagit tui [--cwd <dir>]")
 		fmt.Println("")
-		fmt.Println("The TUI starts an embedded romad for the selected working directory and stops it when the TUI exits.")
+		fmt.Println("The TUI starts an embedded tagitd for the selected working directory and stops it when the TUI exits.")
 	case "debug":
-		fmt.Println("roma debug usage:")
-		fmt.Println("  roma debug session <subcommand>")
-		fmt.Println("  roma debug task <subcommand>")
-		fmt.Println("  roma debug artifact <subcommand>")
-		fmt.Println("  roma debug event <subcommand>")
-		fmt.Println("  roma debug plan <subcommand>")
-		fmt.Println("  roma debug workspace <subcommand>")
-		fmt.Println("  roma debug graph run --file <graph.json>")
-		fmt.Println("  roma debug curia reputation [--reviewer <agent_id>]")
-		fmt.Println(`  roma debug policy check --agent <id> --prompt "<prompt>"`)
-		fmt.Println("  roma debug replay <session_id>")
-		fmt.Println("  roma debug recover")
+		fmt.Println("tagit debug usage:")
+		fmt.Println("  tagit debug session <subcommand>")
+		fmt.Println("  tagit debug task <subcommand>")
+		fmt.Println("  tagit debug artifact <subcommand>")
+		fmt.Println("  tagit debug event <subcommand>")
+		fmt.Println("  tagit debug plan <subcommand>")
+		fmt.Println("  tagit debug workspace <subcommand>")
+		fmt.Println("  tagit debug graph run --file <graph.json>")
+		fmt.Println("  tagit debug curia reputation [--reviewer <agent_id>]")
+		fmt.Println(`  tagit debug policy check --agent <id> --prompt "<prompt>"`)
+		fmt.Println("  tagit debug replay <session_id>")
+		fmt.Println("  tagit debug recover")
 	case "debug session":
 		printTopicUsage("session")
 	case "debug task":
@@ -3738,77 +3738,77 @@ func printTopicUsage(topic string) {
 	case "debug recover":
 		printTopicUsage("recover")
 	case "session", "sessions":
-		fmt.Println("roma session usage:")
-		fmt.Println("  roma session list")
-		fmt.Println("  roma session show <session_id>")
-		fmt.Println("  roma session inspect <session_id>")
-		fmt.Println("  roma session curia <session_id>")
+		fmt.Println("tagit session usage:")
+		fmt.Println("  tagit session list")
+		fmt.Println("  tagit session show <session_id>")
+		fmt.Println("  tagit session inspect <session_id>")
+		fmt.Println("  tagit session curia <session_id>")
 	case "session list":
-		fmt.Println("roma session list usage:")
-		fmt.Println("  roma session list")
+		fmt.Println("tagit session list usage:")
+		fmt.Println("  tagit session list")
 	case "session show":
-		fmt.Println("roma session show usage:")
-		fmt.Println("  roma session show <session_id>")
+		fmt.Println("tagit session show usage:")
+		fmt.Println("  tagit session show <session_id>")
 	case "session inspect":
-		fmt.Println("roma session inspect usage:")
-		fmt.Println("  roma session inspect <session_id>")
+		fmt.Println("tagit session inspect usage:")
+		fmt.Println("  tagit session inspect <session_id>")
 	case "session curia":
-		fmt.Println("roma session curia usage:")
-		fmt.Println("  roma session curia <session_id>")
+		fmt.Println("tagit session curia usage:")
+		fmt.Println("  tagit session curia <session_id>")
 	case "task", "tasks":
-		fmt.Println("roma task usage:")
-		fmt.Println("  roma task list [--session <session_id>]")
-		fmt.Println("  roma task show <task_id>")
-		fmt.Println("  roma task approve <task_id>")
-		fmt.Println("  roma task reject <task_id>")
+		fmt.Println("tagit task usage:")
+		fmt.Println("  tagit task list [--session <session_id>]")
+		fmt.Println("  tagit task show <task_id>")
+		fmt.Println("  tagit task approve <task_id>")
+		fmt.Println("  tagit task reject <task_id>")
 	case "task list":
-		fmt.Println("roma task list usage:")
-		fmt.Println("  roma task list [--session <session_id>]")
+		fmt.Println("tagit task list usage:")
+		fmt.Println("  tagit task list [--session <session_id>]")
 	case "task show":
-		fmt.Println("roma task show usage:")
-		fmt.Println("  roma task show <task_id>")
+		fmt.Println("tagit task show usage:")
+		fmt.Println("  tagit task show <task_id>")
 	case "task approve":
-		fmt.Println("roma task approve usage:")
-		fmt.Println("  roma task approve <task_id>")
+		fmt.Println("tagit task approve usage:")
+		fmt.Println("  tagit task approve <task_id>")
 	case "task reject":
-		fmt.Println("roma task reject usage:")
-		fmt.Println("  roma task reject <task_id>")
+		fmt.Println("tagit task reject usage:")
+		fmt.Println("  tagit task reject <task_id>")
 	case "workspace", "workspaces":
-		fmt.Println("roma workspace usage:")
-		fmt.Println("  roma workspace list")
-		fmt.Println("  roma workspace show <session_id> <task_id>")
-		fmt.Println("  roma workspace cleanup")
-		fmt.Println("  roma workspace merge <session_id> <task_id>")
+		fmt.Println("tagit workspace usage:")
+		fmt.Println("  tagit workspace list")
+		fmt.Println("  tagit workspace show <session_id> <task_id>")
+		fmt.Println("  tagit workspace cleanup")
+		fmt.Println("  tagit workspace merge <session_id> <task_id>")
 	case "workspace list":
-		fmt.Println("roma workspace list usage:")
-		fmt.Println("  roma workspace list")
+		fmt.Println("tagit workspace list usage:")
+		fmt.Println("  tagit workspace list")
 	case "workspace show":
-		fmt.Println("roma workspace show usage:")
-		fmt.Println("  roma workspace show <session_id> <task_id>")
+		fmt.Println("tagit workspace show usage:")
+		fmt.Println("  tagit workspace show <session_id> <task_id>")
 	case "workspace cleanup":
-		fmt.Println("roma workspace cleanup usage:")
-		fmt.Println("  roma workspace cleanup")
+		fmt.Println("tagit workspace cleanup usage:")
+		fmt.Println("  tagit workspace cleanup")
 	case "workspace merge":
-		fmt.Println("roma workspace merge usage:")
-		fmt.Println("  roma workspace merge <session_id> <task_id>")
+		fmt.Println("tagit workspace merge usage:")
+		fmt.Println("  tagit workspace merge <session_id> <task_id>")
 	case "graph":
-		fmt.Println("roma graph usage:")
-		fmt.Println("  roma debug graph run --file <graph.json> [--cwd <dir>] [--continuous] [--max-rounds <n>]")
+		fmt.Println("tagit graph usage:")
+		fmt.Println("  tagit debug graph run --file <graph.json> [--cwd <dir>] [--continuous] [--max-rounds <n>]")
 	case "graph run":
-		fmt.Println("roma graph run usage:")
-		fmt.Println("  roma debug graph run --file <graph.json> [--cwd <dir>] [--continuous] [--max-rounds <n>]")
+		fmt.Println("tagit graph run usage:")
+		fmt.Println("  tagit debug graph run --file <graph.json> [--cwd <dir>] [--continuous] [--max-rounds <n>]")
 	case "curia":
-		fmt.Println("roma curia usage:")
-		fmt.Println("  roma debug curia reputation [--reviewer <agent_id>]")
+		fmt.Println("tagit curia usage:")
+		fmt.Println("  tagit debug curia reputation [--reviewer <agent_id>]")
 	case "policy":
-		fmt.Println("roma policy usage:")
-		fmt.Println(`  roma policy check --agent <id> --prompt "<prompt>" [--with <id,...>] [--cwd <dir>]`)
+		fmt.Println("tagit policy usage:")
+		fmt.Println(`  tagit policy check --agent <id> --prompt "<prompt>" [--with <id,...>] [--cwd <dir>]`)
 	case "policy check":
-		fmt.Println("roma policy check usage:")
-		fmt.Println(`  roma policy check --agent <id> --prompt "<prompt>" [--with <id,...>] [--cwd <dir>]`)
+		fmt.Println("tagit policy check usage:")
+		fmt.Println(`  tagit policy check --agent <id> --prompt "<prompt>" [--with <id,...>] [--cwd <dir>]`)
 	case "run":
-		fmt.Println("roma run usage:")
-		fmt.Println(`  roma run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <name>]`)
+		fmt.Println("tagit run usage:")
+		fmt.Println(`  tagit run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <name>]`)
 		fmt.Println("")
 		fmt.Println("Flags:")
 		fmt.Println("  --prompt <text>      task prompt")
@@ -3838,34 +3838,34 @@ func printTopicUsage(topic string) {
 		fmt.Println("  Defaults to 10000 rounds unless --max-rounds is set.")
 	case "submit", "tell", "ask":
 		fmt.Println(`  "submit", "tell", and "ask" were removed.`)
-		fmt.Println(`  Use: roma run --help`)
+		fmt.Println(`  Use: tagit run --help`)
 	case "replay":
-		fmt.Println("roma replay usage:")
-		fmt.Println("  roma replay <session_id>")
+		fmt.Println("tagit replay usage:")
+		fmt.Println("  tagit replay <session_id>")
 	case "recover":
-		fmt.Println("roma recover usage:")
-		fmt.Println("  roma recover")
+		fmt.Println("tagit recover usage:")
+		fmt.Println("  tagit recover")
 	case "approve":
-		fmt.Println("roma approve usage:")
-		fmt.Println("  roma approve <job_id>")
+		fmt.Println("tagit approve usage:")
+		fmt.Println("  tagit approve <job_id>")
 	case "reject":
-		fmt.Println("roma reject usage:")
-		fmt.Println("  roma reject <job_id>")
+		fmt.Println("tagit reject usage:")
+		fmt.Println("  tagit reject <job_id>")
 	case "cancel":
-		fmt.Println("roma cancel usage:")
-		fmt.Println("  roma cancel <job_id>")
+		fmt.Println("tagit cancel usage:")
+		fmt.Println("  tagit cancel <job_id>")
 	case "check":
-		fmt.Println("roma check usage:")
-		fmt.Println("  roma check [job_id] [--raw]")
+		fmt.Println("tagit check usage:")
+		fmt.Println("  tagit check [job_id] [--raw]")
 	case "start":
-		fmt.Println("roma start usage:")
-		fmt.Println("  roma start [--acp-port <port>]")
+		fmt.Println("tagit start usage:")
+		fmt.Println("  tagit start [--acp-port <port>]")
 	case "stop":
-		fmt.Println("roma stop usage:")
-		fmt.Println("  roma stop")
+		fmt.Println("tagit stop usage:")
+		fmt.Println("  tagit stop")
 	case "status":
-		fmt.Println("roma status usage:")
-		fmt.Println("  roma status")
+		fmt.Println("tagit status usage:")
+		fmt.Println("  tagit status")
 	default:
 		printUsage()
 	}
@@ -3894,7 +3894,7 @@ func queueNodeSummary(ctx context.Context, wd string, req queue.Request) string 
 	if req.SessionID == "" {
 		return "-"
 	}
-	controlDir := romapath.HomeDir()
+	controlDir := tagitpath.HomeDir()
 	workspaceDir := req.WorkingDir
 	sessionStore := preferredHistoryStore(controlDir)
 	if session, err := sessionStore.Get(ctx, req.SessionID); err == nil && session.WorkingDir != "" {
@@ -4048,7 +4048,7 @@ func parseQueueArgs(args []string) (statusFilter string, modeFilter string, subc
 		}
 	}
 	if expectJobID || ((subcommand == "show" || subcommand == "inspect" || subcommand == "cancel" || subcommand == "tail" || subcommand == "attach") && subArg == "") {
-		return "", "", "", "", false, fmt.Errorf("roma queue %s requires a job id", subcommand)
+		return "", "", "", "", false, fmt.Errorf("tagit queue %s requires a job id", subcommand)
 	}
 	return statusFilter, modeFilter, subcommand, subArg, raw, nil
 }

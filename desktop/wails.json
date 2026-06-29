@@ -1,13 +1,13 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "ROMA Desktop",
-  "outputfilename": "roma-desktop",
+  "name": "TagIt Desktop",
+  "outputfilename": "tagit-desktop",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "author": {
-    "name": "ROMA Contributors",
+    "name": "TagIt Contributors",
     "email": "noreply@example.com"
   }
 }

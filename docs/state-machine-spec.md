@@ -4,7 +4,7 @@
 **Version**: v1  
 **Last Updated**: 2026-03-10
 
-This document defines the state-transition semantics for ROMA v1. It covers:
+This document defines the state-transition semantics for TagIt v1. It covers:
 
 * session lifecycle
 * task node lifecycle
@@ -16,7 +16,7 @@ This spec is normative for scheduler, policy broker, event store, and client ren
 
 ## 1. State Machine Rules
 
-These rules apply to all ROMA state machines:
+These rules apply to all TagIt state machines:
 
 * every state transition must be appended to the event store
 * transitions are driven by explicit events, never implicit in-memory assumptions
@@ -245,7 +245,7 @@ Allowed transitions:
 
 ## 4.4 Strategy-Specific Transition Constraints
 
-This section describes internal task-graph strategies such as `direct`, `relay`, and `curia`. These are not the current user-facing `roma run --mode` values; the CLI exposes `rage`, `collab`, and `senate`.
+This section describes internal task-graph strategies such as `direct`, `relay`, and `curia`. These are not the current user-facing `tagit run --mode` values; the CLI exposes `rage`, `collab`, and `senate`.
 
 ### `direct` task strategy
 

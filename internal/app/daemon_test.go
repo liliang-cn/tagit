@@ -8,19 +8,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/acpserver"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/queue"
-	"github.com/liliang-cn/roma/internal/run"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	"github.com/liliang-cn/roma/internal/taskstore"
+	"github.com/liliang-cn/tagit/internal/acpserver"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/queue"
+	"github.com/liliang-cn/tagit/internal/run"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/taskstore"
 )
 
 func TestDaemonReloadsUserAgentConfigBeforeProcessingQueueItem(t *testing.T) {
 	homeDir := t.TempDir()
 	workDir := t.TempDir()
-	t.Setenv("ROMA_HOME", homeDir)
+	t.Setenv("TAGIT_HOME", homeDir)
 
 	initial := []domain.AgentProfile{
 		{
@@ -139,7 +139,7 @@ func TestFinalizeQueueRequestUsesRunResultStatusFallback(t *testing.T) {
 func TestDaemonStartACPServerWhenConfigured(t *testing.T) {
 	homeDir := t.TempDir()
 	workDir := t.TempDir()
-	t.Setenv("ROMA_HOME", homeDir)
+	t.Setenv("TAGIT_HOME", homeDir)
 
 	started := false
 	gotPort := 0
@@ -174,7 +174,7 @@ func TestDaemonStartACPServerWhenConfigured(t *testing.T) {
 func TestRecoverStalledQueueRunsRequeuesAndNormalizesSession(t *testing.T) {
 	homeDir := t.TempDir()
 	workDir := t.TempDir()
-	t.Setenv("ROMA_HOME", homeDir)
+	t.Setenv("TAGIT_HOME", homeDir)
 
 	daemon, err := NewDaemonForWorkingDir(workDir)
 	if err != nil {

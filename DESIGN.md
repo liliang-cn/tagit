@@ -1,12 +1,12 @@
-# ROMA Design Document
+# TagIt Design Document
 
-**ROMA (Runtime Orchestrator for Multi-Agents)** is a daemon-first local orchestration kernel for interactive AI coding runtimes. This document merges the current repository design with the formal RFC direction and defines the baseline architecture for implementation.
+**TagIt (Runtime Orchestrator for Multi-Agents)** is a daemon-first local orchestration kernel for interactive AI coding runtimes. This document merges the current repository design with the formal RFC direction and defines the baseline architecture for implementation.
 
 ## 1. Positioning
 
-ROMA is not another wrapper around a single AI CLI. It is a local execution kernel that turns unreliable model behavior into an auditable engineering workflow through:
+TagIt is not another wrapper around a single AI CLI. It is a local execution kernel that turns unreliable model behavior into an auditable engineering workflow through:
 
-* `romad` as the execution source of truth
+* `tagitd` as the execution source of truth
 * structured artifacts as the only handoff contract
 * isolated workspaces as the write boundary
 * policy enforcement above all model decisions
@@ -27,7 +27,7 @@ Current alignment against the design:
 
 ### Largely aligned today
 
-* `romad` is the execution truth source for queue, session, task, artifact, lease, and recovery state
+* `tagitd` is the execution truth source for queue, session, task, artifact, lease, and recovery state
 * SQLite-backed metadata plus filesystem blobs are in use
 * Git-worktree-backed isolated execution exists for writable tasks when the target repository supports it
 * artifact envelopes are the handoff contract between nodes
@@ -39,7 +39,7 @@ Current alignment against the design:
 * Curia exists, including `proposal`, `ballot`, `debate_log`, `decision_pack`, `execution_plan`, dispute classification, reviewer weights, automatic promotion, an `Augustus` path, arbitration confidence, consensus strength, and dissent summaries, but it is not yet the fully autonomous high-confidence consensus engine described later in this document
 * the Policy Broker has pre-flight checks, approval gates, path-aware enforcement, execution-plan apply controls, a first transport/pattern/semantic runtime classifier, and a second-layer AI semantic review path, but it does not yet have the mature confidence-scored runtime semantics or full action/role matrix described later in this document
 * execution-plan preview, inbox, approve/reject, apply, rollback, structured conflict summaries, conflict context, and resolution options exist, but conflict resolution UX is still operator-heavy
-* gateway support exists as a bridge and approval hook, but not yet as a production-ready `roma-gatewayd` with mature WSS/retry/dead-letter behavior
+* gateway support exists as a bridge and approval hook, but not yet as a production-ready `tagit-gatewayd` with mature WSS/retry/dead-letter behavior
 
 ### Major gaps relative to the target architecture
 
@@ -61,11 +61,11 @@ Rough implementation percentages, for planning purposes only:
 
 ### 2.1 Goals
 
-ROMA v1 should:
+TagIt v1 should:
 
 * manage interactive AI CLIs through a daemonized runtime
 * decouple sessions from any frontend client
-* support `rage`, `collab`, and `senate` as the user-facing `roma run` modes, plus staged `Curia` execution where policy or graph orchestration requires it
+* support `rage`, `collab`, and `senate` as the user-facing `tagit run` modes, plus staged `Curia` execution where policy or graph orchestration requires it
 * enforce artifact-only handoff between task nodes
 * isolate writes with Git worktrees
 * persist session state, artifacts, transcripts, and decisions
@@ -73,7 +73,7 @@ ROMA v1 should:
 
 ### 2.2 Non-Goals
 
-ROMA v1 does not attempt to:
+TagIt v1 does not attempt to:
 
 * provide distributed cloud scheduling
 * replace formal Git platform code review
@@ -86,7 +86,7 @@ ROMA v1 does not attempt to:
 
 ### 3.1 Daemon-first
 
-All execution truth lives in `romad`, not in CLI or GUI clients.
+All execution truth lives in `tagitd`, not in CLI or GUI clients.
 
 ### 3.2 Artifact-only handoff
 
@@ -110,18 +110,18 @@ Each stage must define whether a failure is recoverable or terminal, and what re
 
 ## 4. System Architecture
 
-ROMA follows a four-plane architecture: control plane, presentation plane, runtime plane, and remote gateway plane.
+TagIt follows a four-plane architecture: control plane, presentation plane, runtime plane, and remote gateway plane.
 
 ### 4.1 Topology
 
 ```mermaid
 graph TD
     subgraph "Presentation Plane"
-        CLI["roma-cli (TUI/Bubble Tea)"]
-        GUI["roma-desktop (Wails)"]
+        CLI["tagit-cli (TUI/Bubble Tea)"]
+        GUI["tagit-desktop (Wails)"]
     end
 
-    subgraph "Control Plane: romad"
+    subgraph "Control Plane: tagitd"
         API["UDS / gRPC API"]
         SCH["Scheduler"]
         CUR["Curia Engine"]
@@ -139,7 +139,7 @@ graph TD
     end
 
     subgraph "Remote Gateway Plane"
-        GW["roma-gatewayd"]
+        GW["tagit-gatewayd"]
         TG["Telegram Adapter"]
         WH["Webhook Adapter"]
         WS["WSS Clients"]
@@ -168,7 +168,7 @@ graph TD
 
 ### 4.2 Plane Responsibilities
 
-#### Control Plane: `romad`
+#### Control Plane: `tagitd`
 
 Owns:
 
@@ -210,11 +210,11 @@ Gateway services never become execution truth.
 
 ## 5. User-Facing Run Modes
 
-The current `roma run` CLI exposes three orchestration modes:
+The current `tagit run` CLI exposes three orchestration modes:
 
 ### 5.1 Rage
 
-Single-agent execution with explicit worker/foreman rounds. This is the default when the run has one agent and no delegates. The loop continues until the worker emits `ROMA_DONE:` or the round budget is exhausted.
+Single-agent execution with explicit worker/foreman rounds. This is the default when the run has one agent and no delegates. The loop continues until the worker emits `TAGIT_DONE:` or the round budget is exhausted.
 
 ### 5.2 Collab
 
@@ -226,14 +226,14 @@ Multi-agent proposal, voting, implementation, and winner-selection flow. This is
 
 ### 5.4 Curia
 
-Consensus mode for high-risk or disputed work outside the normal `roma run` mode list. Curia has four phases:
+Consensus mode for high-risk or disputed work outside the normal `tagit run` mode list. Curia has four phases:
 
 1. `Scatter`
 2. `BlindReview`
 3. `DisputeDetection`
 4. `Arbitration`
 
-Curia is not a normal `roma run --mode` value. It is triggered by scheduler policy, graph execution, or explicit Curia-oriented flows.
+Curia is not a normal `tagit run --mode` value. It is triggered by scheduler policy, graph execution, or explicit Curia-oriented flows.
 
 ## 6. Curia Triggering
 
@@ -376,7 +376,7 @@ Workspace modes:
 Typical isolated write:
 
 ```bash
-git worktree add -b roma-task-<id> .roma-worktrees/<id>
+git worktree add -b tagit-task-<id> .tagit-worktrees/<id>
 ```
 
 ### 7.6 Policy Broker
@@ -439,27 +439,27 @@ The system must support:
 
 ### 7.8 Gateway Layer
 
-The Gateway Layer is the remote bridge plane for ROMA. It subscribes to `romad` facts, delivers summarized remote notifications, and returns limited remote intent commands back to `romad`.
+The Gateway Layer is the remote bridge plane for TagIt. It subscribes to `tagitd` facts, delivers summarized remote notifications, and returns limited remote intent commands back to `tagitd`.
 
 Gateway design constraints:
 
-* `romad` remains the only execution truth source
+* `tagitd` remains the only execution truth source
 * gateway failures must not affect local execution
-* remote commands are intent-level only and must be revalidated by `romad`
+* remote commands are intent-level only and must be revalidated by `tagitd`
 * raw PTY streams are not pushed by default to remote endpoints
 * delivery must support retry, deduplication, rate limiting, and replay-aware backfill
 
 Core capabilities:
 
 * `EventFanOut`: route selected events to WSS, webhook, Telegram, and future adapters
-* `RemoteApprovalBridge`: send approval requests and return user decisions to `romad`
+* `RemoteApprovalBridge`: send approval requests and return user decisions to `tagitd`
 * `SessionWatch`: provide remote read-only or limited-control session observation
 * `DeliveryControl`: retry, batching, dead-letter tracking, endpoint throttling
 
 Recommended deployment model:
 
-* `romad`: local orchestration daemon
-* `roma-gatewayd`: remote bridge daemon
+* `tagitd`: local orchestration daemon
+* `tagit-gatewayd`: remote bridge daemon
 
 The gateway must not:
 
@@ -753,7 +753,7 @@ Strategies:
 
 ## 11. API Boundary
 
-`romad` should expose UDS or gRPC APIs with at least:
+`tagitd` should expose UDS or gRPC APIs with at least:
 
 ### Session APIs
 
@@ -799,7 +799,7 @@ Strategies:
 
 ## 12. UI Requirements
 
-### 12.1 `roma-cli`
+### 12.1 `tagit-cli`
 
 Should support:
 
@@ -810,7 +810,7 @@ Should support:
 * minimal Curia board
 * attach, detach, replay
 
-### 12.2 `roma-desktop`
+### 12.2 `tagit-desktop`
 
 Should support:
 
@@ -829,7 +829,7 @@ UI rules:
 
 ## 13. Security Model
 
-ROMA security boundaries include:
+TagIt security boundaries include:
 
 * filesystem boundary
 * process execution boundary
@@ -850,7 +850,7 @@ Remote command rules:
 
 * remote endpoints send intent commands, never raw shell commands
 * every remote command must be authenticated and auditable
-* `romad` must revalidate session state and policy before acting
+* `tagitd` must revalidate session state and policy before acting
 * endpoint capabilities should be least-privilege by channel type
 
 ## 14. Observability
@@ -897,7 +897,7 @@ Gateway adapters should evolve independently from orchestration logic. New remot
 
 Current status: largely implemented
 
-* `romad` skeleton
+* `tagitd` skeleton
 * SQLite event store
 * PTY provider
 * minimal classifier
@@ -920,7 +920,7 @@ Current status: largely implemented
 
 Current status: partially implemented
 
-* `roma-gatewayd`
+* `tagit-gatewayd`
 * event fan-out
 * webhook adapter
 * Telegram adapter
@@ -994,7 +994,7 @@ The correct build order is:
 
 1. domain schemas and validation
 2. event model and state machines
-3. `romad` module interfaces
+3. `tagitd` module interfaces
 4. rage mode end-to-end
 5. collab and senate with isolated worktrees
 6. gateway basics

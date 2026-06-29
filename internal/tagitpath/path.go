@@ -1,4 +1,4 @@
-package romapath
+package tagitpath
 
 import (
 	"os"
@@ -6,39 +6,39 @@ import (
 	"strings"
 )
 
-// HomeDir returns the canonical ROMA home directory.
+// HomeDir returns the canonical TagIt home directory.
 func HomeDir() string {
-	if override := strings.TrimSpace(os.Getenv("ROMA_HOME")); override != "" {
+	if override := strings.TrimSpace(os.Getenv("TAGIT_HOME")); override != "" {
 		return filepath.Clean(override)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil || strings.TrimSpace(home) == "" {
-		return filepath.Clean(".roma")
+		return filepath.Clean(".tagit")
 	}
-	return filepath.Join(home, ".roma")
+	return filepath.Join(home, ".tagit")
 }
 
-// ControlDir returns the canonical ROMA control-plane directory.
+// ControlDir returns the canonical TagIt control-plane directory.
 func ControlDir() string {
 	return HomeDir()
 }
 
-// ControlJoin returns a path rooted under the canonical ROMA control-plane directory.
+// ControlJoin returns a path rooted under the canonical TagIt control-plane directory.
 func ControlJoin(elems ...string) string {
 	parts := append([]string{ControlDir()}, elems...)
 	return filepath.Join(parts...)
 }
 
-// WorkspaceStateDir returns the workspace-scoped ROMA execution directory.
+// WorkspaceStateDir returns the workspace-scoped TagIt execution directory.
 func WorkspaceStateDir(workDir string) string {
 	cleaned := filepath.Clean(strings.TrimSpace(workDir))
 	if cleaned == "" || cleaned == "." {
-		return filepath.Clean(".roma")
+		return filepath.Clean(".tagit")
 	}
-	if filepath.Base(cleaned) == ".roma" {
+	if filepath.Base(cleaned) == ".tagit" {
 		return cleaned
 	}
-	return filepath.Join(cleaned, ".roma")
+	return filepath.Join(cleaned, ".tagit")
 }
 
 // WorkspaceJoin returns a path rooted under the workspace-scoped execution directory.

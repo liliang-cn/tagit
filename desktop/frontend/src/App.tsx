@@ -92,7 +92,7 @@ function App() {
           starter_agent: current.starter_agent || firstAvailableAgent(data.agents),
           working_dir: data.working_dir,
         }));
-        setMessage(data.embedded_daemon ? 'Embedded romad is running.' : 'Connected to existing romad.');
+        setMessage(data.embedded_daemon ? 'Embedded tagitd is running.' : 'Connected to existing tagitd.');
         setSelectedJobID(selectPreferredJob(data.queue));
       })
       .catch((err: Error) => {
@@ -113,7 +113,7 @@ function App() {
       try {
         const next = await snapshotApp();
         setSnapshot(next);
-        setMessage(next.embedded_daemon ? 'Embedded romad is running.' : 'Connected to existing romad.');
+        setMessage(next.embedded_daemon ? 'Embedded tagitd is running.' : 'Connected to existing tagitd.');
         setError('');
         setSelectedJobID((current) => current || selectPreferredJob(next.queue));
       } catch (err) {
@@ -276,7 +276,7 @@ function App() {
       <header className="masthead">
         <div>
           <p className="eyebrow">Local orchestration desk</p>
-          <h1>ROMA</h1>
+          <h1>TagIt</h1>
           <p className="masthead-copy">Run work, watch the queue, inspect one session at a time.</p>
         </div>
         <div className="masthead-actions">
@@ -292,7 +292,7 @@ function App() {
             </button>
           </nav>
           <div className={`connection-badge ${boot?.embedded_daemon ? 'connection-badge-embedded' : ''}`}>
-            {boot?.embedded_daemon ? 'embedded romad' : 'connected romad'}
+            {boot?.embedded_daemon ? 'embedded tagitd' : 'connected tagitd'}
           </div>
           <button className="secondary-button" onClick={handlePickDirectory} type="button">
             Change folder
@@ -352,7 +352,7 @@ function App() {
             <form className="run-form" onSubmit={handleSubmit}>
               <textarea
                 onChange={(event) => setRunForm((current) => ({ ...current, prompt: event.target.value }))}
-                placeholder="What should ROMA work on?"
+                placeholder="What should TagIt work on?"
                 value={runForm.prompt}
               />
 

@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/runtime"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/runtime"
 )
 
 // Default timeouts for Curia phases
@@ -561,7 +561,7 @@ type augustusDecision struct {
 
 func augustusPrompt(req ExecuteRequest, proposals []domain.ArtifactEnvelope, winner winnerSelection) string {
 	var b strings.Builder
-	b.WriteString("ROMA Curia Augustus arbitration phase.\n")
+	b.WriteString("TagIt Curia Augustus arbitration phase.\n")
 	b.WriteString("Return a final arbitration decision using this exact shape:\n")
 	b.WriteString("winning_mode: accept|merge|replace\n")
 	b.WriteString("selected_proposals: prop_x[,prop_y]\n")
@@ -829,7 +829,7 @@ func buildReviewerBreakdown(ballots []ballotEnvelope) []artifacts.CuriaReviewCon
 
 func scatterPrompt(req ExecuteRequest, senator domain.AgentProfile) string {
 	var b strings.Builder
-	b.WriteString("ROMA Curia scatter phase.\n")
+	b.WriteString("TagIt Curia scatter phase.\n")
 	b.WriteString("Produce one executable proposal only.\n")
 	b.WriteString("Task:\n")
 	b.WriteString(req.BasePrompt)
@@ -842,7 +842,7 @@ func scatterPrompt(req ExecuteRequest, senator domain.AgentProfile) string {
 
 func reviewPrompt(req ExecuteRequest, proposals []proposalEnvelope, senator domain.AgentProfile) string {
 	var b strings.Builder
-	b.WriteString("ROMA Curia blind review phase.\n")
+	b.WriteString("TagIt Curia blind review phase.\n")
 	b.WriteString("Review the anonymous proposals below and choose the strongest one.\n")
 	b.WriteString("Task:\n")
 	b.WriteString(req.BasePrompt)

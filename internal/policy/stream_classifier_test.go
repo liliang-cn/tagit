@@ -3,7 +3,7 @@ package policy
 import (
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/domain"
+	"github.com/liliang-cn/tagit/internal/domain"
 )
 
 func TestAnalyzeOutputChunkBuildsTransportPatternAndSemanticLayers(t *testing.T) {
@@ -12,8 +12,8 @@ func TestAnalyzeOutputChunkBuildsTransportPatternAndSemanticLayers(t *testing.T)
 	chunk := "$ rm -rf /\n" +
 		"approval required before applying patch\n" +
 		"breaking change touching .github/workflows/build.yml\n" +
-		"ROMA_DELEGATE: my-gemini\n" +
-		"ROMA_DONE: finished\n" +
+		"TAGIT_DELEGATE: my-gemini\n" +
+		"TAGIT_DONE: finished\n" +
 		"json parse error in report\n" +
 		"{\"kind\":\"report\",\"schema_version\":\"v1\"}\n" +
 		"diff --git a/README.md b/README.md\n" +

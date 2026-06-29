@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/romapath"
-	"github.com/liliang-cn/roma/internal/store"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
+	"github.com/liliang-cn/tagit/internal/store"
 )
 
 // DecisionKind identifies the policy outcome.
@@ -227,14 +227,14 @@ func evaluate(req Request) Decision {
 }
 
 func OverrideActor() string {
-	if actor := strings.TrimSpace(os.Getenv("ROMA_POLICY_OVERRIDE_ACTOR")); actor != "" {
+	if actor := strings.TrimSpace(os.Getenv("TAGIT_POLICY_OVERRIDE_ACTOR")); actor != "" {
 		return actor
 	}
 	return "local_owner"
 }
 
 func AllowedOverrideActors() []string {
-	raw := strings.TrimSpace(os.Getenv("ROMA_POLICY_OVERRIDE_ACTORS"))
+	raw := strings.TrimSpace(os.Getenv("TAGIT_POLICY_OVERRIDE_ACTORS"))
 	if raw == "" {
 		return []string{"local_owner", "admin"}
 	}
@@ -265,7 +265,7 @@ func CanOverrideActor(actor string) bool {
 
 func EvaluatePathAction(action Action, paths []string, override bool, actor string) Decision {
 	protected := []string{".github/**", "infra/**", "migrations/**", "auth/**", "billing/**"}
-	alwaysForbidden := []string{".git/**", ".roma/**"}
+	alwaysForbidden := []string{".git/**", ".tagit/**"}
 
 	normalized := make([]string, 0, len(paths))
 	for _, path := range paths {
@@ -395,12 +395,12 @@ var (
 		{regexp.MustCompile(`(?i)\b(schema change|database migration|migration|breaking change|public api)\b`), "high_risk_change"},
 	}
 	delegationPatterns = []*regexp.Regexp{
-		regexp.MustCompile(`(?i)roma_delegate:`),
+		regexp.MustCompile(`(?i)tagit_delegate:`),
 		regexp.MustCompile(`(?i)\bdelegate to\b`),
 		regexp.MustCompile(`(?i)\bask (codex|gemini|copilot|claude)\b`),
 	}
 	completionPatterns = []*regexp.Regexp{
-		regexp.MustCompile(`(?i)roma_done:`),
+		regexp.MustCompile(`(?i)tagit_done:`),
 		regexp.MustCompile(`(?i)\btask complete\b`),
 		regexp.MustCompile(`(?i)\bfinished successfully\b`),
 	}
@@ -537,8 +537,8 @@ func isEffectiveDirAllowed(baseDir, effectiveDir string, allowedRoots []string) 
 		return true
 	}
 	roots := []string{
-		romapath.Join(baseDir, "workspaces"),
-		romapath.Join(romapath.HomeDir(), "workspaces"),
+		tagitpath.Join(baseDir, "workspaces"),
+		tagitpath.Join(tagitpath.HomeDir(), "workspaces"),
 	}
 	for _, root := range allowedRoots {
 		root = strings.TrimSpace(root)

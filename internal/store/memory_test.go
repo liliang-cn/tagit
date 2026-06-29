@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
+	"github.com/liliang-cn/tagit/internal/domain"
 )
 
 func TestMemoryStoreSessionLifecycle(t *testing.T) {
@@ -47,7 +47,7 @@ func TestMemoryStoreBlobRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemoryStore()
 
-	if err := s.PutBlob(ctx, "blob/test", bytes.NewBufferString("roma")); err != nil {
+	if err := s.PutBlob(ctx, "blob/test", bytes.NewBufferString("tagit")); err != nil {
 		t.Fatalf("PutBlob() error = %v", err)
 	}
 
@@ -61,7 +61,7 @@ func TestMemoryStoreBlobRoundTrip(t *testing.T) {
 	if _, err := buf.ReadFrom(rc); err != nil {
 		t.Fatalf("ReadFrom() error = %v", err)
 	}
-	if got := buf.String(); got != "roma" {
-		t.Fatalf("blob content = %q, want %q", got, "roma")
+	if got := buf.String(); got != "tagit" {
+		t.Fatalf("blob content = %q, want %q", got, "tagit")
 	}
 }

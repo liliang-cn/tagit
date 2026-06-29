@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/chatbot"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/chatbot"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
@@ -20,7 +20,7 @@ type Bot struct {
 	client  *socketmode.Client
 }
 
-// NewBot wires the Slack sender + shared handler over ROMA's api.Client.
+// NewBot wires the Slack sender + shared handler over TagIt's api.Client.
 func NewBot(cfg *Config, apiClient *api.Client) *Bot {
 	snd := NewSender(cfg.BotToken)
 	enq := chatbot.NewAPIEnqueuer(apiClient)

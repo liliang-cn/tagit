@@ -12,21 +12,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/curia"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/plans"
-	"github.com/liliang-cn/roma/internal/policy"
-	"github.com/liliang-cn/roma/internal/queue"
-	"github.com/liliang-cn/roma/internal/romapath"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	"github.com/liliang-cn/roma/internal/sqliteutil"
-	"github.com/liliang-cn/roma/internal/store"
-	"github.com/liliang-cn/roma/internal/syncdb"
-	"github.com/liliang-cn/roma/internal/taskstore"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/curia"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/plans"
+	"github.com/liliang-cn/tagit/internal/policy"
+	"github.com/liliang-cn/tagit/internal/queue"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/sqliteutil"
+	"github.com/liliang-cn/tagit/internal/store"
+	"github.com/liliang-cn/tagit/internal/syncdb"
+	"github.com/liliang-cn/tagit/internal/taskstore"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 // ErrUnavailable indicates the current environment does not permit local listeners.
@@ -53,10 +53,10 @@ type Server struct {
 
 // NewServer constructs the API server.
 func NewServer(workDir string, queueStore queue.Backend, sessionStore history.Backend) *Server {
-	socketPath := romapath.Join(workDir, "run", "romad.sock")
+	socketPath := tagitpath.Join(workDir, "run", "tagitd.sock")
 	server := &Server{
 		workDir:      workDir,
-		metaPath:     romapath.Join(workDir, "run", "api.json"),
+		metaPath:     tagitpath.Join(workDir, "run", "api.json"),
 		socketPath:   socketPath,
 		queueStore:   queueStore,
 		sessionStore: sessionStore,

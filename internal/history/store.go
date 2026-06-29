@@ -10,10 +10,10 @@ import (
 	"slices"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/romapath"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
-// SessionRecord is the persisted metadata for one local ROMA run.
+// SessionRecord is the persisted metadata for one local TagIt run.
 type SessionRecord struct {
 	ID              string    `json:"id"`
 	TaskID          string    `json:"task_id"`
@@ -28,7 +28,7 @@ type SessionRecord struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
-// Store persists session records under .roma/sessions.
+// Store persists session records under .tagit/sessions.
 type Store struct {
 	rootDir string
 }
@@ -36,7 +36,7 @@ type Store struct {
 // NewStore constructs a file-backed session store.
 func NewStore(workDir string) *Store {
 	return &Store{
-		rootDir: romapath.Join(workDir, "sessions"),
+		rootDir: tagitpath.Join(workDir, "sessions"),
 	}
 }
 

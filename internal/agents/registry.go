@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/romapath"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
 // Registry provides discoverable agent profiles.
@@ -24,7 +24,7 @@ type Registry struct {
 
 // DefaultUserConfigPath returns the per-user registry config location.
 func DefaultUserConfigPath() string {
-	return filepath.Join(romapath.HomeDir(), "agents.json")
+	return filepath.Join(tagitpath.HomeDir(), "agents.json")
 }
 
 // NewRegistry constructs a registry from agent profiles.
@@ -296,7 +296,7 @@ func (r *Registry) List(_ context.Context) []domain.AgentProfile {
 func (r *Registry) DefaultProfile(ctx context.Context) (domain.AgentProfile, error) {
 	profiles := r.List(ctx)
 	if len(profiles) == 0 {
-		return domain.AgentProfile{}, fmt.Errorf("no agents configured; use roma agent add <id> <name> <path> ...")
+		return domain.AgentProfile{}, fmt.Errorf("no agents configured; use tagit agent add <id> <name> <path> ...")
 	}
 	return profiles[0], nil
 }

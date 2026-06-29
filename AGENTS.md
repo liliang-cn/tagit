@@ -2,11 +2,11 @@
 
 ## Project Structure & Module Organization
 
-This repository is currently design-first. The top-level architecture and system constraints live in [DESIGN.md](/home/liliang/Codes/oss/ROMA/DESIGN.md). Detailed implementation contracts are under [`docs/`](/home/liliang/Codes/oss/ROMA/docs):
+This repository is currently design-first. The top-level architecture and system constraints live in [DESIGN.md](/home/liliang/Codes/oss/TagIt/DESIGN.md). Detailed implementation contracts are under [`docs/`](/home/liliang/Codes/oss/TagIt/docs):
 
-* [`docs/domain-schema-spec.md`](/home/liliang/Codes/oss/ROMA/docs/domain-schema-spec.md): artifact and domain contracts
-* [`docs/state-machine-spec.md`](/home/liliang/Codes/oss/ROMA/docs/state-machine-spec.md): lifecycle and recovery rules
-* [`docs/backend-module-design.md`](/home/liliang/Codes/oss/ROMA/docs/backend-module-design.md): `romad` module boundaries
+* [`docs/domain-schema-spec.md`](/home/liliang/Codes/oss/TagIt/docs/domain-schema-spec.md): artifact and domain contracts
+* [`docs/state-machine-spec.md`](/home/liliang/Codes/oss/TagIt/docs/state-machine-spec.md): lifecycle and recovery rules
+* [`docs/backend-module-design.md`](/home/liliang/Codes/oss/TagIt/docs/backend-module-design.md): `tagitd` module boundaries
 
 When code is added, keep Go packages under `internal/` with module-aligned directories such as `internal/domain`, `internal/events`, `internal/store`, `internal/runtime`, and `internal/scheduler`.
 

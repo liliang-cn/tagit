@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/queue"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/queue"
 )
 
 // ---------------------------------------------------------------------------

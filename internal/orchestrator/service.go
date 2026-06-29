@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/runtime"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/runtime"
 )
 
 // Request describes a multi-agent execution request.
@@ -126,7 +126,7 @@ func (s *Service) RunSequential(ctx context.Context, req Request) (Result, error
 
 func buildDelegatePrompt(userPrompt string, starter domain.AgentProfile, priorSummary string) string {
 	return strings.TrimSpace(
-		"You are assisting a ROMA multi-agent workflow.\n" +
+		"You are assisting a TagIt multi-agent workflow.\n" +
 			"Original user request:\n" + userPrompt + "\n\n" +
 			"Starter agent: " + starter.DisplayName + " (" + starter.ID + ")\n\n" +
 			"Prior structured artifact summary:\n" + priorSummary + "\n\n" +

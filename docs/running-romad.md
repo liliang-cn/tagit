@@ -1,12 +1,12 @@
-# Running `romad`
+# Running `tagitd`
 
-`romad` is a local daemon. It stores its own control-plane state under `$HOME/.roma`.
+`tagitd` is a local daemon. It stores its own control-plane state under `$HOME/.tagit`.
 
 Keep these paths separate:
 
-- binary path: where `romad` is installed, for example `~/.local/bin/romad`
-- ROMA home: `$HOME/.roma`
-- repository path: the project directory ROMA targets for execution through isolated worktrees
+- binary path: where `tagitd` is installed, for example `~/.local/bin/tagitd`
+- TagIt home: `$HOME/.tagit`
+- repository path: the project directory TagIt targets for execution through isolated worktrees
 
 Build the binaries first:
 
@@ -17,8 +17,8 @@ make build
 That produces:
 
 ```text
-bin/roma
-bin/romad
+bin/tagit
+bin/tagitd
 ```
 
 Install them to `~/.local/bin`:
@@ -29,91 +29,91 @@ make install
 
 ## Linux (`systemd --user`)
 
-The repository includes a user unit template at `deploy/systemd/romad.service`.
+The repository includes a user unit template at `deploy/systemd/tagitd.service`.
 
 Install it:
 
 ```bash
-mkdir -p ~/.roma
+mkdir -p ~/.tagit
 mkdir -p ~/.config/systemd/user
-cp deploy/systemd/romad.service ~/.config/systemd/user/romad.service
+cp deploy/systemd/tagitd.service ~/.config/systemd/user/tagitd.service
 systemctl --user daemon-reload
-systemctl --user enable --now romad
+systemctl --user enable --now tagitd
 ```
 
 Useful commands:
 
 ```bash
-systemctl --user status romad
-journalctl --user -u romad -f
-systemctl --user restart romad
-systemctl --user stop romad
+systemctl --user status tagitd
+journalctl --user -u tagitd -f
+systemctl --user restart tagitd
+systemctl --user stop tagitd
 ```
 
 This unit assumes:
 
-- binary path: `$HOME/.local/bin/romad`
-- ROMA home: `$HOME/.roma`
+- binary path: `$HOME/.local/bin/tagitd`
+- TagIt home: `$HOME/.tagit`
 
-If you want to move ROMA's control-plane state, change `WorkingDirectory=` and keep it pointing at a dedicated ROMA home, not at a source repository.
+If you want to move TagIt's control-plane state, change `WorkingDirectory=` and keep it pointing at a dedicated TagIt home, not at a source repository.
 
 ## macOS (`launchd`)
 
-The repository includes a LaunchAgent template at `deploy/launchd/com.roma.romad.plist`.
+The repository includes a LaunchAgent template at `deploy/launchd/com.tagit.tagitd.plist`.
 
 Install it:
 
 ```bash
 mkdir -p ~/Library/LaunchAgents
-cp deploy/launchd/com.roma.romad.plist ~/Library/LaunchAgents/com.roma.romad.plist
-launchctl bootout "gui/$(id -u)/com.roma.romad" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.roma.romad.plist
-launchctl enable "gui/$(id -u)/com.roma.romad"
-launchctl kickstart -k "gui/$(id -u)/com.roma.romad"
+cp deploy/launchd/com.tagit.tagitd.plist ~/Library/LaunchAgents/com.tagit.tagitd.plist
+launchctl bootout "gui/$(id -u)/com.tagit.tagitd" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.tagit.tagitd.plist
+launchctl enable "gui/$(id -u)/com.tagit.tagitd"
+launchctl kickstart -k "gui/$(id -u)/com.tagit.tagitd"
 ```
 
 Useful commands:
 
 ```bash
-launchctl print "gui/$(id -u)/com.roma.romad"
-launchctl kickstart -k "gui/$(id -u)/com.roma.romad"
-launchctl bootout "gui/$(id -u)/com.roma.romad"
+launchctl print "gui/$(id -u)/com.tagit.tagitd"
+launchctl kickstart -k "gui/$(id -u)/com.tagit.tagitd"
+launchctl bootout "gui/$(id -u)/com.tagit.tagitd"
 ```
 
 The plist assumes:
 
-- binary path: `$HOME/.local/bin/romad`
-- ROMA home: `$HOME/.roma`
+- binary path: `$HOME/.local/bin/tagitd`
+- TagIt home: `$HOME/.tagit`
 
 ## Windows
 
-The simplest way is to run `romad.exe` in a normal terminal:
+The simplest way is to run `tagitd.exe` in a normal terminal:
 
 ```powershell
-go build -o bin/romad.exe ./cmd/romad
-Set-Location C:\path\to\ROMA
-C:\path\to\ROMA\bin\romad.exe
+go build -o bin/tagitd.exe ./cmd/tagitd
+Set-Location C:\path\to\TagIt
+C:\path\to\TagIt\bin\tagitd.exe
 ```
 
 For background execution, use Task Scheduler instead of a Windows service first.
 
 Suggested Task Scheduler settings:
 
-- Program: `C:\path\to\ROMA\bin\romad.exe`
-- Start in: `C:\path\to\ROMA`
+- Program: `C:\path\to\TagIt\bin\tagitd.exe`
+- Start in: `C:\path\to\TagIt`
 - Trigger: `At log on`
 - Run whether user is logged on or not: optional
 - Restart on failure: enabled
 
-If you specifically want a Windows service, wrap `romad.exe` with a service manager such as `nssm`, but Task Scheduler is the simpler default for the current repository.
+If you specifically want a Windows service, wrap `tagitd.exe` with a service manager such as `nssm`, but Task Scheduler is the simpler default for the current repository.
 
 ## Notes
 
-- `romad` control-plane state lives in `$HOME/.roma`; target repositories are chosen per command via `roma run --cwd <repo> --prompt "<prompt>"`, `roma run --cwd <repo> --prompt-file <path>`, or by running `roma` from that repository.
-- Agent execution should happen in isolated worktrees under the target repository, not directly inside `$HOME/.roma`.
+- `tagitd` control-plane state lives in `$HOME/.tagit`; target repositories are chosen per command via `tagit run --cwd <repo> --prompt "<prompt>"`, `tagit run --cwd <repo> --prompt-file <path>`, or by running `tagit` from that repository.
+- Agent execution should happen in isolated worktrees under the target repository, not directly inside `$HOME/.tagit`.
 - If you change the binary install path, update the systemd unit or launchd plist path.
 - On all platforms, check the daemon health with:
 
 ```bash
-./bin/roma status
+./bin/tagit status
 ```

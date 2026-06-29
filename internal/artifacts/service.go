@@ -10,18 +10,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
+	"github.com/liliang-cn/tagit/internal/domain"
 )
 
 const (
 	// ReportPayloadSchema is the bootstrap schema name for generic run reports.
-	ReportPayloadSchema = "roma/report/v1"
+	ReportPayloadSchema = "tagit/report/v1"
 	// SemanticReportPayloadSchema is the agent-assisted semantic classifier schema.
-	SemanticReportPayloadSchema = "roma/semantic_report/v1"
+	SemanticReportPayloadSchema = "tagit/semantic_report/v1"
 	// RageReviewPayloadSchema is the structured rage-foreman review schema.
-	RageReviewPayloadSchema = "roma/rage_review/v1"
+	RageReviewPayloadSchema = "tagit/rage_review/v1"
 	// FinalAnswerPayloadSchema is the user-facing session outcome schema.
-	FinalAnswerPayloadSchema = "roma/final_answer/v1"
+	FinalAnswerPayloadSchema = "tagit/final_answer/v1"
 )
 
 type MergeBackMode string
@@ -46,7 +46,7 @@ type ReportPayload struct {
 	SourceAgentName  string            `json:"source_agent_name"`
 }
 
-// MergeBackRequest captures an agent request for ROMA to evaluate and merge a workspace back.
+// MergeBackRequest captures an agent request for TagIt to evaluate and merge a workspace back.
 type MergeBackRequest struct {
 	WorkspaceSessionID string        `json:"workspace_session_id"`
 	WorkspaceTaskID    string        `json:"workspace_task_id"`
@@ -393,7 +393,7 @@ func (s *Service) BuildFinalAnswer(ctx context.Context, req BuildFinalAnswerRequ
 		Kind:          domain.ArtifactKindFinalAnswer,
 		SchemaVersion: "v1",
 		Producer: domain.Producer{
-			AgentID: "roma",
+			AgentID: "tagit",
 			Role:    domain.ProducerRoleSystem,
 			RunID:   req.RunID,
 		},
@@ -545,8 +545,8 @@ func parseFollowUpRequests(output string) []FollowUpRequest {
 	for _, line := range lines {
 		line = trimLine(line)
 		switch {
-		case strings.HasPrefix(line, "ROMA_DELEGATE:"):
-			agent := trimLine(strings.TrimPrefix(line, "ROMA_DELEGATE:"))
+		case strings.HasPrefix(line, "TAGIT_DELEGATE:"):
+			agent := trimLine(strings.TrimPrefix(line, "TAGIT_DELEGATE:"))
 			if agent == "" {
 				continue
 			}
@@ -559,8 +559,8 @@ func parseFollowUpRequests(output string) []FollowUpRequest {
 				Kind:    "delegate",
 				AgentID: agent,
 			})
-		case strings.HasPrefix(line, "ROMA_FOLLOWUP:"):
-			body := trimLine(strings.TrimPrefix(line, "ROMA_FOLLOWUP:"))
+		case strings.HasPrefix(line, "TAGIT_FOLLOWUP:"):
+			body := trimLine(strings.TrimPrefix(line, "TAGIT_FOLLOWUP:"))
 			parts := strings.SplitN(body, "|", 2)
 			head := trimLine(parts[0])
 			fields := strings.Fields(head)
@@ -597,8 +597,8 @@ func parseMergeBackRequest(output, sessionID, taskID string) *MergeBackRequest {
 	for _, line := range lines {
 		line = trimLine(line)
 		switch {
-		case strings.HasPrefix(line, "ROMA_MERGE_BACK:"):
-			body := trimLine(strings.TrimPrefix(line, "ROMA_MERGE_BACK:"))
+		case strings.HasPrefix(line, "TAGIT_MERGE_BACK:"):
+			body := trimLine(strings.TrimPrefix(line, "TAGIT_MERGE_BACK:"))
 			parts := strings.SplitN(body, "|", 2)
 			mode := MergeBackMode(trimLine(parts[0]))
 			switch mode {
@@ -610,8 +610,8 @@ func parseMergeBackRequest(output, sessionID, taskID string) *MergeBackRequest {
 			if len(parts) == 2 {
 				request.Reason = trimLine(parts[1])
 			}
-		case strings.HasPrefix(line, "ROMA_MERGE_FILE:"):
-			path := trimLine(strings.TrimPrefix(line, "ROMA_MERGE_FILE:"))
+		case strings.HasPrefix(line, "TAGIT_MERGE_FILE:"):
+			path := trimLine(strings.TrimPrefix(line, "TAGIT_MERGE_FILE:"))
 			if path != "" {
 				request.ChangedFiles = append(request.ChangedFiles, path)
 			}
@@ -963,7 +963,7 @@ func extractMeaningfulReportBody(output string) string {
 	out := make([]string, 0, len(lines))
 	for _, raw := range lines {
 		line := trimLine(raw)
-		if line == "" || ignoreReportLine(line) || strings.HasPrefix(line, "ROMA_MERGE_") {
+		if line == "" || ignoreReportLine(line) || strings.HasPrefix(line, "TAGIT_MERGE_") {
 			continue
 		}
 		out = append(out, line)
@@ -999,11 +999,11 @@ func ignoreReportLine(line string) bool {
 		strings.HasPrefix(lower, "tokens used"),
 		strings.HasPrefix(lower, "mcp:"),
 		strings.HasPrefix(lower, "mcp startup:"),
-		strings.HasPrefix(lower, "roma relay execution node."),
+		strings.HasPrefix(lower, "tagit relay execution node."),
 		strings.HasPrefix(lower, "original request:"),
 		strings.HasPrefix(lower, "current node:"),
 		strings.HasPrefix(lower, "provide the contribution for this node only."),
-		strings.HasPrefix(lower, "roma continuous execution mode."),
+		strings.HasPrefix(lower, "tagit continuous execution mode."),
 		strings.HasPrefix(lower, "keep working on the same task"),
 		strings.HasPrefix(lower, "when the task is complete"),
 		strings.HasPrefix(lower, "if the task is not complete"),

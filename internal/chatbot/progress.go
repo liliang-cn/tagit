@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/events"
+	"github.com/liliang-cn/tagit/internal/events"
 )
 
 // streamProgress posts throttled progress lines into the thread rooted at
@@ -39,7 +39,7 @@ func streamProgress(ctx context.Context, snd Sender, chatID, rootMessageID strin
 	}
 }
 
-// progressLine derives a short phase line from a real ROMA event, or "" if the
+// progressLine derives a short phase line from a real TagIt event, or "" if the
 // event should be skipped.
 func progressLine(rec events.Record) string {
 	switch rec.Type {

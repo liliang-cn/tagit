@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/domain"
+	"github.com/liliang-cn/tagit/internal/domain"
 )
 
 func TestResolveByAlias(t *testing.T) {
@@ -53,7 +53,7 @@ func TestAvailabilityForProfileMissingCommand(t *testing.T) {
 	got := availabilityForProfile(context.Background(), domain.AgentProfile{
 		ID:              "missing-agent",
 		DisplayName:     "Missing Agent",
-		Command:         "roma-command-that-does-not-exist",
+		Command:         "tagit-command-that-does-not-exist",
 		HealthcheckArgs: []string{"version"},
 	})
 	if got != domain.AgentAvailabilityPlanned {

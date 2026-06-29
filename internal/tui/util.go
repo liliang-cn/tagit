@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/liliang-cn/roma/internal/queue"
+	"github.com/liliang-cn/tagit/internal/queue"
 )
 
 func parseCommand(line string) (command, error) {

@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/sqliteutil"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/sqliteutil"
 )
 
 // SQLiteEventStore persists events into the shared workspace SQLite database.

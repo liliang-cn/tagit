@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/scheduler"
 )
 
 func TestInspectRepoConflictsDetectsUnmergedPaths(t *testing.T) {

@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/plans"
-	"github.com/liliang-cn/roma/internal/store"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/plans"
+	"github.com/liliang-cn/tagit/internal/store"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 type fakeAdapter struct {
@@ -198,9 +198,9 @@ func TestServicePlanRemoteCommandBridgesToPlanApproval(t *testing.T) {
 func initGatewayGitRepo(t *testing.T, dir string) {
 	t.Helper()
 	runGatewayGit(t, dir, "init")
-	runGatewayGit(t, dir, "config", "user.email", "roma@example.com")
-	runGatewayGit(t, dir, "config", "user.name", "ROMA")
-	if err := os.WriteFile(dir+"/README.md", []byte("roma\n"), 0o644); err != nil {
+	runGatewayGit(t, dir, "config", "user.email", "tagit@example.com")
+	runGatewayGit(t, dir, "config", "user.name", "TagIt")
+	if err := os.WriteFile(dir+"/README.md", []byte("tagit\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	runGatewayGit(t, dir, "add", "README.md")

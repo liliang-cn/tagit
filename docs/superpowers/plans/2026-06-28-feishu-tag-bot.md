@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let a Feishu group `@mention` ROMA to run a coding task, with an ack, live progress, and the final result streamed back into the thread — over the SDK long connection (no public URL).
+**Goal:** Let a Feishu group `@mention` TagIt to run a coding task, with an ack, live progress, and the final result streamed back into the thread — over the SDK long connection (no public URL).
 
-**Architecture:** New `internal/feishu` module. A long-connection `Bot` receives `im.message.receive_v1`, a pure `handler` decides-to-act (dedup, @-check, binding lookup) and submits a run via an `Enqueuer`, a `Sender` posts to the thread, and a `progress` streamer turns `StreamJobEvents` into throttled thread updates. Reuses the existing queue/run/memory stack. Disabled cleanly when `~/.roma/feishu.json` is absent.
+**Architecture:** New `internal/feishu` module. A long-connection `Bot` receives `im.message.receive_v1`, a pure `handler` decides-to-act (dedup, @-check, binding lookup) and submits a run via an `Enqueuer`, a `Sender` posts to the thread, and a `progress` streamer turns `StreamJobEvents` into throttled thread updates. Reuses the existing queue/run/memory stack. Disabled cleanly when `~/.tagit/feishu.json` is absent.
 
 **Tech Stack:** Go 1.25, `github.com/larksuite/oapi-sdk-go/v3` (v3.9.7: `ws`, `event/dispatcher`, `service/im/v1` as `larkim`, root as `lark`), existing `internal/api` (`Submit`, `StreamJobEvents`), `internal/queue`, `internal/events`.
 
@@ -150,7 +150,7 @@ type Binding struct {
 	Mode   string `json:"mode,omitempty"`
 }
 
-// Config is the on-disk Feishu bot configuration (~/.roma/feishu.json).
+// Config is the on-disk Feishu bot configuration (~/.tagit/feishu.json).
 type Config struct {
 	AppID     string    `json:"app_id"`
 	AppSecret string    `json:"app_secret"`
@@ -501,7 +501,7 @@ func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
 	}
 	binding, ok := h.cfg.BindingFor(msg.ChatID)
 	if !ok {
-		h.reply(ctx, msg.MessageID, "This group isn't linked to a repo yet. Ask an admin to add a binding in ~/.roma/feishu.json.")
+		h.reply(ctx, msg.MessageID, "This group isn't linked to a repo yet. Ask an admin to add a binding in ~/.tagit/feishu.json.")
 		return
 	}
 	h.reply(ctx, msg.MessageID, "收到，开始干 🛠️")
@@ -564,7 +564,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/events"
+	"github.com/liliang-cn/tagit/internal/events"
 )
 
 func TestStreamProgressThrottlesAndPostsFinal(t *testing.T) {
@@ -614,7 +614,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/events"
+	"github.com/liliang-cn/tagit/internal/events"
 )
 
 // streamProgress reads job events, posts throttled progress into the thread, and
@@ -810,9 +810,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/run"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/run"
 )
 
 // apiEnqueuer adapts *api.Client to Enqueuer.
@@ -865,7 +865,7 @@ where `snd` is the same `NewSender(cfg.AppID, cfg.AppSecret)` the Bot already ma
 
 Then in `internal/app/daemon.go`, after the run service + api client exist, start the bot best-effort:
 ```go
-feishuCfg, enabled, err := feishu.Load(filepath.Join(romapath.HomeDir(), "feishu.json"))
+feishuCfg, enabled, err := feishu.Load(filepath.Join(tagitpath.HomeDir(), "feishu.json"))
 if err != nil {
 	log.Printf("feishu: disabled (%v)", err)
 } else if enabled {
@@ -877,7 +877,7 @@ if err != nil {
 	}()
 }
 ```
-(Use the daemon's existing `api.Client` instance — the one the daemon already builds for self-calls; if none exists, construct `api.NewClientForControlDir(workDir, romapath.HomeDir())`.)
+(Use the daemon's existing `api.Client` instance — the one the daemon already builds for self-calls; if none exists, construct `api.NewClientForControlDir(workDir, tagitpath.HomeDir())`.)
 
 - [ ] **Step 6: Build, vet, test, commit**
 
@@ -893,8 +893,8 @@ git commit -m "feishu: wire long-connection bot, api enqueuer, progress, daemon 
 
 - [ ] Publish the "tagit" app (版本管理与发布) so config takes effect.
 - [ ] Ensure permissions: `im:message` (send) + `im:message.group_at_msg:readonly` (receive @), and event `im.message.receive_v1` via **long connection**.
-- [ ] Write `~/.roma/feishu.json` with app_id/app_secret and one binding `{chat_id, repo}` (get chat_id from the group; e.g. via the bot logging received ChatIds, or 飞书 admin).
-- [ ] Start `romad`; add the bot to the group; `@tagit do something small`.
+- [ ] Write `~/.tagit/feishu.json` with app_id/app_secret and one binding `{chat_id, repo}` (get chat_id from the group; e.g. via the bot logging received ChatIds, or 飞书 admin).
+- [ ] Start `tagitd`; add the bot to the group; `@tagit do something small`.
 - [ ] Confirm: ack appears in-thread, progress updates stream, final result posts. Capture the thread as evidence.
 
 ---

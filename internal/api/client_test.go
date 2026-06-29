@@ -8,26 +8,26 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/romapath"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
 func TestClientFallsBackToGlobalDaemonHome(t *testing.T) {
 	workDir := t.TempDir()
 	globalHome := t.TempDir()
-	t.Setenv("ROMA_HOME", globalHome)
+	t.Setenv("TAGIT_HOME", globalHome)
 
-	if err := os.MkdirAll(filepath.Join(workDir, ".roma", "run"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(workDir, ".tagit", "run"), 0o755); err != nil {
 		t.Fatalf("mkdir local run dir: %v", err)
 	}
 	stale := map[string]string{
 		"network": "unix",
-		"address": filepath.Join(workDir, ".roma", "run", "missing.sock"),
+		"address": filepath.Join(workDir, ".tagit", "run", "missing.sock"),
 	}
 	raw, err := json.Marshal(stale)
 	if err != nil {
 		t.Fatalf("marshal stale meta: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(workDir, ".roma", "run", "api.json"), raw, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(workDir, ".tagit", "run", "api.json"), raw, 0o644); err != nil {
 		t.Fatalf("write stale meta: %v", err)
 	}
 
@@ -42,7 +42,7 @@ func TestClientFallsBackToGlobalDaemonHome(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal global meta: %v", err)
 	}
-	globalMetaPath := romapath.Join(globalHome, "run", "api.json")
+	globalMetaPath := tagitpath.Join(globalHome, "run", "api.json")
 	if err := os.MkdirAll(filepath.Dir(globalMetaPath), 0o755); err != nil {
 		t.Fatalf("mkdir resolved global run dir: %v", err)
 	}
@@ -70,12 +70,12 @@ func TestClientFallsBackToGlobalDaemonHome(t *testing.T) {
 	}
 }
 
-func TestClientUsesROMAHomeOverrideMetaPath(t *testing.T) {
+func TestClientUsesTagItHomeOverrideMetaPath(t *testing.T) {
 	workDir := t.TempDir()
 	overrideHome := t.TempDir()
-	t.Setenv("ROMA_HOME", overrideHome)
+	t.Setenv("TAGIT_HOME", overrideHome)
 
-	metaPath := romapath.Join(overrideHome, "run", "api.json")
+	metaPath := tagitpath.Join(overrideHome, "run", "api.json")
 	if err := os.MkdirAll(filepath.Dir(metaPath), 0o755); err != nil {
 		t.Fatalf("mkdir override run dir: %v", err)
 	}

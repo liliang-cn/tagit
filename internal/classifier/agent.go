@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/runtime"
-	"github.com/liliang-cn/roma/internal/store"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/runtime"
+	"github.com/liliang-cn/tagit/internal/store"
 )
 
 // Runner captures the runtime dependency needed by the semantic analyzer.
@@ -182,7 +182,7 @@ func buildClassifierPrompt(req runtime.SemanticAnalysisRequest) string {
 	if text == "" {
 		text = "(no direct excerpt)"
 	}
-	return strings.TrimSpace(fmt.Sprintf(`You are ROMA's semantic runtime classifier.
+	return strings.TrimSpace(fmt.Sprintf(`You are TagIt's semantic runtime classifier.
 
 Read the runtime output excerpt and return exactly these lines:
 intent: <short phrase>

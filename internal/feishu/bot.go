@@ -7,8 +7,8 @@ import (
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	larkws "github.com/larksuite/oapi-sdk-go/v3/ws"
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/chatbot"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/chatbot"
 )
 
 // Bot runs the Feishu long-connection event loop and routes @mentions to the shared handler.
@@ -17,7 +17,7 @@ type Bot struct {
 	handler *chatbot.Handler
 }
 
-// NewBot wires the Feishu sender + shared handler over ROMA's api.Client.
+// NewBot wires the Feishu sender + shared handler over TagIt's api.Client.
 func NewBot(cfg *Config, apiClient *api.Client) *Bot {
 	snd := NewSender(cfg.AppID, cfg.AppSecret)
 	enq := chatbot.NewAPIEnqueuer(apiClient)

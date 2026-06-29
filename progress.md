@@ -4,40 +4,40 @@
 
 - Planned a Wails desktop UI track instead of starting implementation blind.
 - Confirmed the repository currently has:
-  - daemon-first backend (`romad`)
+  - daemon-first backend (`tagitd`)
   - local JSON API
   - Bubble Tea TUI
   - no Wails dependency or desktop scaffold yet
 - Confirmed the existing TUI startup path can be reused as the desktop bootstrap pattern:
   - connect to existing daemon when present
-  - otherwise start embedded `romad`
+  - otherwise start embedded `tagitd`
 - Wrote a staged Wails plan into `task_plan.md` covering:
   - shell/bindings
   - MVP screens
   - polling/live UX
   - packaging/test validation
 - Recorded the main architecture constraint for later implementation:
-  - Wails must stay a presentation layer over `romad`, not a parallel execution path
+  - Wails must stay a presentation layer over `tagitd`, not a parallel execution path
 
 ## 2026-03-11
 
 - Added PTY provider abstraction and Unix implementation with `github.com/creack/pty`.
 - Wired supervisor runtime events into session/task scoped event records.
-- Added `roma events list/show`.
+- Added `tagit events list/show`.
 - Made direct runs persist session/artifact/event truth instead of raw process execution only.
-- Added `roma graph run --file ...` and executed a successful relay graph end-to-end.
+- Added `tagit graph run --file ...` and executed a successful relay graph end-to-end.
 - Routed graph runs through daemon queue submission.
 - Added queue back-links to execution truth:
   - `session_id`
   - `task_id`
   - `artifact_ids`
-- Added `roma queue inspect <job_id>` aggregated output.
-- Added queue filters: `roma queue list --mode ... --status ...`.
+- Added `tagit queue inspect <job_id>` aggregated output.
+- Added queue filters: `tagit queue list --mode ... --status ...`.
 - Added first-class inline graph submission through daemon `/submit`.
 - Verified daemon consumes inline graph jobs and persists structured graph payload in queue records.
-- Added persisted task records for graph node execution and `roma tasks list/show`.
+- Added persisted task records for graph node execution and `tagit tasks list/show`.
 - Moved task state transitions behind scheduler lifecycle control and added `TaskStateChanged` events for node progression.
-- Added `roma replay <session_id>` backed by event-store reconstruction instead of file-only inference.
+- Added `tagit replay <session_id>` backed by event-store reconstruction instead of file-only inference.
 - Added minimum `policy` broker with:
   - pre-flight working-directory checks
   - prompt risk warnings
@@ -49,7 +49,7 @@
   - session history
   - task records
   - event records
-- Added `sqlite_enabled`, `sqlite_path`, and `sqlite_bytes` to `roma status`.
+- Added `sqlite_enabled`, `sqlite_path`, and `sqlite_bytes` to `tagit status`.
 - Switched CLI/API inspection to SQLite-preferred reads for:
   - `sessions`
   - `tasks`
@@ -59,23 +59,23 @@
 - Added daemon API support for `tasks list/show`.
 - Added SQLite-backed queue and artifact stores, plus compatibility mirror/fallback behavior so historical file-only runs remain queryable.
 - Added `internal/syncdb` workspace backfill to import old file-backed metadata into SQLite before daemon recovery and CLI inspection.
-- Added SQLite-authoritative scheduler recovery snapshots plus `roma recover`.
-- Added `roma policy check --agent ... "<prompt>"` for direct pre-flight policy inspection.
+- Added SQLite-authoritative scheduler recovery snapshots plus `tagit recover`.
+- Added `tagit policy check --agent ... "<prompt>"` for direct pre-flight policy inspection.
 - Added enforceable policy approval flow for queue-backed daemon runs:
   - queue status `awaiting_approval`
-  - `roma approve <job_id>`
-  - `roma reject <job_id>`
+  - `tagit approve <job_id>`
+  - `tagit reject <job_id>`
   - persisted human approval/rejection events
 - Added reserved `session_id` / `task_id` assignment before daemon execution starts, so approvals and crash recovery bind back to the same session.
 - Added scheduler recovery execution, not only inspection:
   - interrupted `Running` tasks normalize back to `Ready`
-  - `romad` resumes recoverable sessions from SQLite-backed session/task/artifact state
+  - `tagitd` resumes recoverable sessions from SQLite-backed session/task/artifact state
 - Added relay resume path in `run.Service` / `relay.Executor`.
 - Added opt-in continuous coding-agent execution:
-  - `roma run --continuous --max-rounds N ...`
-  - `roma submit --continuous --max-rounds N ...`
+  - `tagit run --continuous --max-rounds N ...`
+  - `tagit submit --continuous --max-rounds N ...`
   - graph/delegate nodes can also inherit continuous multi-round execution
-- Added runtime supervision loop that keeps prompting until an agent emits `ROMA_DONE:` or the round limit is reached.
+- Added runtime supervision loop that keeps prompting until an agent emits `TAGIT_DONE:` or the round limit is reached.
 - Added concurrent ready-batch relay dispatch and a runtime test for continuous multi-round execution.
 - Moved ready-batch planning into scheduler lifecycle:
   - relay now consumes ready task records from scheduler-owned lifecycle logic
@@ -90,10 +90,10 @@
 - Added node-level scheduler approval gates:
   - risky ready nodes are marked `AwaitingApproval` before execution
   - `scheduler.Dispatcher` now returns `ApprovalPendingError` when the graph is blocked on human approval
-  - `roma tasks approve <task_id>` and `roma tasks reject <task_id>` update task/session/queue state through daemon API or fallback
+  - `tagit tasks approve <task_id>` and `tagit tasks reject <task_id>` update task/session/queue state through daemon API or fallback
   - task records now persist `approval_granted`
 - Added initial scheduler workspace hooks:
-  - per-task workspace metadata now persists under `.roma/workspaces/<session>/<task>/workspace.json`
+  - per-task workspace metadata now persists under `.tagit/workspaces/<session>/<task>/workspace.json`
   - scheduler emits `WorkspacePrepared` before runtime launch and `WorkspaceReleased` after task completion
   - dispatcher now resolves each task through a workspace manager before invoking the coding agent runtime
 - Upgraded workspace preparation to be Git-aware:
@@ -106,16 +106,16 @@
   - scheduler recovery tests now cover released workspace cleanup
 - Expanded workspace cleanup and inspection:
   - stale `prepared` worktrees are now reclaimed alongside `released` worktrees on daemon startup
-  - `roma workspaces list/show/cleanup` now works in CLI fallback and daemon API modes
+  - `tagit workspaces list/show/cleanup` now works in CLI fallback and daemon API modes
   - `/workspaces`, `/workspaces/{session}/{task}`, and `/workspaces/cleanup` are now exposed by the local daemon API
   - `queue inspect` now includes related workspace metadata
-  - `roma sessions inspect <session_id>` and `/session-inspect/{id}` now provide aggregated session truth including tasks, artifacts, events, and workspaces
+  - `tagit sessions inspect <session_id>` and `/session-inspect/{id}` now provide aggregated session truth including tasks, artifacts, events, and workspaces
 - Removed the main execution path's compile-time dependency on `internal/relay`:
   - scheduler now owns `NodeAssignment` and `DispatchResult`
   - direct run, graph run, recovery, and scheduler tests now use scheduler-native execution types
 - Added structured follow-up contracts to report artifacts:
   - `ReportPayload.follow_up_requests`
-  - `ROMA_FOLLOWUP: delegate <agent> | <instruction>` parsing
+  - `TAGIT_FOLLOWUP: delegate <agent> | <instruction>` parsing
   - scheduler follow-up nodes now carry `PromptHint`
 - Added path-scoped policy boundaries:
   - node-level policy now evaluates against the prepared workspace `effective_dir`
@@ -124,8 +124,8 @@
 - Added minimum override ACL support:
   - `--policy-override`
   - `--override-actor`
-  - `ROMA_POLICY_OVERRIDE_ACTOR`
-  - `ROMA_POLICY_OVERRIDE_ACTORS`
+  - `TAGIT_POLICY_OVERRIDE_ACTOR`
+  - `TAGIT_POLICY_OVERRIDE_ACTORS`
   - queue records now persist `policy_override_actor`
 - Added Curia minimal execution:
   - new `internal/curia` executor
@@ -136,8 +136,8 @@
   - Curia intermediate artifacts are persisted as related artifacts in the session
 - Added Curia user-facing entrypoints:
   - `examples/curia-graph.json`
-  - `roma sessions curia <session_id>`
-  - `roma artifacts list --kind proposal|ballot|debate_log|decision_pack|execution_plan`
+  - `tagit sessions curia <session_id>`
+  - `tagit artifacts list --kind proposal|ballot|debate_log|decision_pack|execution_plan`
   - Curia now performs first-pass dispute detection:
     - close top-score gaps trigger `winning_mode=merge`
     - vetoed top proposals also mark the debate as disputed
@@ -145,26 +145,26 @@
   - Curia ballot scoring now uses a first reviewer-weight layer, so senator reputation can influence proposal ranking
   - ballot artifacts now persist reviewer weight and weighted score
   - debate logs and decision packs now persist proposal scoreboards with raw score, weighted score, veto count, and reviewer count
-  - `roma sessions curia <session_id>` now prints dispute reasons, winning mode, selected proposals, and the Curia scoreboard
+  - `tagit sessions curia <session_id>` now prints dispute reasons, winning mode, selected proposals, and the Curia scoreboard
   - added a deterministic Curia decision-flow regression in `internal/api` proving that a disputed Curia run produces an `execution_plan` visible in `/plans/inbox` as `pending_approval`
-  - added [`docs/curia-decision-flow.md`](/home/liliang/Codes/oss/ROMA/docs/curia-decision-flow.md) to document the current Curia demo path and its limits
+  - added [`docs/curia-decision-flow.md`](/home/liliang/Codes/oss/TagIt/docs/curia-decision-flow.md) to document the current Curia demo path and its limits
   - `queue inspect` / `session inspect` now return a structured `curia` summary
   - Curia dispute state is now classified explicitly (`none`, `close_score`, `critical_veto`, `close_score+critical_veto`) instead of only booleans
   - Curia decision packs now persist `risk_flags`, `review_questions`, and `candidate_summaries`
-  - `roma sessions curia <session_id>` and API inspection now surface those arbitration details directly instead of leaving them buried in raw artifacts
+  - `tagit sessions curia <session_id>` and API inspection now surface those arbitration details directly instead of leaving them buried in raw artifacts
   - Curia decision packs now also persist `reviewer_breakdown`, so reviewer weight and veto impact are directly visible in CLI/API inspection
-  - `roma queue list` now appends Curia mode/dispute summaries for Curia-backed jobs instead of forcing users into `queue inspect`
+  - `tagit queue list` now appends Curia mode/dispute summaries for Curia-backed jobs instead of forcing users into `queue inspect`
   - Curia summary readers now filter by `artifact.Kind`, fixing a zero-value overwrite bug where later non-matching artifacts could erase valid debate/decision payloads
   - Curia now supports `arbitration_mode=augustus` with a dedicated arbitrator agent profile for fully automatic dispute resolution
   - decision packs now record `arbitrated` and `arbitrator_id`, and Curia summaries surface those fields in CLI/API inspection
-  - reviewer reputation is now persisted without touching SQLite schema via `.roma/curia-reputation.json`
+  - reviewer reputation is now persisted without touching SQLite schema via `.tagit/curia-reputation.json`
   - added runnable demos:
     - `go run ./examples/curia_augustus_demo`
     - `go run ./examples/plan_conflict_demo`
   - merge conflict preview now carries `conflict_paths` through workspace preview, plan preview/apply results, plan inbox, and inspection summaries
 - Added execution-plan closure primitives:
   - new `internal/plans` service
-  - `roma plans inspect/apply/rollback`
+  - `tagit plans inspect/apply/rollback`
   - changed-path validation against `expected_files`
   - forbidden-path enforcement during plan apply
   - dry-run plan apply
@@ -178,9 +178,9 @@
   - `queue inspect` / `sessions inspect` now include `plans` summaries derived from those audit events
   - `dry-run` now performs actual merge preview via `git apply --check --3way`
   - plan apply now routes protected-path decisions through a first action-aware policy matrix
-  - new `roma plans inbox [--session <id>]` and daemon `/plans/inbox` aggregate pending plan approvals and latest apply outcomes
-  - new `roma plans approve|reject <artifact_id>` and daemon `/plans/{artifact_id}/approve|reject` turn that inbox into an actual approval path
-  - new `roma plans preview <session_id> <task_id> <artifact_id>` and daemon `/plans/preview` expose dry-run merge preview as a first-class endpoint
+  - new `tagit plans inbox [--session <id>]` and daemon `/plans/inbox` aggregate pending plan approvals and latest apply outcomes
+  - new `tagit plans approve|reject <artifact_id>` and daemon `/plans/{artifact_id}/approve|reject` turn that inbox into an actual approval path
+  - new `tagit plans preview <session_id> <task_id> <artifact_id>` and daemon `/plans/preview` expose dry-run merge preview as a first-class endpoint
   - plan preview/apply/rollback results now include `remediation_hint`
   - plan preview is now side-effect free and no longer appends `PlanApplied(dry_run)` audit events, keeping preview separate from dry-run apply in API tests and inbox state
   - gateway remote commands can now bridge `plan_approve` / `plan_reject` into that same plan approval path
@@ -189,7 +189,7 @@
 - Added minimum worktree merge-back closure:
   - `workspace.CapturePatch`
   - `workspace.MergeBack`
-  - `roma workspaces merge <session_id> <task_id>`
+  - `tagit workspaces merge <session_id> <task_id>`
   - `POST /workspaces/{session}/{task}/merge`
 - Expanded top-level status metrics:
   - `released_leases`
@@ -206,28 +206,28 @@
   - singular command names remain the primary surface
 - Removed built-in coding-agent assumptions:
   - `DefaultRegistry()` is now empty until user config is loaded
-  - `romad` and `roma` now prefer `$HOME/.roma/agents.json`
+  - `tagitd` and `tagit` now prefer `$HOME/.tagit/agents.json`
   - runtime launch now uses generic profile-driven `command + args` templates with placeholders such as `{prompt}` and `{cwd}`
   - the first configured profile is the implicit default, and `use_pty` remains user-configured
-- Unified ROMA's own default state root toward `$HOME/.roma`:
-  - agent config now defaults to `$HOME/.roma/agents.json`
-  - daemon discovery now prefers `$HOME/.roma/run/api.json`
-  - systemd and launchd templates now point at `$HOME/.roma`
-  - control-plane stores are now wired from `$HOME/.roma`, not from the target repository
+- Unified TagIt's own default state root toward `$HOME/.tagit`:
+  - agent config now defaults to `$HOME/.tagit/agents.json`
+  - daemon discovery now prefers `$HOME/.tagit/run/api.json`
+  - systemd and launchd templates now point at `$HOME/.tagit`
+  - control-plane stores are now wired from `$HOME/.tagit`, not from the target repository
   - repository workspaces are resolved from session `WorkingDir`, not inferred from daemon cwd
   - scheduler-dispatched tasks now request isolated workspace execution by default
 - Added live runtime visibility for active jobs:
   - `queue inspect` and `session inspect` now include a `live` section
   - `live` currently summarizes current task, agent, execution id, workspace path, heartbeat time, last event, and last output preview
   - `queue list` now surfaces current running task and agent in the summary for active jobs
-  - `roma queue tail <job_id>` now polls and prints live job progress until the job leaves `pending/running`
+  - `tagit queue tail <job_id>` now polls and prints live job progress until the job leaves `pending/running`
 - Tightened live/runtime inspection:
   - runtime start/exit events now persist child-process pid
   - `live.process_pid` is now exposed through queue/session inspection and queue tail heartbeat lines
-  - CLI fallback queue/session inspection now uses `$HOME/.roma` for control-plane truth and the session `WorkingDir` for workspace truth
-  - `roma queue attach <job_id>` now follows a running job without dumping a full inspect payload every time
+  - CLI fallback queue/session inspection now uses `$HOME/.tagit` for control-plane truth and the session `WorkingDir` for workspace truth
+  - `tagit queue attach <job_id>` now follows a running job without dumping a full inspect payload every time
   - running multi-agent jobs now show `phase=bootstrap|fanout`, participant count, and pid in queue summaries
- - Fixed queue cancellation so CLI fallback can find and cancel jobs stored under `$HOME/.roma`, not only jobs rooted in the current workspace
+ - Fixed queue cancellation so CLI fallback can find and cancel jobs stored under `$HOME/.tagit`, not only jobs rooted in the current workspace
  - Changed multi-agent `run/submit` semantics:
    - the starter now executes a bootstrap/coordinator node first
    - the starter then participates again as a worker node
@@ -236,11 +236,11 @@
 ## Latest Verified Commands
 
 - `go test -count=1 ./...`
-- `go test -count=1 ./internal/api ./cmd/roma`
+- `go test -count=1 ./internal/api ./cmd/tagit`
 - Refined live-inspection UX:
   - `queue inspect` is now summary-first by default and only expands full `events` / `artifacts` in raw paths
   - `queue tail` now prints integer runtime pids instead of scientific-notation JSON floats
-  - `roma result show <session_id>` now returns a pending result summary for running/awaiting-approval sessions instead of failing on a missing final-answer artifact
+  - `tagit result show <session_id>` now returns a pending result summary for running/awaiting-approval sessions instead of failing on a missing final-answer artifact
 - `go test -count=1 ./...`
 - `go build ./...`
 
@@ -273,9 +273,9 @@
 - Hardened concurrent workspace reclaim:
   - git worktree add/remove operations are now serialized inside the workspace manager to avoid flaky parallel soak failures
 - Added a first Bubble Tea TUI surface:
-  - `roma tui`
-  - `romatui`
-  - the TUI launches an embedded `romad` on startup and cancels it on exit
+  - `tagit tui`
+  - `tagittui`
+  - the TUI launches an embedded `tagitd` on startup and cancels it on exit
   - the TUI is slash-command driven and currently supports `/help`, `/status`, `/agent`, `/with`, `/run`, `/submit`, `/open`, `/cancel`, `/result`, and `/refresh`
 - Verified again:
   - `go test -count=1 ./...`
@@ -289,60 +289,60 @@
   - runtime now invokes an optional classifier agent after local semantic signals are detected
   - multi-agent runs now use the starter/coordinator as the semantic reviewer
   - single-agent runs now fall back to the current agent as the semantic reviewer
-  - classifier selection is no longer user-configurable in `roma agent add`
+  - classifier selection is no longer user-configurable in `tagit agent add`
   - structured queue tail output now renders emitted semantic reports
 - Strengthened execution-plan conflict UX:
   - preview/apply/inbox now expose `conflict_summary`
   - preview/apply/inbox now expose `resolution_options`
   - inbox now synthesizes approval/conflict guidance even when only a blocking status event exists
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma queue inspect job_1773190497370443455`
-- `timeout 35s env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/romad`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma graph run --file examples/relay-graph.json`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma queue list --mode graph --status succeeded`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma queue show job_1773190900412761177`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma tasks list --session sess_1773191091326391418`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma tasks show sess_1773191091326391418__plan`
-- `tail -n 20 .roma/events/events.jsonl` confirming `TaskStateChanged` transitions for graph nodes
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma replay sess_1773191847017378066`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma --cwd / "say one short sentence"` returning `policy blocked execution: working_dir_root_forbidden`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/romad` followed by `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma submit --agent codex "reply with one short sentence mentioning gateway notification"` showing `gateway notify ... task succeeded`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma "reply with one short sentence saying sqlite mirror active"`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma graph run --file examples/relay-graph.json`
-- `sqlite3 .roma/roma.db "select (select count(*) from session_history), (select count(*) from task_records), (select count(*) from event_records);"` returning `2|2|33`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma tasks list --session sess_1773192852835721105`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma events list --session sess_1773192852835721105`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma sessions show sess_1773192852835721105`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma artifacts list --session sess_1773192852835721105`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma queue show job_1773190497370443455`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma replay sess_1773190498528857076`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma recover`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma policy check --agent codex "drop database and rebuild everything"`
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma submit --agent codex "drop database and then reply with one short sentence"` followed by `roma approve <job_id>` showing queue/session transition through `awaiting_approval` into resumed execution
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma events list --session sess_1773194736393035791` showing:
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit queue inspect job_1773190497370443455`
+- `timeout 35s env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagitd`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit graph run --file examples/relay-graph.json`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit queue list --mode graph --status succeeded`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit queue show job_1773190900412761177`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit tasks list --session sess_1773191091326391418`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit tasks show sess_1773191091326391418__plan`
+- `tail -n 20 .tagit/events/events.jsonl` confirming `TaskStateChanged` transitions for graph nodes
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit replay sess_1773191847017378066`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit --cwd / "say one short sentence"` returning `policy blocked execution: working_dir_root_forbidden`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagitd` followed by `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit submit --agent codex "reply with one short sentence mentioning gateway notification"` showing `gateway notify ... task succeeded`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit "reply with one short sentence saying sqlite mirror active"`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit graph run --file examples/relay-graph.json`
+- `sqlite3 .tagit/tagit.db "select (select count(*) from session_history), (select count(*) from task_records), (select count(*) from event_records);"` returning `2|2|33`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit tasks list --session sess_1773192852835721105`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit events list --session sess_1773192852835721105`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit sessions show sess_1773192852835721105`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit artifacts list --session sess_1773192852835721105`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit queue show job_1773190497370443455`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit replay sess_1773190498528857076`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit recover`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit policy check --agent codex "drop database and rebuild everything"`
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit submit --agent codex "drop database and then reply with one short sentence"` followed by `tagit approve <job_id>` showing queue/session transition through `awaiting_approval` into resumed execution
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit events list --session sess_1773194736393035791` showing:
   - `SessionStateChanged` to `awaiting_approval`
   - `PolicyDecisionRecorded` by `human`
   - `PolicyDecisionRecorded` override acceptance
   - resumed `RuntimeStarted`
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after adding continuous execution and concurrent relay batches
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after moving ready-batch planning into scheduler lifecycle and adding checkpoint events
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after moving run/graph/recovery entrypoints onto `scheduler.Dispatcher`
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after adding persisted scheduler leases and daemon lease recovery
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after adding node-level scheduler approval gates
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after adding scheduler workspace preparation hooks
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after adding workspace inspection/cleanup APIs and lease-aware periodic recovery
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after attaching workspace refs to scheduler leases and exposing lease/workspace linkage in inspection
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after persisting approval-pending task ids in leases and exposing approval resume readiness in inspection
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after exposing lease-aware recovery snapshots through the daemon API and enriching `SchedulerLeaseRecorded` payloads
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after routing queue-level approval through lease-backed task approval when pending node approvals exist
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after adding node-level queue summaries and lease/recovery counts to `roma status`
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after adding daemon `/status` and switching daemon-mode `roma status` to the API
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after collapsing `internal/relay` into a scheduler compatibility wrapper
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after routing direct runs through `scheduler.Dispatcher` so approval gating persists as task/lease state
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after adding minimal dynamic delegation parsing (`ROMA_DELEGATE: <agent>`) to direct runs
-- `env GOCACHE=/tmp/go-build-cache-roma go test ./...` after extending dynamic delegation follow-up nodes to the shared run/graph path
-- `env GOCACHE=/tmp/go-build-cache-roma go run ./cmd/roma status`
-- `env GOCACHE=/tmp/go-build-cache-roma go build ./...`
-- `env GOCACHE=/tmp/go-build-cache-roma go test -count=1 ./internal/api ./internal/scheduler ./internal/syncdb`
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after adding continuous execution and concurrent relay batches
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after moving ready-batch planning into scheduler lifecycle and adding checkpoint events
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after moving run/graph/recovery entrypoints onto `scheduler.Dispatcher`
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after adding persisted scheduler leases and daemon lease recovery
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after adding node-level scheduler approval gates
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after adding scheduler workspace preparation hooks
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after adding workspace inspection/cleanup APIs and lease-aware periodic recovery
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after attaching workspace refs to scheduler leases and exposing lease/workspace linkage in inspection
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after persisting approval-pending task ids in leases and exposing approval resume readiness in inspection
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after exposing lease-aware recovery snapshots through the daemon API and enriching `SchedulerLeaseRecorded` payloads
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after routing queue-level approval through lease-backed task approval when pending node approvals exist
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after adding node-level queue summaries and lease/recovery counts to `tagit status`
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after adding daemon `/status` and switching daemon-mode `tagit status` to the API
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after collapsing `internal/relay` into a scheduler compatibility wrapper
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after routing direct runs through `scheduler.Dispatcher` so approval gating persists as task/lease state
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after adding minimal dynamic delegation parsing (`TAGIT_DELEGATE: <agent>`) to direct runs
+- `env GOCACHE=/tmp/go-build-cache-tagit go test ./...` after extending dynamic delegation follow-up nodes to the shared run/graph path
+- `env GOCACHE=/tmp/go-build-cache-tagit go run ./cmd/tagit status`
+- `env GOCACHE=/tmp/go-build-cache-tagit go build ./...`
+- `env GOCACHE=/tmp/go-build-cache-tagit go test -count=1 ./internal/api ./internal/scheduler ./internal/syncdb`
 - Surfaced Curia reviewer reputation in inspection:
   - API/session/queue Curia summaries now include `reviewer_weights`
   - CLI fallback session/queue inspection now computes the same Curia summary instead of leaving `curia` empty
@@ -355,13 +355,13 @@
   - it runs multiple sessions concurrently, then asserts no active leases remain and all workspaces reclaim cleanly
 - Added dedicated Curia reputation inspection:
   - daemon API `/curia/reputation`
-  - CLI `roma curia reputation [--reviewer <agent_id>]`
+  - CLI `tagit curia reputation [--reviewer <agent_id>]`
   - same file-backed reputation state remains reused; no new database migration
 - Verified targeted and full validation after these changes:
-  - `env GOCACHE=/tmp/go-build-cache-roma go test -count=1 ./internal/plans ./internal/api ./internal/scheduler ./cmd/roma`
-  - `env GOCACHE=/tmp/go-build-cache-roma go test -count=1 ./internal/curia ./internal/workspace`
-  - `env GOCACHE=/tmp/go-build-cache-roma go test -count=1 ./...`
-  - `env GOCACHE=/tmp/go-build-cache-roma go build ./...`
+  - `env GOCACHE=/tmp/go-build-cache-tagit go test -count=1 ./internal/plans ./internal/api ./internal/scheduler ./cmd/tagit`
+  - `env GOCACHE=/tmp/go-build-cache-tagit go test -count=1 ./internal/curia ./internal/workspace`
+  - `env GOCACHE=/tmp/go-build-cache-tagit go test -count=1 ./...`
+  - `env GOCACHE=/tmp/go-build-cache-tagit go build ./...`
 
 ## Current Focus
 
@@ -374,34 +374,34 @@
 ## 2026-03-11 Runtime Visibility Diagnosis
 
 - Reproduced the current bad UX with a real daemon-managed job:
-  - `roma --agent codex --delegate gemini,copilot "...registry..."` submitted successfully to global `romad`
+  - `tagit --agent codex --delegate gemini,copilot "...registry..."` submitted successfully to global `tagitd`
   - `queue show` stayed almost unchanged while the job was still running
   - `queue inspect` returned only sparse job metadata
   - `events list --session ...` showed no meaningful progress during the live node
 - Confirmed this was not a fake stall:
-  - `ps` showed live `codex exec` child processes owned by `romad`
-  - the process was running inside `.roma/workspaces/<session>/<task>_starter/root`
+  - `ps` showed live `codex exec` child processes owned by `tagitd`
+  - the process was running inside `.tagit/workspaces/<session>/<task>_starter/root`
 - Confirmed two infrastructure issues that amplified the confusion:
-  - stale local `.roma/run/api.json` could shadow the global daemon until client fallback logic was fixed
-  - `systemd --user` `romad` initially lacked a PATH that included `codex/gemini`, causing early queue failures with `agent "codex-cli" is not available on PATH`
+  - stale local `.tagit/run/api.json` could shadow the global daemon until client fallback logic was fixed
+  - `systemd --user` `tagitd` initially lacked a PATH that included `codex/gemini`, causing early queue failures with `agent "codex-cli" is not available on PATH`
 - Decided to treat runtime visibility as the next explicit phase:
   - running job heartbeat
   - live runtime metadata in queue/session inspection
   - better daemon journald logging
   - a minimal tail/attach command
 - Added a first-class cancellation path:
-  - `roma cancel <job_id>`
-  - `roma queue cancel <job_id>`
+  - `tagit cancel <job_id>`
+  - `tagit queue cancel <job_id>`
   - daemon API `POST /queue/{id}/cancel`
   - daemon-managed jobs now cancel through the shared execution context instead of ad hoc process killing
 - Added first heartbeat-level visibility:
   - running jobs now refresh queue timestamps while execution is still in progress
-  - `romad` now emits `romad heartbeat job=... session=... task=... status=running` to journald
+  - `tagitd` now emits `tagitd heartbeat job=... session=... task=... status=running` to journald
 - Added structured watch output for live jobs:
-  - `roma queue tail <job_id>` now prints structured event lines by default
-  - `roma queue tail --raw <job_id>` preserves raw stdout chunks for debugging
+  - `tagit queue tail <job_id>` now prints structured event lines by default
+  - `tagit queue tail --raw <job_id>` preserves raw stdout chunks for debugging
   - live queue/session inspection now reads execution truth from the job/session working directory instead of the daemon home
-  - `roma queue attach <job_id>` now aliases the same live structured stream
+  - `tagit queue attach <job_id>` now aliases the same live structured stream
 - Added richer structured live progress metadata:
   - `live.phase` now distinguishes bootstrap from fan-out for multi-agent runs
   - `live.current_round` is derived from continuous execution ids
@@ -411,11 +411,11 @@
 - Added a user-facing result layer:
   - runs and graphs now persist a `final_answer` artifact at session closeout
   - session history now records `final_artifact_id`
-  - `roma result show <session_id>` / daemon `/results/{session_id}` now expose the final human-facing outcome instead of forcing users to assemble it from raw artifacts
+  - `tagit result show <session_id>` / daemon `/results/{session_id}` now expose the final human-facing outcome instead of forcing users to assemble it from raw artifacts
 - Moved the agent registry to a global per-user config flow:
-  - user-defined agents now default to `$HOME/.roma/agents.json`
+  - user-defined agents now default to `$HOME/.tagit/agents.json`
   - the first configured agent is the implicit default when `--agent` is omitted
-  - `roma agent inspect` now reports the active config path alongside the profile payload
+  - `tagit agent inspect` now reports the active config path alongside the profile payload
 
 ## 2026-03-12 Curia and Classifier Calibration
 
@@ -430,7 +430,7 @@
   - `queue tail` / `queue attach` render those recommendations as structured lines instead of leaving them buried in artifacts
   - `queue inspect` / `session inspect` now include a top-level `semantic` summary for the most recent semantic report
 - CLI fallback Curia summaries are now aligned with daemon API summaries:
-  - `roma sessions curia`
+  - `tagit sessions curia`
   - `queue inspect`
   - `session inspect`
   all surface arbitration confidence, consensus strength, and dissent summary.
@@ -442,6 +442,6 @@
 - Added deterministic classifier tests in `internal/policy/stream_classifier_test.go`.
 - Verified after this calibration:
   - `go test -count=1 ./internal/curia ./internal/artifacts ./internal/api ./internal/policy ./internal/runtime`
-  - `go test -count=1 ./cmd/roma`
+  - `go test -count=1 ./cmd/tagit`
   - `go test -count=1 ./...`
   - `go build ./...`

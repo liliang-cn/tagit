@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/liliang-cn/roma/internal/chatbot"
+	"github.com/liliang-cn/tagit/internal/chatbot"
 )
 
-// Config is the on-disk Slack bot configuration (~/.roma/slack.json): a bot
+// Config is the on-disk Slack bot configuration (~/.tagit/slack.json): a bot
 // token (xoxb-) used for Web API calls, an app-level token (xapp-) for the
 // Socket Mode connection, plus chat-to-repo bindings.
 type Config struct {

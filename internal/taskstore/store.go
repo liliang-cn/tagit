@@ -9,19 +9,19 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/romapath"
-	"github.com/liliang-cn/roma/internal/store"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
+	"github.com/liliang-cn/tagit/internal/store"
 )
 
-// Store persists task records under .roma/tasks.
+// Store persists task records under .tagit/tasks.
 type Store struct {
 	rootDir string
 }
 
 // NewStore constructs a file-backed task store.
 func NewStore(workDir string) *Store {
-	return &Store{rootDir: romapath.Join(workDir, "tasks")}
+	return &Store{rootDir: tagitpath.Join(workDir, "tasks")}
 }
 
 // UpsertTask persists a task record.

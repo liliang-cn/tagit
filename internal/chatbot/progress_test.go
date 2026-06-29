@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/events"
+	"github.com/liliang-cn/tagit/internal/events"
 )
 
 func TestStreamProgressPostsThrottledPhases(t *testing.T) {

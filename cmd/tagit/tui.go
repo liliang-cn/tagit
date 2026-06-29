@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/liliang-cn/roma/internal/tui"
+	"github.com/liliang-cn/tagit/internal/tui"
 )
 
 func runTUI(ctx context.Context, args []string) error {

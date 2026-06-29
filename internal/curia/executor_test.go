@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/runtime"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/runtime"
 )
 
 type augustusTestAdapter struct{}
@@ -339,7 +339,7 @@ func TestReputationStorePersistsReviewerWeight(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RecordOutcome() error = %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".roma", "curia-reputation.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, ".tagit", "curia-reputation.json")); err != nil {
 		t.Fatalf("reputation file missing: %v", err)
 	}
 	weight := store.EffectiveWeight(context.Background(), domain.AgentProfile{

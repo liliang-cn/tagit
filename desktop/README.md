@@ -1,13 +1,13 @@
-# ROMA Desktop
+# TagIt Desktop
 
-`desktop/` is a standalone Wails app module for a desktop UI on top of `romad`.
+`desktop/` is a standalone Wails app module for a desktop UI on top of `tagitd`.
 
 ## Architecture
 
-- `romad` remains the only execution/control-plane authority.
-- The Wails backend wraps `github.com/liliang-cn/roma/internal/api`.
+- `tagitd` remains the only execution/control-plane authority.
+- The Wails backend wraps `github.com/liliang-cn/tagit/internal/api`.
 - The frontend is React + Vite and polls the daemon for live state.
-- If no daemon is reachable, the desktop app starts an embedded `romad`, following the same pattern as the TUI.
+- If no daemon is reachable, the desktop app starts an embedded `tagitd`, following the same pattern as the TUI.
 
 ## Current MVP Surface
 

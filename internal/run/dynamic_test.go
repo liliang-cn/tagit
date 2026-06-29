@@ -3,9 +3,9 @@ package run
 import (
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/scheduler"
 )
 
 func TestExtractDelegateRequests(t *testing.T) {

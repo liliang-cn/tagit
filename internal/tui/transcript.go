@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/queue"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/queue"
 )
 
 func newStreamState(jobID string) streamState {
@@ -51,7 +51,7 @@ func (m *model) consumeStreamEvent(record events.Record) {
 }
 
 func (m *model) appendSystem(text string) {
-	m.appendTranscript(transcriptSystem, "ROMA", text)
+	m.appendTranscript(transcriptSystem, "TagIt", text)
 }
 
 func (m *model) appendUser(text string) {
@@ -169,7 +169,7 @@ func formatEventEntries(record events.Record) []transcriptEntry {
 	case events.TypeRelayNodeStarted:
 		return []transcriptEntry{{
 			kind:  transcriptSystem,
-			label: "ROMA",
+			label: "TagIt",
 			text:  fmt.Sprintf("task %s started with %s", fallbackTask(record.TaskID), fallbackAgent(payloadString(record.Payload, "agent"))),
 		}}
 	case events.TypeRelayNodeCompleted:
@@ -177,7 +177,7 @@ func formatEventEntries(record events.Record) []transcriptEntry {
 		if artifactID := strings.TrimSpace(payloadString(record.Payload, "artifact_id")); artifactID != "" {
 			text += " -> " + artifactID
 		}
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: text}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: text}}
 	case events.TypeWorkspacePrepared:
 		dir := strings.TrimSpace(payloadString(record.Payload, "effective_dir"))
 		if dir == "" {
@@ -186,51 +186,51 @@ func formatEventEntries(record events.Record) []transcriptEntry {
 		if dir == "" {
 			dir = "(unknown workspace)"
 		}
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: "workspace ready: " + dir}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: "workspace ready: " + dir}}
 	case events.TypeRuntimeStarted:
 		text := fmt.Sprintf("%s started", fallbackAgent(payloadString(record.Payload, "agent")))
 		if pid := payloadInt(record.Payload, "pid"); pid > 0 {
 			text += " (pid " + strconv.Itoa(pid) + ")"
 		}
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: text}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: text}}
 	case events.TypeRuntimeExited:
 		text := fmt.Sprintf("%s finished", fallbackAgent(payloadString(record.Payload, "agent")))
 		if reason := strings.TrimSpace(record.ReasonCode); reason != "" {
 			text += " (" + reason + ")"
 		}
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: text}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: text}}
 	case events.TypeApprovalRequested:
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: formatSignalLine("approval requested", record)}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: formatSignalLine("approval requested", record)}}
 	case events.TypeDangerousCommandDetected:
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: formatSignalLine("dangerous command detected", record)}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: formatSignalLine("dangerous command detected", record)}}
 	case events.TypeHighRiskChangeDetected:
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: formatSignalLine("high-risk change detected", record)}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: formatSignalLine("high-risk change detected", record)}}
 	case events.TypeDelegationRequested:
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: formatSignalLine("delegation requested", record)}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: formatSignalLine("delegation requested", record)}}
 	case events.TypeExecutionCompletedDetected:
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: formatSignalLine("execution completed", record)}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: formatSignalLine("execution completed", record)}}
 	case events.TypeParseWarning:
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: formatSignalLine("parse warning", record)}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: formatSignalLine("parse warning", record)}}
 	case events.TypeSemanticReportProduced:
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: formatSemanticLine("semantic report", record)}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: formatSemanticLine("semantic report", record)}}
 	case events.TypeSemanticApprovalRecommended:
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: formatSemanticLine("approval recommended", record)}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: formatSemanticLine("approval recommended", record)}}
 	case events.TypeCuriaPromotionRecommended:
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: formatSemanticLine("curia recommended", record)}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: formatSemanticLine("curia recommended", record)}}
 	case events.TypePlanApplied, events.TypePlanRolledBack, events.TypePlanApplyRejected:
 		text := strings.ToLower(queueTailEventLabel(record.Type))
 		if reason := strings.TrimSpace(record.ReasonCode); reason != "" {
 			text += ": " + reason
 		}
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: text}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: text}}
 	case events.TypeTaskStateChanged:
 		state := strings.TrimSpace(record.ReasonCode)
 		if state == "" {
 			return nil
 		}
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: fmt.Sprintf("task %s -> %s", fallbackTask(record.TaskID), state)}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: fmt.Sprintf("task %s -> %s", fallbackTask(record.TaskID), state)}}
 	case events.TypeQueueCancelled:
-		return []transcriptEntry{{kind: transcriptSystem, label: "ROMA", text: "job cancelled"}}
+		return []transcriptEntry{{kind: transcriptSystem, label: "TagIt", text: "job cancelled"}}
 	default:
 		return nil
 	}

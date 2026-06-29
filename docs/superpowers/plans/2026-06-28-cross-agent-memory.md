@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a CortexDB-backed, key-free (lexical), cross-agent memory layer to ROMA, wired into rage runs (auto-inject + record) and exposed over MCP.
+**Goal:** Add a CortexDB-backed, key-free (lexical), cross-agent memory layer to TagIt, wired into rage runs (auto-inject + record) and exposed over MCP.
 
 **Architecture:** A new `internal/memory` service module defines a `Memory` port (`Recall`/`Record`/`Note`). The default implementation wraps agent-go's `memory.Service` over a CortexDB store in lexical mode (nil LLM + nil embedder). `internal/run` recalls relevant memory before a rage run and records the outcome after. A thin MCP server exposes `memory_recall`/`memory_note`. Memory is advisory and best-effort — failures never fail a run.
 
-**Tech Stack:** Go 1.25, `github.com/liliang-cn/agent-go/v2` (pkg/memory, pkg/store, pkg/domain), CortexDB (pure-Go SQLite, lexical FTS5), existing ROMA `internal/run` + event store.
+**Tech Stack:** Go 1.25, `github.com/liliang-cn/agent-go/v2` (pkg/memory, pkg/store, pkg/domain), CortexDB (pure-Go SQLite, lexical FTS5), existing TagIt `internal/run` + event store.
 
 **Spec:** `docs/superpowers/specs/2026-06-28-cross-agent-memory-design.md`
 
@@ -132,7 +132,7 @@ type Recollection struct {
 	ContextText string
 }
 
-// Memory is ROMA's advisory, best-effort, cross-agent memory port.
+// Memory is TagIt's advisory, best-effort, cross-agent memory port.
 type Memory interface {
 	Recall(ctx context.Context, scope Scope, query string, limit int) (Recollection, error)
 	Record(ctx context.Context, rec RunRecord) error
@@ -534,7 +534,7 @@ In `internal/run/service.go`, add to the `Service` struct:
 // Memory is the advisory cross-agent memory layer. Defaults to memory.Nop().
 Memory memory.Memory
 ```
-Import `"github.com/liliang-cn/roma/internal/memory"`. In the `Service` constructor (`NewService`/wherever the struct is built), default it:
+Import `"github.com/liliang-cn/tagit/internal/memory"`. In the `Service` constructor (`NewService`/wherever the struct is built), default it:
 ```go
 if svc.Memory == nil {
 	svc.Memory = memory.Nop()
@@ -702,7 +702,7 @@ import (
 )
 
 // ToolHandlers adapts the Memory port to MCP tool calls. Keep this transport-agnostic:
-// it takes/returns JSON so it can be mounted on ROMA's existing MCP/gateway surface.
+// it takes/returns JSON so it can be mounted on TagIt's existing MCP/gateway surface.
 type ToolHandlers struct{ mem Memory }
 
 func NewToolHandlers(mem Memory) *ToolHandlers {
@@ -773,9 +773,9 @@ git commit -m "memory: add MCP tool handlers for recall and note"
 
 - [ ] **Step 1: Wire the real backend at startup (best-effort)**
 
-Where the daemon builds the `run.Service`, set its memory from `~/.roma/memory/cortex.db`, falling back to Nop on error:
+Where the daemon builds the `run.Service`, set its memory from `~/.tagit/memory/cortex.db`, falling back to Nop on error:
 ```go
-memPath := filepath.Join(romapath.HomeDir(), "memory", "cortex.db")
+memPath := filepath.Join(tagitpath.HomeDir(), "memory", "cortex.db")
 if err := os.MkdirAll(filepath.Dir(memPath), 0o755); err == nil {
 	if m, err := memory.NewAgentGo(memPath); err == nil {
 		runService.Memory = m

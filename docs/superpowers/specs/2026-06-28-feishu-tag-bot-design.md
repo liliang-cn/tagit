@@ -6,9 +6,9 @@ Sub-project: B (of the "open-source, self-hosted, multi-model, auditable @agent 
 
 ## Purpose
 
-Bring the Claude-Tag-style experience to ROMA on **Feishu (飞书)**: a teammate you
+Bring the Claude-Tag-style experience to TagIt on **Feishu (飞书)**: a teammate you
 `@mention` in a group chat to delegate a coding task. The bot picks up the task,
-runs it through ROMA (reusing the queue + run modes + cross-agent memory from
+runs it through TagIt (reusing the queue + run modes + cross-agent memory from
 sub-project A), streams progress back into the same thread, and posts the final
 result. Self-hosted and model-agnostic.
 
@@ -16,12 +16,12 @@ result. Self-hosted and model-agnostic.
 
 - **Platform:** Feishu self-built app "tagit" (`app_id = cli_aacbb99842f89cbd`),
   with the bot capability. (App Secret supplied at runtime, never committed.)
-- **Event transport: long connection (WebSocket).** ROMA dials out to Feishu via
+- **Event transport: long connection (WebSocket).** TagIt dials out to Feishu via
   the official Go SDK (`github.com/larksuite/oapi-sdk-go/v3`) long-connection
   event dispatcher. **No public callback URL / tunnel required** — ideal for a
   self-hosted daemon. (Webhook/callback mode is explicitly not used.)
 - **Channel → repo binding:** each Feishu group maps to one repo/working dir
-  (+ optional agent + mode), configured in `~/.roma/feishu.json`. A group is a
+  (+ optional agent + mode), configured in `~/.tagit/feishu.json`. A group is a
   long-lived context; memory is keyed by `Scope.Channel = chat_id` so the bot
   gets smarter per group over time.
 - **Feedback: real-time progress.** Immediately ack in-thread, stream throttled
@@ -45,7 +45,7 @@ Feishu SDK. It must not be imported by lower layers.
 
 ```
 Feishu group: "@tagit 给登录接口加参数校验"
-        │  (long connection / WebSocket — ROMA dials out)
+        │  (long connection / WebSocket — TagIt dials out)
    ┌────▼─────────────────────────────────────────────┐
    │ internal/feishu                                   │
    │  • Client: SDK long-connection event loop         │
@@ -55,7 +55,7 @@ Feishu group: "@tagit 给登录接口加参数校验"
    │      - extract plain-text prompt                   │
    │      - resolve chat_id -> Binding (repo/agent/mode)│
    │  • Sender: Feishu message API (ack/progress/final) │
-   │  • Config: ~/.roma/feishu.json (creds + bindings)  │
+   │  • Config: ~/.tagit/feishu.json (creds + bindings)  │
    └────┬─────────────────────────────────────────────┘
         │ enqueue (reuse existing queue + run.Service)
         ▼
@@ -68,7 +68,7 @@ Feishu group: "@tagit 给登录接口加参数校验"
 
 ### Components (each independently testable)
 
-- **`Config`** (`config.go`): loads `~/.roma/feishu.json`:
+- **`Config`** (`config.go`): loads `~/.tagit/feishu.json`:
   `{ "app_id", "app_secret", "bindings": [ { "chat_id", "repo", "agent", "mode" } ] }`.
   Missing file → feature disabled (return a disabled marker, no error).
 - **`Bot`** (`bot.go`): owns the SDK long-connection client; wires the event
@@ -106,7 +106,7 @@ Feishu group: "@tagit 给登录接口加参数校验"
 ## Error handling
 
 - **Reconnect:** SDK long connection auto-reconnects; `Bot` logs drops and resumes.
-- **Missing/invalid config:** feature disabled, single log line, ROMA unaffected.
+- **Missing/invalid config:** feature disabled, single log line, TagIt unaffected.
 - **Send/enqueue/run failure:** reply a concise error into the thread; never crash
   the bot loop. All handler paths are best-effort around the run.
 - **Duplicate delivery:** message_id dedup prevents double-running.
@@ -115,7 +115,7 @@ Feishu group: "@tagit 给登录接口加参数校验"
 
 ## Security
 
-- App Secret only in `~/.roma/feishu.json` (outside the repo) or env; never logged,
+- App Secret only in `~/.tagit/feishu.json` (outside the repo) or env; never logged,
   never committed. `feishu.json` documented as secret; recommend rotating the
   secret after sharing.
 - Optional per-binding `allowed_open_ids` allowlist (default: anyone in the group)
@@ -136,7 +136,7 @@ Feishu group: "@tagit 给登录接口加参数校验"
 
 ## Configuration & ops
 
-- `~/.roma/feishu.json` (gitignored location, under ROMA home). Example:
+- `~/.tagit/feishu.json` (gitignored location, under TagIt home). Example:
   ```json
   {
     "app_id": "cli_aacbb99842f89cbd",
@@ -147,8 +147,8 @@ Feishu group: "@tagit 给登录接口加参数校验"
   }
   ```
 - The daemon starts the `Bot` at boot when config is present (best-effort, like the
-  memory backend); absence leaves ROMA unchanged.
-- A `roma feishu` CLI surface (e.g. `bind <chat_id> <repo>`, `status`) is a small
+  memory backend); absence leaves TagIt unchanged.
+- A `tagit feishu` CLI surface (e.g. `bind <chat_id> <repo>`, `status`) is a small
   fast-follow; not required for the core loop.
 
 ## Build constraints

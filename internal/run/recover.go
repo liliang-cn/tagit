@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/scheduler"
 )
 
 // ResumeSessionWithResult resumes a persisted relay session from SQLite-backed state.

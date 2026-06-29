@@ -2,7 +2,7 @@
 
 ## Goal
 
-Continue evolving ROMA from a local prototype into a daemon-first multi-agent orchestrator with:
+Continue evolving TagIt from a local prototype into a daemon-first multi-agent orchestrator with:
 - PTY-backed runtime supervision
 - event-store-centered execution truth
 - daemon-managed prompt runs and task-graph relay runs
@@ -10,25 +10,25 @@ Continue evolving ROMA from a local prototype into a daemon-first multi-agent or
 
 ## Current State
 
-- `romad` supports daemon API, queue consumption, PTY-backed runtime execution, and graph job execution.
-- `roma` supports direct run, submit, graph run, session/artifact/event queries, and `queue inspect`.
+- `tagitd` supports daemon API, queue consumption, PTY-backed runtime execution, and graph job execution.
+- `tagit` supports direct run, submit, graph run, session/artifact/event queries, and `queue inspect`.
 - Queue jobs now carry `session_id`, `task_id`, and `artifact_ids`.
-- Session/task/event writes now mirror into `$HOME/.roma/roma.db` in addition to existing file persistence.
+- Session/task/event writes now mirror into `$HOME/.tagit/tagit.db` in addition to existing file persistence.
 - Direct, delegated, and graph runs can now opt into `--continuous` multi-round execution with `--max-rounds`.
-- ROMA control-plane state is now anchored at `$HOME/.roma`, while repository-targeted task execution keeps `--cwd` semantics separate from ROMA home.
+- TagIt control-plane state is now anchored at `$HOME/.tagit`, while repository-targeted task execution keeps `--cwd` semantics separate from TagIt home.
 
 ## Session Plan: Wails UI (2026-03-28)
 
 ### Goal
 
-Add a Wails-based desktop UI that sits on top of `romad` and the existing local API, without moving execution truth into the frontend.
+Add a Wails-based desktop UI that sits on top of `tagitd` and the existing local API, without moving execution truth into the frontend.
 
 ### Scope Decisions
 
-- Reuse `romad` as the only execution/control-plane authority.
+- Reuse `tagitd` as the only execution/control-plane authority.
 - Reuse `internal/api` client calls instead of re-implementing orchestration in the desktop layer.
 - Start with polling-based live refresh; do not block MVP on a new push transport.
-- Preserve `WorkingDir` as an explicit per-run context; desktop state must not collapse repo scope into `$HOME/.roma`.
+- Preserve `WorkingDir` as an explicit per-run context; desktop state must not collapse repo scope into `$HOME/.tagit`.
 
 ### Phases
 
@@ -52,7 +52,7 @@ Status: pending
   - session inspect
   - plans inbox / approve / reject
   - agent list
-- [ ] Reuse embedded `romad` startup when no daemon is reachable
+- [ ] Reuse embedded `tagitd` startup when no daemon is reachable
 
 #### Phase W3: MVP Screens
 Status: pending
@@ -62,7 +62,7 @@ Status: pending
 - [ ] Queue/session detail: live task, workspace, events summary, artifacts summary
 - [ ] Result view: final answer or pending state
 - [ ] Plans inbox: preview, approve, reject
-- [ ] Settings: agent registry path, ROMA home, current repo/cwd picker
+- [ ] Settings: agent registry path, TagIt home, current repo/cwd picker
 
 #### Phase W4: Live UX and Interaction Model
 Status: pending
@@ -207,7 +207,7 @@ Status: in_progress
 ### Phase 15: Structured Follow-Up Contracts
 Status: complete
 
-- [x] Replace raw `ROMA_DELEGATE` scraping with structured `FollowUpRequest` extraction in report artifacts
+- [x] Replace raw `TAGIT_DELEGATE` scraping with structured `FollowUpRequest` extraction in report artifacts
 - [x] Carry follow-up instruction hints into scheduler node assignments
 - [x] Allow shared run/graph execution paths to append scheduler-native follow-up nodes
 - [x] Move dynamic follow-up requests behind formal artifact/policy-aware validation primitives
@@ -250,7 +250,7 @@ Status: in_progress
 ### Phase 18: ExecutionPlan Closure
 Status: in_progress
 
-- [x] Add `roma plans inspect/apply/rollback`
+- [x] Add `tagit plans inspect/apply/rollback`
 - [x] Validate changed workspace paths against `execution_plan.expected_files` and `forbidden_paths`
 - [x] Add dry-run plan application
 - [x] Add reverse-apply rollback for merged worktree patches
@@ -266,7 +266,7 @@ Status: in_progress
 ### Phase 19: Runtime Visibility and Attachability
 Status: in_progress
 
-- [x] Add a first-class `roma cancel <job_id>` / daemon queue-cancel path so operators do not have to kill child processes manually
+- [x] Add a first-class `tagit cancel <job_id>` / daemon queue-cancel path so operators do not have to kill child processes manually
 - [x] Refresh running-job timestamps and journald output with daemon heartbeats while a job is still executing
 - [x] Simplify CLI entrypoints so top-level help emphasizes `run`, `submit`, `status`, `cancel`, `help`, with `agent` as management and deep inspection under `debug`
 - [x] Remove built-in coding-agent registry entries so runtime selection is fully driven by user-provided profiles (`name`, `path`, `args`, PTY)
@@ -278,13 +278,13 @@ Status: in_progress
   - last output timestamp
 - [x] Make `queue inspect` and `sessions inspect` surface live execution state for running jobs, not only completed artifacts and final task state
 - [x] Add a CLI command to tail one running job without requiring direct foreground execution
-- [x] Improve daemon logs so `journalctl --user -u romad -f` shows periodic heartbeats instead of only start/end markers
-- [x] Make queue cancellation resolve jobs across the current workspace and `$HOME/.roma`, not only the current local state root
+- [x] Improve daemon logs so `journalctl --user -u tagitd -f` shows periodic heartbeats instead of only start/end markers
+- [x] Make queue cancellation resolve jobs across the current workspace and `$HOME/.tagit`, not only the current local state root
 - [x] Change multi-agent `run/submit` from sequential delegate chaining to starter-bootstrap + parallel fan-out execution
 - [x] Replace the user-facing `--delegate` term with `--with`, keeping `--delegate` only as a compatibility alias in argument parsing
-- [x] Split ROMA control-plane state from repository execution state:
-  - `$HOME/.roma` is now the single default control root
-  - daemon discovery no longer treats repo-local `.roma` as authoritative
+- [x] Split TagIt control-plane state from repository execution state:
+  - `$HOME/.tagit` is now the single default control root
+  - daemon discovery no longer treats repo-local `.tagit` as authoritative
   - scheduler/recovery/workspace inspection now resolve workspaces from session `WorkingDir`
 - [x] Make isolated workspaces the default requested mode for scheduler-dispatched tasks
 - [x] Fix running-session inspection parity so daemon/API and CLI fallback return the same structure while a job is in progress
@@ -292,12 +292,12 @@ Status: in_progress
 - [x] Emit lightweight progress events while nodes are running instead of only at node completion
 - [x] Add an attach mode beyond polling tail so users can watch one running session without re-printing full inspect payloads
 - [x] Make `queue tail` default to structured runtime events, with `--raw` preserving raw stdout chunks
-- [x] Add a first-class user-facing session outcome artifact and expose it via `roma result show <session_id>`
+- [x] Add a first-class user-facing session outcome artifact and expose it via `tagit result show <session_id>`
 - [x] Surface `current_round`, `participant_count`, `phase`, and richer workspace metadata through live queue/session inspection
 - [x] Make `queue inspect` summarized by default, with raw event/artifact expansion only when explicitly requested
 - [x] Keep queue tail runtime-start pid formatting stable as an integer instead of float/scientific notation
-- [x] Make `roma result show` return a friendly pending result state for running/awaiting-approval sessions instead of failing on missing final answers
-- [x] Add a Bubble Tea TUI mode that starts an embedded `romad` on launch and stops it on exit
+- [x] Make `tagit result show` return a friendly pending result state for running/awaiting-approval sessions instead of failing on missing final answers
+- [x] Add a Bubble Tea TUI mode that starts an embedded `tagitd` on launch and stops it on exit
 - [x] Expose TUI slash commands for the everyday workflow:
   - `/agent`
   - `/with`
@@ -318,7 +318,7 @@ Status: in_progress
 - Concurrent DAG dispatch now exists for ready batches, and run/graph/recovery entrypoints now execute through `scheduler.Dispatcher`.
 - Scheduler leases now persist ownership/checkpoint state in SQLite and are recovered on daemon restart.
 - Real worktree isolation now exists only when the working directory is a Git repository; non-Git execution still falls back to shared-read mode.
-- Continuous execution currently relies on agent-emitted `ROMA_DONE:` markers and is still coarse-grained.
+- Continuous execution currently relies on agent-emitted `TAGIT_DONE:` markers and is still coarse-grained.
 - Policy merge/apply boundaries still need tightening; current run-time path-scoped checks are stronger, and plan apply has structured conflict guidance, but fully automated conflict resolution is still not present.
 - Dynamic follow-up node generation now uses structured report payloads, but follow-up validation is still permissive compared with a future formal command schema.
 - Curia minimal is now real, but still human-first and score-lite; there is no Augustus arbitration or automatic dispute engine yet.

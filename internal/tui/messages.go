@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/queue"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/queue"
 )
 
 type transcriptKind uint8

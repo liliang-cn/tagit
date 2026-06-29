@@ -49,7 +49,7 @@ type Recollection struct {
 	ContextText string
 }
 
-// Memory is ROMA's advisory, best-effort, cross-agent memory port.
+// Memory is TagIt's advisory, best-effort, cross-agent memory port.
 type Memory interface {
 	Recall(ctx context.Context, scope Scope, query string, limit int) (Recollection, error)
 	Record(ctx context.Context, rec RunRecord) error

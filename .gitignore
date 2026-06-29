@@ -1,8 +1,8 @@
-.roma/
+.tagit/
 
 todo_cli_demo/
 
-romad.log
+tagitd.log
 
 .snapshots/
 
@@ -11,6 +11,6 @@ bin/
 refs/
 
 # build artifacts in project root
-/roma
-/romad
-/romatui
+/tagit
+/tagitd
+/tagittui

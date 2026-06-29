@@ -8,11 +8,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/queue"
-	"github.com/liliang-cn/roma/internal/taskstore"
-	"github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/queue"
+	"github.com/liliang-cn/tagit/internal/taskstore"
+	"github.com/liliang-cn/tagit/internal/workspace"
 )
 
 // RecoverySnapshot describes one session's recoverable scheduling state.
@@ -223,7 +223,7 @@ func ResumeRecoverableSessions(ctx context.Context, workDir string, queueStore q
 			continue
 		}
 		if err := runner.ResumeSession(ctx, workDir, item.SessionID, os.Stdout); err != nil {
-			log.Printf("romad skipping recoverable session=%s: %v", item.SessionID, err)
+			log.Printf("tagitd skipping recoverable session=%s: %v", item.SessionID, err)
 			if sessionStore != nil {
 				if record, getErr := sessionStore.Get(ctx, item.SessionID); getErr == nil {
 					record.Status = "failed"

@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/memory"
-	"github.com/liliang-cn/roma/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/memory"
+	"github.com/liliang-cn/tagit/internal/scheduler"
 )
 
 type repoConflictSummary struct {
@@ -325,21 +325,21 @@ func buildCaesarReviewPromptHint(round int, dependencies []string, assignments [
 		"You are still only the coordinator. Do not edit files or implement the task yourself.",
 		"Review the delegate outputs above and ask one question only: is the main task done?",
 		"If more implementation work is needed, emit one or more lines in this exact format:",
-		"ROMA_FOLLOWUP: delegate <target_id> | <instruction>",
-		"If the task is complete, emit ROMA_DONE: <brief summary> and do not emit any follow-up lines.",
+		"TAGIT_FOLLOWUP: delegate <target_id> | <instruction>",
+		"If the task is complete, emit TAGIT_DONE: <brief summary> and do not emit any follow-up lines.",
 		"Only delegate concrete implementation work to the agents; keep all coordination with Caesar.",
 	}
 	targets := caesarDelegateTargets(dependencies, assignments)
 	if len(targets) > 0 {
 		lines = append(lines, "")
-		lines = append(lines, "CRITICAL — use ONLY these exact target IDs in ROMA_FOLLOWUP lines:")
+		lines = append(lines, "CRITICAL — use ONLY these exact target IDs in TAGIT_FOLLOWUP lines:")
 		for _, id := range targets {
-			lines = append(lines, fmt.Sprintf("  ROMA_FOLLOWUP: delegate %s | <your instruction here>", id))
+			lines = append(lines, fmt.Sprintf("  TAGIT_FOLLOWUP: delegate %s | <your instruction here>", id))
 		}
 		lines = append(lines, "The target_id field must be one of: "+strings.Join(targets, ", "))
 	}
 	if conflicts.HasConflicts() {
-		lines = append(lines, "Main workspace currently has unresolved git conflicts. Do not emit ROMA_DONE until all of them are resolved.")
+		lines = append(lines, "Main workspace currently has unresolved git conflicts. Do not emit TAGIT_DONE until all of them are resolved.")
 		lines = append(lines, "Conflict status:")
 		for _, line := range conflicts.StatusLines {
 			lines = append(lines, "- "+line)
@@ -354,7 +354,7 @@ func buildStarterBootstrapPromptHint(starter domain.AgentProfile, delegates []do
 		"You participate in implementation and coordination in this mode.",
 		"Do an initial implementation pass yourself if useful, and also establish the bootstrap plan for delegates.",
 		"Your output should help the delegates understand what to do next.",
-		"When your starter workspace is ready to land, emit `ROMA_MERGE_BACK: direct_merge | <reason>` and optionally `ROMA_MERGE_FILE: <path>` lines.",
+		"When your starter workspace is ready to land, emit `TAGIT_MERGE_BACK: direct_merge | <reason>` and optionally `TAGIT_MERGE_FILE: <path>` lines.",
 		"You may still leave follow-up refinement to later Caesar review rounds.",
 	}
 	if len(delegates) > 0 {
@@ -379,29 +379,29 @@ func buildStarterBootstrapPromptHint(starter domain.AgentProfile, delegates []do
 }
 
 // buildDirectRunPromptHint returns the prompt hint for a single-agent direct run.
-// It tells the agent to emit ROMA_MERGE_BACK so the workspace is automatically
+// It tells the agent to emit TAGIT_MERGE_BACK so the workspace is automatically
 // merged back after the task completes.
 func buildDirectRunPromptHint() string {
 	return strings.Join([]string{
 		"You are the sole executor for this task.",
 		"When your workspace changes are complete and ready to land, emit:",
-		"ROMA_MERGE_BACK: direct_merge | <brief reason>",
+		"TAGIT_MERGE_BACK: direct_merge | <brief reason>",
 		"Optionally list each changed file with:",
-		"ROMA_MERGE_FILE: <relative/path/to/file>",
+		"TAGIT_MERGE_FILE: <relative/path/to/file>",
 	}, "\n")
 }
 
 func buildRageRunPromptHint() string {
 	return strings.Join([]string{
-		"You are in ROMA rage mode.",
+		"You are in TagIt rage mode.",
 		"You are the only agent on this task. Do not stop after analysis or a partial attempt.",
 		"In every round, make concrete progress toward the original goal: edit files, run checks, fix breakage, and continue.",
 		"Only declare completion when the original goal is actually implemented and the result is ready to land.",
-		"When the task is fully complete, start your response with `ROMA_DONE:`.",
+		"When the task is fully complete, start your response with `TAGIT_DONE:`.",
 		"When your workspace changes are complete and ready to land, emit:",
-		"ROMA_MERGE_BACK: direct_merge | <brief reason>",
+		"TAGIT_MERGE_BACK: direct_merge | <brief reason>",
 		"Optionally list each changed file with:",
-		"ROMA_MERGE_FILE: <relative/path/to/file>",
+		"TAGIT_MERGE_FILE: <relative/path/to/file>",
 	}, "\n")
 }
 
@@ -409,7 +409,7 @@ func buildCaesarDelegatePromptHint(starter domain.AgentProfile, instruction stri
 	lines := []string{
 		fmt.Sprintf("The starter agent %s is Caesar only and will not implement code.", starter.DisplayName),
 		"You own the concrete implementation work for this node.",
-		"When your workspace is ready to land, emit `ROMA_MERGE_BACK: direct_merge | <reason>` and optionally `ROMA_MERGE_FILE: <path>` lines.",
+		"When your workspace is ready to land, emit `TAGIT_MERGE_BACK: direct_merge | <reason>` and optionally `TAGIT_MERGE_FILE: <path>` lines.",
 	}
 	if strings.TrimSpace(instruction) != "" {
 		lines = append(lines, "Caesar instruction: "+strings.TrimSpace(instruction))
@@ -421,7 +421,7 @@ func buildParticipatingCaesarDelegatePromptHint(starter domain.AgentProfile, ins
 	lines := []string{
 		fmt.Sprintf("The starter agent %s is acting as an active Caesar and may also contribute implementation.", starter.DisplayName),
 		"You own concrete implementation work for this node and should complement the starter contribution instead of duplicating it.",
-		"When your workspace is ready to land, emit `ROMA_MERGE_BACK: direct_merge | <reason>` and optionally `ROMA_MERGE_FILE: <path>` lines.",
+		"When your workspace is ready to land, emit `TAGIT_MERGE_BACK: direct_merge | <reason>` and optionally `TAGIT_MERGE_FILE: <path>` lines.",
 	}
 	if strings.TrimSpace(instruction) != "" {
 		lines = append(lines, "Caesar instruction: "+strings.TrimSpace(instruction))

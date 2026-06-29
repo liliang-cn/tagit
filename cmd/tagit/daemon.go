@@ -10,24 +10,24 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/romapath"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
 const (
-	daemonPIDFile  = "romad.pid"
-	daemonLogFile  = "romad.log"
+	daemonPIDFile  = "tagitd.pid"
+	daemonLogFile  = "tagitd.log"
 	daemonStopWait = 10 * time.Second
 )
 
 func daemonPIDPath() string {
-	return filepath.Join(romapath.HomeDir(), daemonPIDFile)
+	return filepath.Join(tagitpath.HomeDir(), daemonPIDFile)
 }
 
 func daemonLogPath() string {
-	return filepath.Join(romapath.HomeDir(), daemonLogFile)
+	return filepath.Join(tagitpath.HomeDir(), daemonLogFile)
 }
 
-// daemonStatus checks whether romad is running by reading the PID file and
+// daemonStatus checks whether tagitd is running by reading the PID file and
 // signalling the process with signal 0. Returns (running, pid).
 func daemonStatus() (bool, int) {
 	data, err := os.ReadFile(daemonPIDPath())
@@ -48,26 +48,26 @@ func daemonStatus() (bool, int) {
 	return true, pid
 }
 
-// findRomadBinary locates the romad binary. It first checks the directory
+// findTagItdBinary locates the tagitd binary. It first checks the directory
 // containing the current executable, then falls back to PATH.
-func findRomadBinary() (string, error) {
+func findTagItdBinary() (string, error) {
 	self, err := os.Executable()
 	if err == nil {
-		candidate := filepath.Join(filepath.Dir(self), "romad")
+		candidate := filepath.Join(filepath.Dir(self), "tagitd")
 		if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
 			return candidate, nil
 		}
 	}
-	path, err := exec.LookPath("romad")
+	path, err := exec.LookPath("tagitd")
 	if err != nil {
-		return "", fmt.Errorf("romad binary not found alongside roma or in PATH")
+		return "", fmt.Errorf("tagitd binary not found alongside tagit or in PATH")
 	}
 	return path, nil
 }
 
-// parseStartArgs extracts recognized flags from args and returns romad argv.
+// parseStartArgs extracts recognized flags from args and returns tagitd argv.
 func parseStartArgs(args []string) ([]string, error) {
-	var romadArgs []string
+	var tagitdArgs []string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--acp-port":
@@ -75,33 +75,33 @@ func parseStartArgs(args []string) ([]string, error) {
 			if i >= len(args) {
 				return nil, fmt.Errorf("--acp-port requires a value")
 			}
-			romadArgs = append(romadArgs, "--acp-port", args[i])
+			tagitdArgs = append(tagitdArgs, "--acp-port", args[i])
 		default:
 			return nil, fmt.Errorf("unknown flag for start: %s", args[i])
 		}
 	}
-	return romadArgs, nil
+	return tagitdArgs, nil
 }
 
-// runStart launches romad as a detached background process.
+// runStart launches tagitd as a detached background process.
 func runStart(args []string) error {
 	if running, pid := daemonStatus(); running {
-		fmt.Printf("romad is already running (pid=%d)\n", pid)
+		fmt.Printf("tagitd is already running (pid=%d)\n", pid)
 		return nil
 	}
 
-	romadPath, err := findRomadBinary()
+	tagitdPath, err := findTagItdBinary()
 	if err != nil {
 		return err
 	}
 
-	romadArgs, err := parseStartArgs(args)
+	tagitdArgs, err := parseStartArgs(args)
 	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(romapath.HomeDir(), 0o755); err != nil {
-		return fmt.Errorf("create roma home dir: %w", err)
+	if err := os.MkdirAll(tagitpath.HomeDir(), 0o755); err != nil {
+		return fmt.Errorf("create tagit home dir: %w", err)
 	}
 
 	logFile, err := os.OpenFile(daemonLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
@@ -110,13 +110,13 @@ func runStart(args []string) error {
 	}
 	defer logFile.Close()
 
-	cmd := exec.Command(romadPath, romadArgs...)
+	cmd := exec.Command(tagitdPath, tagitdArgs...)
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start romad: %w", err)
+		return fmt.Errorf("start tagitd: %w", err)
 	}
 
 	pidData := strconv.Itoa(cmd.Process.Pid) + "\n"
@@ -124,16 +124,16 @@ func runStart(args []string) error {
 		fmt.Fprintf(os.Stderr, "warning: could not write pid file: %v\n", err)
 	}
 
-	fmt.Printf("romad started (pid=%d, log=%s)\n", cmd.Process.Pid, daemonLogPath())
+	fmt.Printf("tagitd started (pid=%d, log=%s)\n", cmd.Process.Pid, daemonLogPath())
 	return nil
 }
 
-// runStop sends SIGTERM to the running romad and waits up to 10 seconds before
+// runStop sends SIGTERM to the running tagitd and waits up to 10 seconds before
 // sending SIGKILL. The PID file is removed on success.
 func runStop() error {
 	running, pid := daemonStatus()
 	if !running {
-		fmt.Println("romad is not running")
+		fmt.Println("tagitd is not running")
 		return nil
 	}
 
@@ -151,13 +151,13 @@ func runStop() error {
 		time.Sleep(200 * time.Millisecond)
 		if err := proc.Signal(syscall.Signal(0)); err != nil {
 			_ = os.Remove(daemonPIDPath())
-			fmt.Printf("romad stopped (pid=%d)\n", pid)
+			fmt.Printf("tagitd stopped (pid=%d)\n", pid)
 			return nil
 		}
 	}
 
 	_ = proc.Signal(syscall.SIGKILL)
 	_ = os.Remove(daemonPIDPath())
-	fmt.Printf("romad killed after %s timeout (pid=%d)\n", daemonStopWait, pid)
+	fmt.Printf("tagitd killed after %s timeout (pid=%d)\n", daemonStopWait, pid)
 	return nil
 }

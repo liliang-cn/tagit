@@ -7,7 +7,7 @@ import (
 )
 
 // ToolHandlers adapts the Memory port to MCP tool calls. Transport-agnostic:
-// JSON in, JSON-serializable out, so it can be mounted on ROMA's MCP/gateway surface.
+// JSON in, JSON-serializable out, so it can be mounted on TagIt's MCP/gateway surface.
 type ToolHandlers struct{ mem Memory }
 
 func NewToolHandlers(mem Memory) *ToolHandlers {

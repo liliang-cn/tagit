@@ -1,12 +1,12 @@
 [Unit]
-Description=ROMA daemon
+Description=TagIt daemon
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/.roma
-ExecStart=%h/.local/bin/romad
+WorkingDirectory=%h/.tagit
+ExecStart=%h/.local/bin/tagitd
 Restart=on-failure
 RestartSec=2
 Environment=HOME=%h

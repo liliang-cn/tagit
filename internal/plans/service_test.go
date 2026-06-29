@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/store"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/store"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 func TestServiceApplyAndRollback(t *testing.T) {
@@ -26,7 +26,7 @@ func TestServiceApplyAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Prepare() error = %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(prepared.EffectiveDir, "README.md"), []byte("roma changed\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(prepared.EffectiveDir, "README.md"), []byte("tagit changed\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
@@ -81,8 +81,8 @@ func TestServiceApplyAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	if strings.TrimSpace(string(content)) != "roma changed" {
-		t.Fatalf("base README = %q, want roma changed", strings.TrimSpace(string(content)))
+	if strings.TrimSpace(string(content)) != "tagit changed" {
+		t.Fatalf("base README = %q, want tagit changed", strings.TrimSpace(string(content)))
 	}
 
 	rolledBack, err := svc.Rollback(context.Background(), "sess_plan", "task_plan", envelope.ID)
@@ -96,8 +96,8 @@ func TestServiceApplyAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	if strings.TrimSpace(string(content)) != "roma" {
-		t.Fatalf("base README after rollback = %q, want roma", strings.TrimSpace(string(content)))
+	if strings.TrimSpace(string(content)) != "tagit" {
+		t.Fatalf("base README after rollback = %q, want tagit", strings.TrimSpace(string(content)))
 	}
 
 	items, err := eventStore.ListEvents(context.Background(), store.EventFilter{SessionID: "sess_plan"})
@@ -378,9 +378,9 @@ func TestServiceApproveAllowsHumanApprovalRequiredApply(t *testing.T) {
 func initGitRepo(t *testing.T, dir string) {
 	t.Helper()
 	runGitCommand(t, dir, "init")
-	runGitCommand(t, dir, "config", "user.email", "roma@example.com")
-	runGitCommand(t, dir, "config", "user.name", "ROMA")
-	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("roma\n"), 0o644); err != nil {
+	runGitCommand(t, dir, "config", "user.email", "tagit@example.com")
+	runGitCommand(t, dir, "config", "user.name", "TagIt")
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("tagit\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	runGitCommand(t, dir, "add", "README.md")

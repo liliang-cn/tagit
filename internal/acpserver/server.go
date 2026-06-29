@@ -1,4 +1,4 @@
-// Package acpserver exposes ROMA agents over the Agent Client Protocol (ACP).
+// Package acpserver exposes TagIt agents over the Agent Client Protocol (ACP).
 //
 // The server listens on a standard HTTP port (default 8090) and implements
 // the core ACP endpoints so that remote ACP clients can discover agents,
@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/queue"
-	"github.com/liliang-cn/roma/internal/romapath"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/queue"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
 // ---------------------------------------------------------------------------
@@ -46,7 +46,7 @@ const (
 	ThreadStatusCancelled ThreadStatus = "cancelled"
 )
 
-// Thread is an ACP conversation / run unit backed by a ROMA queue job.
+// Thread is an ACP conversation / run unit backed by a TagIt queue job.
 type Thread struct {
 	ID        string       `json:"id"`
 	AgentID   string       `json:"agent_id"`
@@ -97,7 +97,7 @@ func NewServerFromConfig(cfg Config) *Server {
 	return NewServer(cfg.Port, cfg.Registry, cfg.Queue)
 }
 
-// NewServer constructs an ACP server that maps ROMA agents and queue jobs to
+// NewServer constructs an ACP server that maps TagIt agents and queue jobs to
 // ACP Agents and Threads respectively.
 func NewServer(port int, registry *agents.Registry, queueBackend queue.Backend) *Server {
 	if port <= 0 {
@@ -151,7 +151,7 @@ func (s *Server) Start(ctx context.Context) error {
 // Handlers
 // ---------------------------------------------------------------------------
 
-// handleListAgents returns all registered ROMA agents as ACP AgentInfo records.
+// handleListAgents returns all registered TagIt agents as ACP AgentInfo records.
 // TODO: when acp-go-sdk is available, delegate to its ListAgents handler.
 func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
 	profiles := s.registry.List(r.Context())
@@ -165,7 +165,7 @@ func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleCreateThread accepts an ACP CreateThreadRequest and submits a ROMA
+// handleCreateThread accepts an ACP CreateThreadRequest and submits a TagIt
 // queue job, returning the new Thread with status=pending.
 // TODO: when acp-go-sdk is available, use its request parsing and response
 //       helpers; map sdk.Thread <-> queue.Request.
@@ -190,7 +190,7 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 		ID:           jobID,
 		Prompt:       prompt,
 		StarterAgent: req.AgentID,
-		WorkingDir:   romapath.HomeDir(),
+		WorkingDir:   tagitpath.HomeDir(),
 		Status:       queue.StatusPending,
 		CreatedAt:    time.Now().UTC(),
 		UpdatedAt:    time.Now().UTC(),

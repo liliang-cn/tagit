@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/queue"
-	runsvc "github.com/liliang-cn/roma/internal/run"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/queue"
+	runsvc "github.com/liliang-cn/tagit/internal/run"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 func TestQueueCuriaSuffix(t *testing.T) {
@@ -123,7 +123,7 @@ func TestFormatQueueTailLineIncludesStructuredLiveMetadata(t *testing.T) {
 			CurrentTaskID:    "task_delegate",
 			CurrentAgentID:   "my-codex",
 			ProcessPID:       4242,
-			WorkspacePath:    "/tmp/repo/.roma/workspaces/sess/task/root",
+			WorkspacePath:    "/tmp/repo/.tagit/workspaces/sess/task/root",
 			WorkspaceMode:    "isolated_write",
 			LastOutputAt:     &now,
 		},
@@ -482,7 +482,7 @@ func TestEnsureDaemonAvailableTimesOut(t *testing.T) {
 		5*time.Millisecond,
 		time.Millisecond,
 	)
-	if err == nil || !strings.Contains(err.Error(), "romad did not become ready") {
+	if err == nil || !strings.Contains(err.Error(), "tagitd did not become ready") {
 		t.Fatalf("ensureDaemonAvailable() error = %v, want readiness timeout", err)
 	}
 }
@@ -538,14 +538,14 @@ func TestRunAgentsAddRejectsMetaFlag(t *testing.T) {
 }
 
 func TestCandidateQueueRootsIncludesWorkspaceAndHome(t *testing.T) {
-	home := filepath.Join(t.TempDir(), ".roma-home")
-	t.Setenv("ROMA_HOME", home)
+	home := filepath.Join(t.TempDir(), ".tagit-home")
+	t.Setenv("TAGIT_HOME", home)
 	roots := candidateQueueRoots("/tmp/project")
 	if len(roots) != 1 {
 		t.Fatalf("root count = %d, want 1", len(roots))
 	}
 	if roots[0] != filepath.Clean(home) {
-		t.Fatalf("roots[0] = %q, want ROMA_HOME", roots[0])
+		t.Fatalf("roots[0] = %q, want TAGIT_HOME", roots[0])
 	}
 }
 
@@ -620,9 +620,9 @@ func TestPrintResultShowIncludesRageReviews(t *testing.T) {
 }
 
 func TestRunStatusUsesControlPlaneStateOnly(t *testing.T) {
-	home := filepath.Join(t.TempDir(), ".roma-home")
+	home := filepath.Join(t.TempDir(), ".tagit-home")
 	repo := t.TempDir()
-	t.Setenv("ROMA_HOME", home)
+	t.Setenv("TAGIT_HOME", home)
 
 	oldWd, err := os.Getwd()
 	if err != nil {
@@ -717,13 +717,13 @@ func TestRunStatusUsesControlPlaneStateOnly(t *testing.T) {
 		"sessions=1",
 		"rage_reviews=1",
 		"released_workspaces=1",
-		"sqlite_path=" + filepath.Clean(filepath.Join(home, ".roma", "roma.db")),
+		"sqlite_path=" + filepath.Clean(filepath.Join(home, ".tagit", "tagit.db")),
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("runStatus() missing %q:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, filepath.Clean(filepath.Join(repo, ".roma", "roma.db"))) {
+	if strings.Contains(out, filepath.Clean(filepath.Join(repo, ".tagit", "tagit.db"))) {
 		t.Fatalf("runStatus() should not report repo-local sqlite path:\n%s", out)
 	}
 }
@@ -735,9 +735,9 @@ func TestRunWithNoArgsShowsHelp(t *testing.T) {
 		}
 	})
 	for _, want := range []string{
-		"roma usage:",
-		"  roma --help",
-		"  roma tui [--cwd <dir>]",
+		"tagit usage:",
+		"  tagit --help",
+		"  tagit tui [--cwd <dir>]",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("run(nil) output missing %q:\n%s", want, out)
@@ -748,12 +748,12 @@ func TestRunWithNoArgsShowsHelp(t *testing.T) {
 func TestPrintUsageIncludesActualCommands(t *testing.T) {
 	out := captureStdout(t, printUsage)
 	for _, want := range []string{
-		"  roma --help",
-		"  roma check [job_id] [--raw]",
-		`  roma run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`,
-		"  roma <command> --help",
-		"  roma result show <session_id>",
-		"  roma acp status",
+		"  tagit --help",
+		"  tagit check [job_id] [--raw]",
+		`  tagit run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`,
+		"  tagit <command> --help",
+		"  tagit result show <session_id>",
+		"  tagit acp status",
 		"  artifact    inspect stored artifacts",
 		"  debug       inspect sessions, tasks, artifacts, events, plans, and workspaces",
 	} {
@@ -762,12 +762,12 @@ func TestPrintUsageIncludesActualCommands(t *testing.T) {
 		}
 	}
 	for _, unwanted := range []string{
-		`roma run --agent <agent_id> --with <delegates> "prompt"`,
-		`  roma submit [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [--policy-override] [--override-actor <id>] "<prompt>"`,
-		`roma submit --agent <agent_id> --with <delegates> "prompt"`,
-		"  roma help <topic>",
-		"  roma help queue",
-		"  roma help agent",
+		`tagit run --agent <agent_id> --with <delegates> "prompt"`,
+		`  tagit submit [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [--policy-override] [--override-actor <id>] "<prompt>"`,
+		`tagit submit --agent <agent_id> --with <delegates> "prompt"`,
+		"  tagit help <topic>",
+		"  tagit help queue",
+		"  tagit help agent",
 		"debug                    show debugging commands",
 		"debug      low-level inspection of sessions, tasks, artifacts, etc.",
 	} {
@@ -780,7 +780,7 @@ func TestPrintUsageIncludesActualCommands(t *testing.T) {
 func TestPrintTopicUsageRunIncludesActualFlags(t *testing.T) {
 	out := captureStdout(t, func() { printTopicUsage("run") })
 	for _, want := range []string{
-		"roma run usage:",
+		"tagit run usage:",
 		"--prompt <text>",
 		"--prompt-file <path>",
 		"--mode <name>",
@@ -807,8 +807,8 @@ func TestPrintTopicUsageRunIncludesActualFlags(t *testing.T) {
 func TestPrintTopicUsageCheck(t *testing.T) {
 	out := captureStdout(t, func() { printTopicUsage("check") })
 	for _, want := range []string{
-		"roma check usage:",
-		"roma check [job_id] [--raw]",
+		"tagit check usage:",
+		"tagit check [job_id] [--raw]",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("printTopicUsage(check) missing %q:\n%s", want, out)
@@ -819,9 +819,9 @@ func TestPrintTopicUsageCheck(t *testing.T) {
 func TestPrintTopicUsageDebugShowsSubcommands(t *testing.T) {
 	out := captureStdout(t, func() { printTopicUsage("debug") })
 	for _, want := range []string{
-		"roma debug session <subcommand>",
-		"roma debug task <subcommand>",
-		"roma debug artifact <subcommand>",
+		"tagit debug session <subcommand>",
+		"tagit debug task <subcommand>",
+		"tagit debug artifact <subcommand>",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("printTopicUsage(debug) missing %q:\n%s", want, out)
@@ -835,27 +835,27 @@ func TestRunCommandsSupportDashHelp(t *testing.T) {
 		args []string
 		want string
 	}{
-		{name: "start", args: []string{"start", "--help"}, want: "roma start usage:"},
-		{name: "stop", args: []string{"stop", "--help"}, want: "roma stop usage:"},
-		{name: "status", args: []string{"status", "--help"}, want: "roma status usage:"},
-		{name: "approve", args: []string{"approve", "--help"}, want: "roma approve usage:"},
-		{name: "reject", args: []string{"reject", "--help"}, want: "roma reject usage:"},
-		{name: "cancel", args: []string{"cancel", "--help"}, want: "roma cancel usage:"},
-		{name: "replay", args: []string{"replay", "--help"}, want: "roma replay usage:"},
-		{name: "recover", args: []string{"recover", "--help"}, want: "roma recover usage:"},
-		{name: "acp status", args: []string{"acp", "status", "--help"}, want: "roma acp status usage:"},
-		{name: "agent add", args: []string{"agent", "add", "--help"}, want: "roma agent add usage:"},
-		{name: "artifact show", args: []string{"artifact", "show", "--help"}, want: "roma artifact show usage:"},
-		{name: "event show", args: []string{"event", "show", "--help"}, want: "roma event show usage:"},
-		{name: "plan apply", args: []string{"plan", "apply", "--help"}, want: "roma plan apply usage:"},
-		{name: "queue show", args: []string{"queue", "show", "--help"}, want: "roma queue show usage:"},
-		{name: "result show", args: []string{"result", "show", "--help"}, want: "roma result show usage:"},
-		{name: "session inspect", args: []string{"session", "inspect", "--help"}, want: "roma session inspect usage:"},
-		{name: "task approve", args: []string{"task", "approve", "--help"}, want: "roma task approve usage:"},
-		{name: "workspace merge", args: []string{"workspace", "merge", "--help"}, want: "roma workspace merge usage:"},
-		{name: "graph run", args: []string{"graph", "run", "--help"}, want: "roma graph run usage:"},
-		{name: "policy check", args: []string{"policy", "check", "--help"}, want: "roma policy check usage:"},
-		{name: "check", args: []string{"check", "--help"}, want: "roma check usage:"},
+		{name: "start", args: []string{"start", "--help"}, want: "tagit start usage:"},
+		{name: "stop", args: []string{"stop", "--help"}, want: "tagit stop usage:"},
+		{name: "status", args: []string{"status", "--help"}, want: "tagit status usage:"},
+		{name: "approve", args: []string{"approve", "--help"}, want: "tagit approve usage:"},
+		{name: "reject", args: []string{"reject", "--help"}, want: "tagit reject usage:"},
+		{name: "cancel", args: []string{"cancel", "--help"}, want: "tagit cancel usage:"},
+		{name: "replay", args: []string{"replay", "--help"}, want: "tagit replay usage:"},
+		{name: "recover", args: []string{"recover", "--help"}, want: "tagit recover usage:"},
+		{name: "acp status", args: []string{"acp", "status", "--help"}, want: "tagit acp status usage:"},
+		{name: "agent add", args: []string{"agent", "add", "--help"}, want: "tagit agent add usage:"},
+		{name: "artifact show", args: []string{"artifact", "show", "--help"}, want: "tagit artifact show usage:"},
+		{name: "event show", args: []string{"event", "show", "--help"}, want: "tagit event show usage:"},
+		{name: "plan apply", args: []string{"plan", "apply", "--help"}, want: "tagit plan apply usage:"},
+		{name: "queue show", args: []string{"queue", "show", "--help"}, want: "tagit queue show usage:"},
+		{name: "result show", args: []string{"result", "show", "--help"}, want: "tagit result show usage:"},
+		{name: "session inspect", args: []string{"session", "inspect", "--help"}, want: "tagit session inspect usage:"},
+		{name: "task approve", args: []string{"task", "approve", "--help"}, want: "tagit task approve usage:"},
+		{name: "workspace merge", args: []string{"workspace", "merge", "--help"}, want: "tagit workspace merge usage:"},
+		{name: "graph run", args: []string{"graph", "run", "--help"}, want: "tagit graph run usage:"},
+		{name: "policy check", args: []string{"policy", "check", "--help"}, want: "tagit policy check usage:"},
+		{name: "check", args: []string{"check", "--help"}, want: "tagit check usage:"},
 	}
 
 	for _, tc := range testCases {
@@ -879,9 +879,9 @@ func TestRunHelpCommandRemoved(t *testing.T) {
 		t.Fatal("run(help) error = nil, want removal error")
 	}
 	for _, want := range []string{
-		`"roma help" has been removed`,
-		`roma --help`,
-		`roma <command> --help`,
+		`"tagit help" has been removed`,
+		`tagit --help`,
+		`tagit <command> --help`,
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("run(help) error = %q, want substring %q", err, want)
@@ -898,22 +898,22 @@ func TestRunSubcommandHelpCommandRemoved(t *testing.T) {
 		{
 			name: "agent help",
 			args: []string{"agent", "help"},
-			want: []string{`"roma agent help" has been removed`, `roma agent --help`},
+			want: []string{`"tagit agent help" has been removed`, `tagit agent --help`},
 		},
 		{
 			name: "agent add help",
 			args: []string{"agent", "add", "help"},
-			want: []string{`"roma agent add help" has been removed`, `roma agent add --help`},
+			want: []string{`"tagit agent add help" has been removed`, `tagit agent add --help`},
 		},
 		{
 			name: "queue help",
 			args: []string{"queue", "help"},
-			want: []string{`"roma queue help" has been removed`, `roma queue --help`},
+			want: []string{`"tagit queue help" has been removed`, `tagit queue --help`},
 		},
 		{
 			name: "debug help",
 			args: []string{"debug", "help"},
-			want: []string{`"roma debug help" has been removed`, `roma debug --help`, `roma debug <topic> --help`},
+			want: []string{`"tagit debug help" has been removed`, `tagit debug --help`, `tagit debug <topic> --help`},
 		},
 	}
 
@@ -938,7 +938,7 @@ func TestRunSubmitRemoved(t *testing.T) {
 	if err == nil {
 		t.Fatal("run(submit) error = nil, want removal error")
 	}
-	if !strings.Contains(err.Error(), `use "roma run" instead`) {
+	if !strings.Contains(err.Error(), `use "tagit run" instead`) {
 		t.Fatalf("run(submit) error = %q, want migration hint", err)
 	}
 }
@@ -968,8 +968,8 @@ func captureStdout(t *testing.T, fn func()) string {
 
 func TestFindQueueRequestAcrossRootsFallsBackToHome(t *testing.T) {
 	wd := t.TempDir()
-	home := filepath.Join(t.TempDir(), ".roma-home")
-	t.Setenv("ROMA_HOME", home)
+	home := filepath.Join(t.TempDir(), ".tagit-home")
+	t.Setenv("TAGIT_HOME", home)
 	store := queue.NewStore(home)
 	if err := store.Enqueue(context.Background(), queue.Request{
 		ID:           "job_home",
@@ -994,8 +994,8 @@ func TestFindQueueRequestAcrossRootsFallsBackToHome(t *testing.T) {
 
 func TestResolveQueueClientRootUsesFoundHomeJob(t *testing.T) {
 	wd := t.TempDir()
-	home := filepath.Join(t.TempDir(), ".roma-home")
-	t.Setenv("ROMA_HOME", home)
+	home := filepath.Join(t.TempDir(), ".tagit-home")
+	t.Setenv("TAGIT_HOME", home)
 	store := queue.NewStore(home)
 	if err := store.Enqueue(context.Background(), queue.Request{
 		ID:           "job_home_root",

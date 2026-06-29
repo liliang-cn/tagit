@@ -16,10 +16,10 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/app"
-	"github.com/liliang-cn/roma/internal/romapath"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/app"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
 func Run(ctx context.Context, opts Options) error {
@@ -32,7 +32,7 @@ func Run(ctx context.Context, opts Options) error {
 		}
 	}
 
-	client := api.NewClientForControlDir(workingDir, romapath.HomeDir())
+	client := api.NewClientForControlDir(workingDir, tagitpath.HomeDir())
 
 	registry, err := agents.DefaultRegistry()
 	if err != nil {
@@ -46,7 +46,7 @@ func Run(ctx context.Context, opts Options) error {
 
 	var daemonCancel context.CancelFunc
 	var daemonErrCh <-chan error
-	bootMessage := "Connected to existing romad."
+	bootMessage := "Connected to existing tagitd."
 	if !client.Available() {
 		daemon, err := app.NewDaemonForWorkingDir(workingDir)
 		if err != nil {
@@ -61,7 +61,7 @@ func Run(ctx context.Context, opts Options) error {
 		}()
 		daemonCancel = cancel
 		daemonErrCh = errCh
-		bootMessage = "Starting embedded romad..."
+		bootMessage = "Starting embedded tagitd..."
 		defer log.SetOutput(logWriter)
 	}
 

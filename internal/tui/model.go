@@ -13,9 +13,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/queue"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/queue"
 )
 
 type Options struct {
@@ -170,12 +170,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case snapshotMsg:
 		m.ready = true
 		m.boot = ""
-		m.dropMessagePrefix("waiting for embedded romad")
-		if !m.hasMessage("embedded romad ready") {
-			m.appendMessage("embedded romad ready")
+		m.dropMessagePrefix("waiting for embedded tagitd")
+		if !m.hasMessage("embedded tagitd ready") {
+			m.appendMessage("embedded tagitd ready")
 		}
-		if !m.hasTranscript(transcriptSystem, "ROMA", "embedded romad ready") {
-			m.appendSystem("embedded romad ready")
+		if !m.hasTranscript(transcriptSystem, "TagIt", "embedded tagitd ready") {
+			m.appendSystem("embedded tagitd ready")
 		}
 		m.status = msg.snapshot.status
 		m.queue = msg.snapshot.queue
@@ -254,7 +254,7 @@ func (m model) View() string {
 	ld := m.layoutDims()
 
 	if !m.ready {
-		lines := []string{m.bootTitleStyle().Render("ROMA TUI"), "", m.boot}
+		lines := []string{m.bootTitleStyle().Render("TagIt TUI"), "", m.boot}
 		if len(m.messages) > 0 {
 			lines = append(lines, "")
 			lines = append(lines, m.messages...)

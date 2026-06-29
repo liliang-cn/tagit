@@ -11,27 +11,27 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/acpserver"
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/feishu"
-	"github.com/liliang-cn/roma/internal/gateway"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/memory"
-	"github.com/liliang-cn/roma/internal/plans"
-	"github.com/liliang-cn/roma/internal/queue"
-	"github.com/liliang-cn/roma/internal/romapath"
-	"github.com/liliang-cn/roma/internal/run"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	"github.com/liliang-cn/roma/internal/sessions"
-	"github.com/liliang-cn/roma/internal/slack"
-	"github.com/liliang-cn/roma/internal/store"
-	"github.com/liliang-cn/roma/internal/syncdb"
-	"github.com/liliang-cn/roma/internal/taskstore"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/acpserver"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/feishu"
+	"github.com/liliang-cn/tagit/internal/gateway"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/memory"
+	"github.com/liliang-cn/tagit/internal/plans"
+	"github.com/liliang-cn/tagit/internal/queue"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
+	"github.com/liliang-cn/tagit/internal/run"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/sessions"
+	"github.com/liliang-cn/tagit/internal/slack"
+	"github.com/liliang-cn/tagit/internal/store"
+	"github.com/liliang-cn/tagit/internal/syncdb"
+	"github.com/liliang-cn/tagit/internal/taskstore"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 const stalledRunGracePeriod = 15 * time.Second
@@ -58,7 +58,7 @@ func (o DaemonOptions) acpFactory() func(acpserver.Config) (acpService, error) {
 	}
 }
 
-// Daemon is the bootstrap romad process.
+// Daemon is the bootstrap tagitd process.
 type Daemon struct {
 	api       *api.Server
 	acp       acpService
@@ -99,7 +99,7 @@ func NewDaemonWithOptions(opts DaemonOptions) (*Daemon, error) {
 			return nil, fmt.Errorf("get working directory: %w", err)
 		}
 	}
-	controlDir := romapath.HomeDir()
+	controlDir := tagitpath.HomeDir()
 	registry, err := agents.DefaultRegistry()
 	if err != nil {
 		return nil, fmt.Errorf("load registry: %w", err)
@@ -110,10 +110,10 @@ func NewDaemonWithOptions(opts DaemonOptions) (*Daemon, error) {
 	}
 	runner := run.NewService(registry)
 	runner.SetControlDir(controlDir)
-	// Enable ROMA's advisory cross-agent memory backend, best-effort. Any
+	// Enable TagIt's advisory cross-agent memory backend, best-effort. Any
 	// failure leaves the run.Service on its Nop default so the daemon still
 	// starts and runs are unaffected.
-	memPath := filepath.Join(romapath.HomeDir(), "memory", "cortex.db")
+	memPath := filepath.Join(tagitpath.HomeDir(), "memory", "cortex.db")
 	if err := os.MkdirAll(filepath.Dir(memPath), 0o755); err == nil {
 		if m, err := memory.NewAgentGo(memPath); err == nil {
 			runner.Memory = m
@@ -163,13 +163,13 @@ func NewDaemonWithOptions(opts DaemonOptions) (*Daemon, error) {
 			}
 		}()
 	}
-	chatAPIClient := api.NewClientForControlDir(wd, romapath.HomeDir())
-	if fcfg, enabled, err := feishu.Load(filepath.Join(romapath.HomeDir(), "feishu.json")); err != nil {
+	chatAPIClient := api.NewClientForControlDir(wd, tagitpath.HomeDir())
+	if fcfg, enabled, err := feishu.Load(filepath.Join(tagitpath.HomeDir(), "feishu.json")); err != nil {
 		log.Printf("feishu: disabled (%v)", err)
 	} else if enabled {
 		startChatBot("feishu", feishu.NewBot(fcfg, chatAPIClient).Start)
 	}
-	if scfg, enabled, err := slack.Load(filepath.Join(romapath.HomeDir(), "slack.json")); err != nil {
+	if scfg, enabled, err := slack.Load(filepath.Join(tagitpath.HomeDir(), "slack.json")); err != nil {
 		log.Printf("slack: disabled (%v)", err)
 	} else if enabled {
 		startChatBot("slack", slack.NewBot(scfg, chatAPIClient).Start)
@@ -225,13 +225,13 @@ func newArtifactBackend(workDir string) artifacts.Backend {
 
 // Run starts the daemon lifecycle and initializes bootstrap state.
 func (d *Daemon) Run(ctx context.Context) error {
-	controlDir := romapath.HomeDir()
+	controlDir := tagitpath.HomeDir()
 	if err := syncdb.NewWorkspace(controlDir).Run(ctx); err != nil {
 		return fmt.Errorf("sync workspace metadata: %w", err)
 	}
 	if err := d.api.Start(ctx); err != nil {
 		if errors.Is(err, api.ErrUnavailable) {
-			log.Printf("romad api disabled: %v", err)
+			log.Printf("tagitd api disabled: %v", err)
 		} else {
 			return fmt.Errorf("start daemon api: %w", err)
 		}
@@ -255,7 +255,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return fmt.Errorf("normalize interrupted tasks: %w", err)
 	}
 	if recovered, err := scheduler.RecoverableSessions(ctx, controlDir); err == nil && len(recovered) > 0 {
-		log.Printf("romad recovered %d session(s) with runnable tasks from sqlite metadata", len(recovered))
+		log.Printf("tagitd recovered %d session(s) with runnable tasks from sqlite metadata", len(recovered))
 	}
 	if err := scheduler.ResumeRecoverableSessions(ctx, controlDir, d.queue, d.runner); err != nil {
 		return fmt.Errorf("resume recoverable sessions: %w", err)
@@ -325,31 +325,31 @@ func (d *Daemon) Run(ctx context.Context) error {
 		Type:      "session_started",
 		Severity:  domain.NotificationSeverityLow,
 		SessionID: session.ID,
-		Title:     "ROMA session started",
+		Title:     "TagIt session started",
 		Summary:   "Bootstrap session is running and ready for dispatch.",
 		CreatedAt: time.Now().UTC(),
 	}); err != nil {
 		return fmt.Errorf("deliver bootstrap notification: %w", err)
 	}
 
-	log.Printf("romad bootstrap started session=%s state=%s ready_tasks=%d", session.ID, domain.SessionStateRunning, len(ready))
+	log.Printf("tagitd bootstrap started session=%s state=%s ready_tasks=%d", session.ID, domain.SessionStateRunning, len(ready))
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("romad shutting down")
+			log.Printf("tagitd shutting down")
 			return nil
 		case <-ticker.C:
 			if err := d.processNextQueueItem(ctx); err != nil {
-				log.Printf("romad queue error: %v", err)
+				log.Printf("tagitd queue error: %v", err)
 			}
 			if err := d.recoverStalledQueueRuns(ctx, controlDir, stalledRunGracePeriod); err != nil {
-				log.Printf("romad stalled-run recovery error: %v", err)
+				log.Printf("tagitd stalled-run recovery error: %v", err)
 			}
 			if err := scheduler.ResumeRecoverableSessions(ctx, controlDir, d.queue, d.runner); err != nil {
-				log.Printf("romad recovery error: %v", err)
+				log.Printf("tagitd recovery error: %v", err)
 			}
 		}
 	}
@@ -362,7 +362,7 @@ func (d *Daemon) startACP(ctx context.Context) error {
 	if err := d.acp.Start(ctx); err != nil {
 		return err
 	}
-	log.Printf("romad acp listening on port %d", d.acp.Port())
+	log.Printf("tagitd acp listening on port %d", d.acp.Port())
 	return nil
 }
 
@@ -394,7 +394,7 @@ func (d *Daemon) processNextQueueItem(ctx context.Context) error {
 		return fmt.Errorf("mark queue running: %w", err)
 	}
 
-	log.Printf("romad processing queued job id=%s agent=%s", req.ID, req.StarterAgent)
+	log.Printf("tagitd processing queued job id=%s agent=%s", req.ID, req.StarterAgent)
 	runCtx, cancel := context.WithCancel(ctx)
 	d.trackRunning(req.ID, cancel)
 	defer func() {
@@ -421,7 +421,7 @@ func (d *Daemon) processNextQueueItem(ctx context.Context) error {
 				MaxRounds:      req.MaxRounds,
 			})
 		} else {
-			log.Printf("romad processing inline graph job id=%s nodes=%d", req.ID, len(req.Graph.Nodes))
+			log.Printf("tagitd processing inline graph job id=%s nodes=%d", req.ID, len(req.Graph.Nodes))
 			graphReq := run.GraphRequest{
 				Prompt:     req.Graph.Prompt,
 				WorkingDir: req.WorkingDir,
@@ -451,7 +451,7 @@ func (d *Daemon) processNextQueueItem(ctx context.Context) error {
 			}
 		}
 	} else {
-		log.Printf("romad processing graph job id=%s file=%s", req.ID, req.GraphFile)
+		log.Printf("tagitd processing graph job id=%s file=%s", req.ID, req.GraphFile)
 		graphReq, err := run.LoadGraphRequest(req.GraphFile)
 		if err != nil {
 			runErr = err
@@ -479,7 +479,7 @@ func (d *Daemon) processNextQueueItem(ctx context.Context) error {
 	if err := d.queue.Update(ctx, req); err != nil {
 		return fmt.Errorf("finalize queue request: %w", err)
 	}
-	log.Printf("romad finalized job id=%s status=%s session=%s task=%s", req.ID, req.Status, req.SessionID, req.TaskID)
+	log.Printf("tagitd finalized job id=%s status=%s session=%s task=%s", req.ID, req.Status, req.SessionID, req.TaskID)
 	d.deliverQueueNotification(ctx, req)
 	return nil
 }
@@ -543,7 +543,7 @@ func (d *Daemon) CancelQueueJob(ctx context.Context, id string) (queue.Request, 
 		return queue.Request{}, err
 	}
 	d.markCanceled(id)
-	log.Printf("romad cancelling job id=%s session=%s task=%s", req.ID, req.SessionID, req.TaskID)
+	log.Printf("tagitd cancelling job id=%s session=%s task=%s", req.ID, req.SessionID, req.TaskID)
 	if cancel := d.runningCancel(id); cancel != nil {
 		cancel()
 	}
@@ -648,7 +648,7 @@ func (d *Daemon) startJobHeartbeat(ctx context.Context, req queue.Request) func(
 					current.UpdatedAt = time.Now().UTC()
 					_ = d.queue.Update(context.Background(), current)
 				}
-				log.Printf("romad heartbeat job=%s session=%s task=%s status=running", req.ID, req.SessionID, req.TaskID)
+				log.Printf("tagitd heartbeat job=%s session=%s task=%s status=running", req.ID, req.SessionID, req.TaskID)
 			}
 		}
 	}()
@@ -683,7 +683,7 @@ func (d *Daemon) recoverStalledQueueRuns(ctx context.Context, controlDir string,
 		if gracePeriod > 0 && req.UpdatedAt.After(cutoff) {
 			continue
 		}
-		log.Printf("romad recovering stalled job id=%s session=%s task=%s updated_at=%s", req.ID, req.SessionID, req.TaskID, req.UpdatedAt.Format(time.RFC3339Nano))
+		log.Printf("tagitd recovering stalled job id=%s session=%s task=%s updated_at=%s", req.ID, req.SessionID, req.TaskID, req.UpdatedAt.Format(time.RFC3339Nano))
 		if req.SessionID != "" {
 			if session, err := sessionStore.Get(ctx, req.SessionID); err == nil && session.Status == "running" {
 				session.Status = "failed_recoverable"
@@ -703,7 +703,7 @@ func (d *Daemon) recoverStalledQueueRuns(ctx context.Context, controlDir string,
 			if items, err := taskStore.ListTasksBySession(ctx, req.SessionID); err == nil {
 				for _, item := range items {
 					if item.State == domain.TaskStateRunning {
-						log.Printf("romad reset stalled task=%s session=%s", item.ID, req.SessionID)
+						log.Printf("tagitd reset stalled task=%s session=%s", item.ID, req.SessionID)
 					}
 				}
 			}
@@ -732,27 +732,27 @@ func (d *Daemon) deliverQueueNotification(ctx context.Context, req queue.Request
 	case queue.StatusAwaitingApproval:
 		notification.Type = "approval_required"
 		notification.Severity = domain.NotificationSeverityHigh
-		notification.Title = "ROMA approval required"
+		notification.Title = "TagIt approval required"
 		notification.Summary = fmt.Sprintf("Job %s is waiting for approval before execution continues.", req.ID)
 	case queue.StatusSucceeded:
 		notification.Type = "task_succeeded"
 		notification.Severity = domain.NotificationSeverityLow
-		notification.Title = "ROMA task succeeded"
+		notification.Title = "TagIt task succeeded"
 		notification.Summary = fmt.Sprintf("Job %s completed with %d artifact(s).", req.ID, len(req.ArtifactIDs))
 	case queue.StatusFailed:
 		notification.Type = "task_failed"
 		notification.Severity = domain.NotificationSeverityHigh
-		notification.Title = "ROMA task failed"
+		notification.Title = "TagIt task failed"
 		notification.Summary = fmt.Sprintf("Job %s failed: %s", req.ID, req.Error)
 	case queue.StatusRejected:
 		notification.Type = "approval_rejected"
 		notification.Severity = domain.NotificationSeverityMedium
-		notification.Title = "ROMA approval rejected"
+		notification.Title = "TagIt approval rejected"
 		notification.Summary = fmt.Sprintf("Job %s was rejected and will not run.", req.ID)
 	case queue.StatusCancelled:
 		notification.Type = "task_cancelled"
 		notification.Severity = domain.NotificationSeverityMedium
-		notification.Title = "ROMA task cancelled"
+		notification.Title = "TagIt task cancelled"
 		notification.Summary = fmt.Sprintf("Job %s was cancelled.", req.ID)
 	default:
 		return
@@ -761,6 +761,6 @@ func (d *Daemon) deliverQueueNotification(ctx context.Context, req queue.Request
 		notification.ArtifactRefs = append(notification.ArtifactRefs, "artifact://"+artifactID)
 	}
 	if err := d.gateway.Deliver(ctx, notification); err != nil {
-		log.Printf("romad gateway delivery error for job=%s: %v", req.ID, err)
+		log.Printf("tagitd gateway delivery error for job=%s: %v", req.ID, err)
 	}
 }

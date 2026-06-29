@@ -7,15 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/curia"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/policy"
-	"github.com/liliang-cn/roma/internal/romapath"
-	"github.com/liliang-cn/roma/internal/runtime"
-	"github.com/liliang-cn/roma/internal/store"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/curia"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/policy"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
+	"github.com/liliang-cn/tagit/internal/runtime"
+	"github.com/liliang-cn/tagit/internal/store"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 // Dispatcher owns ready-batch dispatch for relay/direct graph execution.
@@ -169,7 +169,7 @@ func (d *Dispatcher) execute(ctx context.Context, sessionID, workDir, basePrompt
 				Prompt:       buildNodePrompt(basePrompt, assignment, artifactsByNode),
 				WorkingDir:   workDir,
 				EffectiveDir: prepared.EffectiveDir,
-				AllowedRoots: []string{romapath.Join(d.workspaceRoot, "workspaces")},
+				AllowedRoots: []string{tagitpath.Join(d.workspaceRoot, "workspaces")},
 				PathHints:    []string{prepared.BaseDir, prepared.EffectiveDir},
 				StarterAgent: assignment.Profile.ID,
 				NodeCount:    1,
@@ -430,7 +430,7 @@ func (d *Dispatcher) executeBatch(
 func buildNodePrompt(basePrompt string, assignment NodeAssignment, artifactsByNode map[string]domain.ArtifactEnvelope) string {
 	node := assignment.Node
 	var b strings.Builder
-	b.WriteString("ROMA relay execution node.\n")
+	b.WriteString("TagIt relay execution node.\n")
 	b.WriteString("Original request:\n")
 	b.WriteString(basePrompt)
 	b.WriteString("\n\nCurrent node:\n")

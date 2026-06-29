@@ -9,10 +9,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
 )
 
 func (m model) tickCmd() tea.Cmd {
@@ -28,7 +28,7 @@ func (m model) refreshCmd() tea.Cmd {
 	client := m.client
 	return func() tea.Msg {
 		if !client.Available() {
-			return commandMsg{text: "waiting for embedded romad..."}
+			return commandMsg{text: "waiting for embedded tagitd..."}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()

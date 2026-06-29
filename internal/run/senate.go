@@ -11,14 +11,14 @@ import (
 
 	"path/filepath"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/memory"
-	"github.com/liliang-cn/roma/internal/policy"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/memory"
+	"github.com/liliang-cn/tagit/internal/policy"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 type senateCandidate struct {
@@ -36,7 +36,7 @@ type senateVote struct {
 	Reason   string
 }
 
-var senatePickPattern = regexp.MustCompile(`(?i)^ROMA_PICK:\s*([^\s|]+)(?:\s*\|\s*(.*))?$`)
+var senatePickPattern = regexp.MustCompile(`(?i)^TAGIT_PICK:\s*([^\s|]+)(?:\s*\|\s*(.*))?$`)
 
 func (s *Service) runSenate(ctx context.Context, req Request, starter domain.AgentProfile, delegates []domain.AgentProfile, w io.Writer) (Result, error) {
 	if len(delegates) == 0 {
@@ -350,8 +350,8 @@ func buildSenateImplementationPromptHint(starter domain.AgentProfile, acceptedPl
 		"Implement the accepted plan below in your own isolated workspace.",
 		"Do not coordinate, vote, or ask other agents to work. Your job is implementation only.",
 		"When your implementation is ready for evaluation, emit:",
-		"ROMA_MERGE_BACK: require_vote | implementation candidate ready",
-		"Also emit one ROMA_MERGE_FILE: <relative/path> line per changed file you want reviewed.",
+		"TAGIT_MERGE_BACK: require_vote | implementation candidate ready",
+		"Also emit one TAGIT_MERGE_FILE: <relative/path> line per changed file you want reviewed.",
 		"",
 		"Accepted plan:",
 		acceptedPlan.Body,
@@ -404,7 +404,7 @@ func buildSenateVotePromptHint(title string, candidates []senateCandidate, voteC
 		"Do not edit files or implement code in this round.",
 		"Pick exactly one candidate.",
 		"Output exactly one selection line in this format:",
-		"ROMA_PICK: <candidate_id> | <brief reason>",
+		"TAGIT_PICK: <candidate_id> | <brief reason>",
 		"",
 		"Use only one of these exact candidate IDs:",
 	}
@@ -492,7 +492,7 @@ func senateCandidateBody(raw string) string {
 	out := make([]string, 0, len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "ROMA_MERGE_") || strings.HasPrefix(strings.ToLower(line), "tokens used") || line == "--------" {
+		if line == "" || strings.HasPrefix(line, "TAGIT_MERGE_") || strings.HasPrefix(strings.ToLower(line), "tokens used") || line == "--------" {
 			continue
 		}
 		out = append(out, line)
@@ -587,7 +587,7 @@ func (s *Service) resolveSenateWinner(ctx context.Context, dispatcher *scheduler
 	}
 	targetID, _, ok := extractSenatePick(report.RawOutput)
 	if !ok {
-		return senateCandidate{}, assignments, result, fmt.Errorf("senate tiebreak produced no ROMA_PICK")
+		return senateCandidate{}, assignments, result, fmt.Errorf("senate tiebreak produced no TAGIT_PICK")
 	}
 	for _, candidate := range best {
 		if candidate.NodeID == targetID {

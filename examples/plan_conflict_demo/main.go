@@ -8,23 +8,23 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/plans"
-	"github.com/liliang-cn/roma/internal/store"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/plans"
+	"github.com/liliang-cn/tagit/internal/store"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 func main() {
-	root, err := os.MkdirTemp("", "roma-conflict-demo-*")
+	root, err := os.MkdirTemp("", "tagit-conflict-demo-*")
 	if err != nil {
 		panic(err)
 	}
 	defer os.RemoveAll(root)
 
 	runGit(root, "init")
-	runGit(root, "config", "user.email", "roma@example.com")
-	runGit(root, "config", "user.name", "ROMA")
+	runGit(root, "config", "user.email", "tagit@example.com")
+	runGit(root, "config", "user.name", "TagIt")
 	mustWrite(filepath.Join(root, "README.md"), []byte("base\n"))
 	runGit(root, "add", "README.md")
 	runGit(root, "commit", "-m", "init")

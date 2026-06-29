@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/domain"
+	"github.com/liliang-cn/tagit/internal/domain"
 )
 
 func TestDefaultRegistryList(t *testing.T) {
@@ -93,9 +93,9 @@ func TestRegistryLoadSave(t *testing.T) {
 }
 
 func TestDefaultUserConfigPath(t *testing.T) {
-	t.Setenv("ROMA_HOME", "/tmp/roma-home")
-	if got := DefaultUserConfigPath(); got != "/tmp/roma-home/agents.json" {
-		t.Fatalf("DefaultUserConfigPath() = %q, want %q", got, "/tmp/roma-home/agents.json")
+	t.Setenv("TAGIT_HOME", "/tmp/tagit-home")
+	if got := DefaultUserConfigPath(); got != "/tmp/tagit-home/agents.json" {
+		t.Fatalf("DefaultUserConfigPath() = %q, want %q", got, "/tmp/tagit-home/agents.json")
 	}
 }
 

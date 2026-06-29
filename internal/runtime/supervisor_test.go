@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/policy"
-	"github.com/liliang-cn/roma/internal/store"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/policy"
+	"github.com/liliang-cn/tagit/internal/store"
 )
 
 func TestBuildCommandForProfileArgs(t *testing.T) {
@@ -175,7 +175,7 @@ func (continuousFakeAdapter) BuildCommand(ctx context.Context, req StartRequest)
 	script := `import sys
 prompt = sys.argv[1]
 if "Current round: 2" in prompt:
-    print("ROMA_DONE: completed on second round")
+    print("TAGIT_DONE: completed on second round")
 else:
     print("still working")`
 	return exec.CommandContext(ctx, "python3", "-c", script, req.Prompt), nil
@@ -201,7 +201,7 @@ func TestRunCapturedContinuous(t *testing.T) {
 	if !strings.Contains(result.Stdout, "== round 1 ==") || !strings.Contains(result.Stdout, "== round 2 ==") {
 		t.Fatalf("continuous output missing rounds: %s", result.Stdout)
 	}
-	if !strings.Contains(result.Stdout, "ROMA_DONE:") {
+	if !strings.Contains(result.Stdout, "TAGIT_DONE:") {
 		t.Fatalf("continuous output missing completion marker: %s", result.Stdout)
 	}
 }
@@ -231,7 +231,7 @@ func TestBuildContinuousPromptIncludesRageSupervisorNudge(t *testing.T) {
 
 	prompt := buildContinuousPrompt("ship the feature", "round one output", 2, "rage")
 	for _, want := range []string{
-		"ROMA rage supervisor is standing next to you",
+		"TagIt rage supervisor is standing next to you",
 		"state briefly: current progress, what remains, and the very next concrete action",
 		"Current round: 2",
 	} {

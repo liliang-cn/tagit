@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/run"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/run"
 )
 
-// NewAPIEnqueuer adapts a romad api.Client into an Enqueuer.
+// NewAPIEnqueuer adapts a tagitd api.Client into an Enqueuer.
 func NewAPIEnqueuer(c *api.Client) Enqueuer {
 	return apiEnqueuer{c: c}
 }

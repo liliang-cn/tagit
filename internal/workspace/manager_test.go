@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/store"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/store"
 )
 
 func TestManagerPreparePersistsMetadataAndEvent(t *testing.T) {
@@ -38,7 +38,7 @@ func TestManagerPreparePersistsMetadataAndEvent(t *testing.T) {
 		t.Fatal("expected fallback reason for non-git workspace")
 	}
 
-	path := filepath.Join(root, ".roma", "workspaces", "sess_1", "task_1", "workspace.json")
+	path := filepath.Join(root, ".tagit", "workspaces", "sess_1", "task_1", "workspace.json")
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("expected workspace metadata file: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestManagerPrepareCreatesGitWorktreeForIsolatedWrite(t *testing.T) {
 		t.Fatalf("ReclaimStale returned error: %v", err)
 	}
 
-	reclaimed, err := loadPrepared(filepath.Join(root, ".roma", "workspaces", "sess_git", "task_git", "workspace.json"))
+	reclaimed, err := loadPrepared(filepath.Join(root, ".tagit", "workspaces", "sess_git", "task_git", "workspace.json"))
 	if err != nil {
 		t.Fatalf("loadPrepared() error = %v", err)
 	}
@@ -124,7 +124,7 @@ func TestManagerReclaimStaleRemovesPreparedWorktree(t *testing.T) {
 	if err := manager.ReclaimStale(context.Background()); err != nil {
 		t.Fatalf("ReclaimStale returned error: %v", err)
 	}
-	reclaimed, err := loadPrepared(filepath.Join(root, ".roma", "workspaces", "sess_prepared", "task_prepared", "workspace.json"))
+	reclaimed, err := loadPrepared(filepath.Join(root, ".tagit", "workspaces", "sess_prepared", "task_prepared", "workspace.json"))
 	if err != nil {
 		t.Fatalf("loadPrepared() error = %v", err)
 	}
@@ -146,7 +146,7 @@ func TestManagerCapturePatchAndMergeBack(t *testing.T) {
 		t.Fatalf("Prepare returned error: %v", err)
 	}
 	target := filepath.Join(prepared.EffectiveDir, "README.md")
-	if err := os.WriteFile(target, []byte("roma merged\n"), 0o644); err != nil {
+	if err := os.WriteFile(target, []byte("tagit merged\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
@@ -161,7 +161,7 @@ func TestManagerCapturePatchAndMergeBack(t *testing.T) {
 		t.Fatalf("MergeBack() error = %v", err)
 	}
 
-	mergedPath := filepath.Join(root, ".roma", "workspaces", "sess_merge", "task_merge", "workspace.json")
+	mergedPath := filepath.Join(root, ".tagit", "workspaces", "sess_merge", "task_merge", "workspace.json")
 	merged, err := loadPrepared(mergedPath)
 	if err != nil {
 		t.Fatalf("loadPrepared() error = %v", err)
@@ -173,8 +173,8 @@ func TestManagerCapturePatchAndMergeBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	if strings.TrimSpace(string(content)) != "roma merged" {
-		t.Fatalf("base README = %q, want roma merged", strings.TrimSpace(string(content)))
+	if strings.TrimSpace(string(content)) != "tagit merged" {
+		t.Fatalf("base README = %q, want tagit merged", strings.TrimSpace(string(content)))
 	}
 
 	if err := manager.RollbackMerge(context.Background(), prepared); err != nil {
@@ -191,8 +191,8 @@ func TestManagerCapturePatchAndMergeBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	if strings.TrimSpace(string(content)) != "roma" {
-		t.Fatalf("base README after rollback = %q, want roma", strings.TrimSpace(string(content)))
+	if strings.TrimSpace(string(content)) != "tagit" {
+		t.Fatalf("base README after rollback = %q, want tagit", strings.TrimSpace(string(content)))
 	}
 }
 
@@ -218,7 +218,7 @@ func TestManagerReleasePreservesMergedStatus(t *testing.T) {
 		t.Fatalf("Release() error = %v", err)
 	}
 
-	current, err := loadPrepared(filepath.Join(root, ".roma", "workspaces", "sess_merge_release", "task_merge_release", "workspace.json"))
+	current, err := loadPrepared(filepath.Join(root, ".tagit", "workspaces", "sess_merge_release", "task_merge_release", "workspace.json"))
 	if err != nil {
 		t.Fatalf("loadPrepared() error = %v", err)
 	}
@@ -294,7 +294,7 @@ func TestManagerCapturePatchAndMergeBackIncludesCommittedWorktreeChanges(t *test
 	}
 
 	target := filepath.Join(prepared.EffectiveDir, "README.md")
-	if err := os.WriteFile(target, []byte("roma committed\n"), 0o644); err != nil {
+	if err := os.WriteFile(target, []byte("tagit committed\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	runGitCommand(t, prepared.EffectiveDir, "add", "README.md")
@@ -323,17 +323,17 @@ func TestManagerCapturePatchAndMergeBackIncludesCommittedWorktreeChanges(t *test
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	if strings.TrimSpace(string(content)) != "roma committed" {
-		t.Fatalf("base README = %q, want roma committed", strings.TrimSpace(string(content)))
+	if strings.TrimSpace(string(content)) != "tagit committed" {
+		t.Fatalf("base README = %q, want tagit committed", strings.TrimSpace(string(content)))
 	}
 }
 
 func initGitRepo(t *testing.T, dir string) {
 	t.Helper()
 	runGitCommand(t, dir, "init")
-	runGitCommand(t, dir, "config", "user.email", "roma@example.com")
-	runGitCommand(t, dir, "config", "user.name", "ROMA")
-	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("roma\n"), 0o644); err != nil {
+	runGitCommand(t, dir, "config", "user.email", "tagit@example.com")
+	runGitCommand(t, dir, "config", "user.name", "TagIt")
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("tagit\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	runGitCommand(t, dir, "add", "README.md")

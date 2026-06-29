@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/runtime"
-	"github.com/liliang-cn/roma/internal/store"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/runtime"
+	"github.com/liliang-cn/tagit/internal/store"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 type dispatcherFakeAdapter struct{}
@@ -532,9 +532,9 @@ func TestDispatcherParallelSessionsSoakMaintainsLeaseAndWorkspaceInvariants(t *t
 func initDispatcherGitRepo(t *testing.T, dir string) {
 	t.Helper()
 	runDispatcherGit(t, dir, "init")
-	runDispatcherGit(t, dir, "config", "user.email", "roma@example.com")
-	runDispatcherGit(t, dir, "config", "user.name", "ROMA")
-	if err := os.WriteFile(dir+"/README.md", []byte("roma\n"), 0o644); err != nil {
+	runDispatcherGit(t, dir, "config", "user.email", "tagit@example.com")
+	runDispatcherGit(t, dir, "config", "user.name", "TagIt")
+	if err := os.WriteFile(dir+"/README.md", []byte("tagit\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	runDispatcherGit(t, dir, "add", "README.md")

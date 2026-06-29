@@ -24,7 +24,7 @@ type Enqueuer interface {
 // caller.
 type ProgressFunc func(jobID, chatID, rootMessageID string)
 
-// Handler turns an @mention in a bound group chat into a ROMA run and acks it.
+// Handler turns an @mention in a bound group chat into a TagIt run and acks it.
 type Handler struct {
 	bindings Bindings
 	enq      Enqueuer

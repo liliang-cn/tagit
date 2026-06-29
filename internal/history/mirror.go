@@ -2,7 +2,7 @@ package history
 
 import "context"
 
-// Backend captures the session history capabilities used by ROMA execution paths.
+// Backend captures the session history capabilities used by TagIt execution paths.
 type Backend interface {
 	Save(ctx context.Context, record SessionRecord) error
 	Get(ctx context.Context, sessionID string) (SessionRecord, error)

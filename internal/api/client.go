@@ -14,17 +14,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/curia"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/queue"
-	"github.com/liliang-cn/roma/internal/romapath"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	"github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/curia"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/queue"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/workspace"
 )
 
-// Client talks to romad over a Unix domain socket.
+// Client talks to tagitd over a Unix domain socket.
 type Client struct {
 	metaPaths []string
 }
@@ -42,7 +42,7 @@ func NewClientForControlDir(workDir, controlDir string) *Client {
 	if controlDir == "" {
 		return NewClient(workDir)
 	}
-	return &Client{metaPaths: []string{romapath.Join(controlDir, "run", "api.json")}}
+	return &Client{metaPaths: []string{tagitpath.Join(controlDir, "run", "api.json")}}
 }
 
 // Available reports whether the daemon socket exists.
@@ -74,7 +74,7 @@ func (c *Client) Status(ctx context.Context) (StatusResponse, error) {
 	return out, nil
 }
 
-// Submit enqueues a job through romad.
+// Submit enqueues a job through tagitd.
 func (c *Client) Submit(ctx context.Context, req SubmitRequest) (SubmitResponse, error) {
 	httpClient, baseURL, err := c.httpClient()
 	if err != nil {
@@ -888,7 +888,7 @@ func streamClientFromMeta(metaPath string) (*http.Client, string, error) {
 				return dialer.DialContext(ctx, "unix", meta.Address)
 			},
 		}
-		return &http.Client{Transport: transport}, "http://romad", nil
+		return &http.Client{Transport: transport}, "http://tagitd", nil
 	case "tcp":
 		return &http.Client{}, "http://" + meta.Address, nil
 	default:
@@ -936,7 +936,7 @@ func candidateMetaPaths(workDir string) []string {
 		if root == "" {
 			return
 		}
-		addPath(romapath.Join(root, "run", "api.json"))
+		addPath(tagitpath.Join(root, "run", "api.json"))
 	}
 	if override := daemonHomeOverride(); override != "" {
 		addStateRoot(override)
@@ -948,7 +948,7 @@ func candidateMetaPaths(workDir string) []string {
 }
 
 func daemonHomeOverride() string {
-	for _, key := range []string{"ROMA_DAEMON_DIR", "ROMA_HOME"} {
+	for _, key := range []string{"TAGIT_DAEMON_DIR", "TAGIT_HOME"} {
 		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
 			return value
 		}
@@ -957,7 +957,7 @@ func daemonHomeOverride() string {
 }
 
 func defaultDaemonHome() string {
-	return romapath.HomeDir()
+	return tagitpath.HomeDir()
 }
 
 func clientFromMeta(metaPath string) (*http.Client, string, error) {
@@ -981,7 +981,7 @@ func clientFromMeta(metaPath string) (*http.Client, string, error) {
 				return dialer.DialContext(ctx, "unix", meta.Address)
 			},
 		}
-		return &http.Client{Transport: transport, Timeout: 5 * time.Second}, "http://romad", nil
+		return &http.Client{Transport: transport, Timeout: 5 * time.Second}, "http://tagitd", nil
 	case "tcp":
 		return &http.Client{Timeout: 5 * time.Second}, "http://" + meta.Address, nil
 	default:

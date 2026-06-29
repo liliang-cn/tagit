@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/romapath"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
 // FileEventStore persists events as append-only JSONL.
@@ -24,7 +24,7 @@ const scannerMaxTokenSize = 8 * 1024 * 1024
 // NewFileEventStore constructs a file-backed event store.
 func NewFileEventStore(workDir string) *FileEventStore {
 	return &FileEventStore{
-		path: romapath.Join(workDir, "events", "events.jsonl"),
+		path: tagitpath.Join(workDir, "events", "events.jsonl"),
 	}
 }
 

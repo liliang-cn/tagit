@@ -7,15 +7,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
+	"github.com/liliang-cn/tagit/internal/domain"
 )
 
 const (
-	ProposalPayloadSchema      = "roma/proposal/v1"
-	BallotPayloadSchema        = "roma/ballot/v1"
-	DebateLogPayloadSchema     = "roma/debate_log/v1"
-	DecisionPackPayloadSchema  = "roma/decision_pack/v1"
-	ExecutionPlanPayloadSchema = "roma/execution_plan/v1"
+	ProposalPayloadSchema      = "tagit/proposal/v1"
+	BallotPayloadSchema        = "tagit/ballot/v1"
+	DebateLogPayloadSchema     = "tagit/debate_log/v1"
+	DecisionPackPayloadSchema  = "tagit/decision_pack/v1"
+	ExecutionPlanPayloadSchema = "tagit/execution_plan/v1"
 )
 
 type ProposalPayload struct {
@@ -285,7 +285,7 @@ func (s *Service) BuildDebateLog(_ context.Context, req BuildDebateLogRequest) (
 		ArbitrationRequired:   req.ArbitrationRequired,
 		WinningProposalID:     req.WinningProposalID,
 	}
-	return s.buildCuriaEnvelope(req.SessionID, req.TaskID, "art_"+payload.DebateLogID, domain.ArtifactKindDebateLog, DebateLogPayloadSchema, domain.ProducerRoleSystem, "roma-curia", req.RunID, payload)
+	return s.buildCuriaEnvelope(req.SessionID, req.TaskID, "art_"+payload.DebateLogID, domain.ArtifactKindDebateLog, DebateLogPayloadSchema, domain.ProducerRoleSystem, "tagit-curia", req.RunID, payload)
 }
 
 func (s *Service) BuildDecisionPack(_ context.Context, req BuildDecisionPackRequest) (domain.ArtifactEnvelope, error) {
@@ -332,7 +332,7 @@ func (s *Service) BuildExecutionPlan(_ context.Context, req BuildExecutionPlanRe
 		SelectedProposalIDs:   append([]string(nil), req.SelectedProposalIDs...),
 		CompetingProposalIDs:  append([]string(nil), req.CompetingProposalIDs...),
 		ExpectedFiles:         append([]string(nil), req.Proposal.AffectedFiles...),
-		ForbiddenPaths:        []string{".git/", ".roma/"},
+		ForbiddenPaths:        []string{".git/", ".tagit/"},
 		RequiredChecks:        []string{"go test ./...", "go build ./..."},
 		ApplyMode:             executionApplyMode(req.WinningMode),
 		DecisionConfidence:    req.DecisionConfidence,
@@ -352,7 +352,7 @@ func (s *Service) BuildExecutionPlan(_ context.Context, req BuildExecutionPlanRe
 	if req.WinningMode == "replace" {
 		payload.Steps = append([]string{"Replace the prior dominant proposal with the arbitrated fallback plan."}, payload.Steps...)
 	}
-	return s.buildCuriaEnvelope(req.SessionID, req.TaskID, "art_"+payload.ExecutionPlanID, domain.ArtifactKindExecutionPlan, ExecutionPlanPayloadSchema, domain.ProducerRoleSystem, "roma-curia", req.RunID, payload)
+	return s.buildCuriaEnvelope(req.SessionID, req.TaskID, "art_"+payload.ExecutionPlanID, domain.ArtifactKindExecutionPlan, ExecutionPlanPayloadSchema, domain.ProducerRoleSystem, "tagit-curia", req.RunID, payload)
 }
 
 func (s *Service) buildCuriaEnvelope(sessionID, taskID, id string, kind domain.ArtifactKind, schema string, role domain.ProducerRole, agentID, runID string, payload any) (domain.ArtifactEnvelope, error) {

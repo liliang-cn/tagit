@@ -11,16 +11,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/api"
-	"github.com/liliang-cn/roma/internal/app"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/policy"
-	"github.com/liliang-cn/roma/internal/queue"
-	"github.com/liliang-cn/roma/internal/romapath"
-	runsvc "github.com/liliang-cn/roma/internal/run"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/api"
+	"github.com/liliang-cn/tagit/internal/app"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/policy"
+	"github.com/liliang-cn/tagit/internal/queue"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
+	runsvc "github.com/liliang-cn/tagit/internal/run"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -99,7 +99,7 @@ func (a *App) startup(ctx context.Context) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.ctx = ctx
-	a.client = api.NewClientForControlDir(a.workingDir, romapath.HomeDir())
+	a.client = api.NewClientForControlDir(a.workingDir, tagitpath.HomeDir())
 }
 
 func (a *App) shutdown(ctx context.Context) {
@@ -193,7 +193,7 @@ func (a *App) SetWorkingDir(dir string) (BootstrapResponse, error) {
 	}
 	a.mu.Lock()
 	a.workingDir = resolved
-	a.client = api.NewClientForControlDir(a.workingDir, romapath.HomeDir())
+	a.client = api.NewClientForControlDir(a.workingDir, tagitpath.HomeDir())
 	a.mu.Unlock()
 	return a.Bootstrap()
 }
@@ -519,7 +519,7 @@ func (a *App) fetchSnapshot() (api.StatusResponse, []queue.Request, api.ACPStatu
 func (a *App) ensureDaemon() error {
 	a.mu.Lock()
 	if a.client == nil {
-		a.client = api.NewClientForControlDir(a.workingDir, romapath.HomeDir())
+		a.client = api.NewClientForControlDir(a.workingDir, tagitpath.HomeDir())
 	}
 	a.consumeEmbeddedErrorLocked()
 	client := a.client
@@ -559,9 +559,9 @@ func (a *App) ensureDaemon() error {
 	lastErr := strings.TrimSpace(a.lastDaemonError)
 	a.mu.Unlock()
 	if lastErr != "" {
-		return fmt.Errorf("romad unavailable: %s", lastErr)
+		return fmt.Errorf("tagitd unavailable: %s", lastErr)
 	}
-	return fmt.Errorf("romad did not become ready within 5s")
+	return fmt.Errorf("tagitd did not become ready within 5s")
 }
 
 func (a *App) consumeEmbeddedErrorLocked() {
@@ -591,7 +591,7 @@ func (a *App) currentClient() *api.Client {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.client == nil {
-		a.client = api.NewClientForControlDir(a.workingDir, romapath.HomeDir())
+		a.client = api.NewClientForControlDir(a.workingDir, tagitpath.HomeDir())
 	}
 	return a.client
 }

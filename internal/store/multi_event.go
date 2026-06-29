@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/liliang-cn/roma/internal/events"
+	"github.com/liliang-cn/tagit/internal/events"
 )
 
 // MultiEventStore mirrors event writes into multiple backends.

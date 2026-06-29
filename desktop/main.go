@@ -16,7 +16,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "ROMA Desktop",
+		Title:     "TagIt Desktop",
 		Width:     1440,
 		Height:    920,
 		MinWidth:  1180,

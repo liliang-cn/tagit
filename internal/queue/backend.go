@@ -2,7 +2,7 @@ package queue
 
 import "context"
 
-// Backend captures the queue capabilities used by ROMA.
+// Backend captures the queue capabilities used by TagIt.
 type Backend interface {
 	Enqueue(ctx context.Context, req Request) error
 	Update(ctx context.Context, req Request) error

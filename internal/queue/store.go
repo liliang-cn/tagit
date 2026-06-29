@@ -10,7 +10,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/romapath"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
 // Status is the lifecycle state of a queued run request.
@@ -68,7 +68,7 @@ type GraphSpec struct {
 	Nodes  []GraphNode `json:"nodes"`
 }
 
-// Store persists queue requests under .roma/queue.
+// Store persists queue requests under .tagit/queue.
 type Store struct {
 	rootDir string
 }
@@ -76,7 +76,7 @@ type Store struct {
 // NewStore constructs a file-backed queue store.
 func NewStore(workDir string) *Store {
 	return &Store{
-		rootDir: romapath.Join(workDir, "queue"),
+		rootDir: tagitpath.Join(workDir, "queue"),
 	}
 }
 

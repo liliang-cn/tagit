@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	"github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/workspace"
 )
 
 // RuntimeLiveSummary captures best-effort live execution state for a running session.
@@ -329,7 +329,7 @@ func inferWorkspaceBaseDir(path string) string {
 	if cleaned == "" {
 		return ""
 	}
-	marker := string(filepath.Separator) + ".roma" + string(filepath.Separator) + "workspaces" + string(filepath.Separator)
+	marker := string(filepath.Separator) + ".tagit" + string(filepath.Separator) + "workspaces" + string(filepath.Separator)
 	if idx := strings.Index(cleaned, marker); idx > 0 {
 		return cleaned[:idx]
 	}

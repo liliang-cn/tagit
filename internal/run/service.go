@@ -13,20 +13,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/classifier"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/memory"
-	"github.com/liliang-cn/roma/internal/policy"
-	"github.com/liliang-cn/roma/internal/romapath"
-	"github.com/liliang-cn/roma/internal/runtime"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	"github.com/liliang-cn/roma/internal/store"
-	"github.com/liliang-cn/roma/internal/taskstore"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/classifier"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/memory"
+	"github.com/liliang-cn/tagit/internal/policy"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
+	"github.com/liliang-cn/tagit/internal/runtime"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/store"
+	"github.com/liliang-cn/tagit/internal/taskstore"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 // Request describes a user-triggered run.
@@ -64,7 +64,7 @@ type Service struct {
 	supervisor *runtime.Supervisor
 	tasks      store.TaskStore
 	controlDir string
-	// Memory is ROMA's advisory, best-effort cross-agent memory. It is never
+	// Memory is TagIt's advisory, best-effort cross-agent memory. It is never
 	// allowed to fail a run; recall/record errors are logged and ignored.
 	Memory memory.Memory
 }
@@ -96,7 +96,7 @@ func (s *Service) ReloadUserConfig() error {
 	return s.registry.LoadUserConfig(path)
 }
 
-// SetControlDir sets the persisted ROMA control-plane directory.
+// SetControlDir sets the persisted TagIt control-plane directory.
 func (s *Service) SetControlDir(dir string) {
 	s.controlDir = strings.TrimSpace(dir)
 }
@@ -680,15 +680,15 @@ func buildRageWorkerPrompt(originalPrompt, previousWorkerOutput, foremanInstruct
 		b.WriteString(strings.TrimSpace(memoryContext))
 		b.WriteString("\n\n")
 	}
-	b.WriteString("ROMA rage worker mode.\n")
+	b.WriteString("TagIt rage worker mode.\n")
 	b.WriteString("You are the implementation instance.\n")
 	b.WriteString("A separate foreman instance will inspect your progress after this round and push you again if the work is not done.\n")
 	b.WriteString("Do not stop at analysis or partial progress. Make concrete implementation progress now.\n")
-	b.WriteString("When the original goal is truly complete, start your response with `ROMA_DONE:`.\n")
+	b.WriteString("When the original goal is truly complete, start your response with `TAGIT_DONE:`.\n")
 	b.WriteString("When your workspace changes are complete and ready to land, emit:\n")
-	b.WriteString("ROMA_MERGE_BACK: direct_merge | <brief reason>\n")
+	b.WriteString("TAGIT_MERGE_BACK: direct_merge | <brief reason>\n")
 	b.WriteString("Optionally emit:\n")
-	b.WriteString("ROMA_MERGE_FILE: <relative/path/to/file>\n")
+	b.WriteString("TAGIT_MERGE_FILE: <relative/path/to/file>\n")
 	b.WriteString(fmt.Sprintf("Current round: %d\n\n", round))
 	b.WriteString("Original task:\n")
 	b.WriteString(originalPrompt)
@@ -705,7 +705,7 @@ func buildRageWorkerPrompt(originalPrompt, previousWorkerOutput, foremanInstruct
 
 func buildRageForemanPrompt(originalPrompt, workerOutput string, round int) string {
 	var b strings.Builder
-	b.WriteString("ROMA rage foreman mode.\n")
+	b.WriteString("TagIt rage foreman mode.\n")
 	b.WriteString("You are the supervising instance. You do not implement files directly.\n")
 	b.WriteString("Your job is to inspect the worker progress and push the worker to continue until the original goal is actually complete.\n")
 	b.WriteString("Reply with short, imperative supervision only.\n")
@@ -729,7 +729,7 @@ func buildRageForemanPrompt(originalPrompt, workerOutput string, round int) stri
 	b.WriteString("Resume execution now and remove the blocker for real.\n")
 	b.WriteString("You, the foreman, are the final authority on whether the task is done.\n")
 	b.WriteString("Only leave `Next:` empty if the task is truly complete and verified.\n")
-	b.WriteString("A worker-side `ROMA_DONE:` marker is only a claim until you confirm it.\n")
+	b.WriteString("A worker-side `TAGIT_DONE:` marker is only a claim until you confirm it.\n")
 	b.WriteString(fmt.Sprintf("Review round: %d\n\n", round))
 	b.WriteString("Original task:\n")
 	b.WriteString(originalPrompt)
@@ -767,7 +767,7 @@ func rageReviewSignalsMissingProof(value string) bool {
 
 func rageDone(stdout, stderr string) bool {
 	combined := strings.ToUpper(stdout + "\n" + stderr)
-	return strings.Contains(combined, "ROMA_DONE:")
+	return strings.Contains(combined, "TAGIT_DONE:")
 }
 
 func appendRageRoundOutput(dst *strings.Builder, round int, output string) {
@@ -1030,7 +1030,7 @@ func (s *Service) evaluatePolicy(ctx context.Context, sessionID, taskID, mode, p
 		Prompt:         prompt,
 		WorkingDir:     workingDir,
 		EffectiveDir:   effectiveDir,
-		AllowedRoots:   []string{romapath.Join(s.controlRoot(workingDir), "workspaces")},
+		AllowedRoots:   []string{tagitpath.Join(s.controlRoot(workingDir), "workspaces")},
 		PathHints:      pathHints,
 		StarterAgent:   starter,
 		Delegates:      delegates,

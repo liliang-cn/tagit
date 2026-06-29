@@ -10,11 +10,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/romapath"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
-// FileStore persists artifacts under the workspace .roma directory.
+// FileStore persists artifacts under the workspace .tagit directory.
 type FileStore struct {
 	rootDir string
 }
@@ -22,7 +22,7 @@ type FileStore struct {
 // NewFileStore constructs a file-backed artifact store.
 func NewFileStore(workDir string) *FileStore {
 	return &FileStore{
-		rootDir: romapath.Join(workDir, "artifacts"),
+		rootDir: tagitpath.Join(workDir, "artifacts"),
 	}
 }
 

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/policy"
-	"github.com/liliang-cn/roma/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/policy"
+	"github.com/liliang-cn/tagit/internal/scheduler"
 )
 
 func (s *Service) maybePromoteOrchestratedToCuria(ctx context.Context, prompt, workingDir, taskID string, starter domain.AgentProfile, delegates []domain.AgentProfile, continuous bool, maxRounds int) ([]scheduler.NodeAssignment, []string) {

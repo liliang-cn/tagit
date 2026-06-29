@@ -3,7 +3,7 @@ package slack
 import (
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/chatbot"
+	"github.com/liliang-cn/tagit/internal/chatbot"
 	"github.com/slack-go/slack/slackevents"
 )
 

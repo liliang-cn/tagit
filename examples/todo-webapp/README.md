@@ -1,6 +1,6 @@
 # TODO Web App Demo
 
-This demo came from a ROMA multi-agent coding run and was finalized locally.
+This demo came from a TagIt multi-agent coding run and was finalized locally.
 
 ## Backend
 

@@ -1,9 +1,9 @@
-module github.com/liliang-cn/roma/desktop
+module github.com/liliang-cn/tagit/desktop
 
 go 1.24.2
 
 require (
-	github.com/liliang-cn/roma v0.0.0
+	github.com/liliang-cn/tagit v0.0.0
 	github.com/wailsapp/wails/v2 v2.11.0
 )
 
@@ -39,4 +39,4 @@ require (
 	golang.org/x/text v0.22.0 // indirect
 )
 
-replace github.com/liliang-cn/roma => ..
+replace github.com/liliang-cn/tagit => ..

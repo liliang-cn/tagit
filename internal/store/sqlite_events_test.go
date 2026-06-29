@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/events"
+	"github.com/liliang-cn/tagit/internal/events"
 )
 
 func TestSQLiteEventStoreAppendAndList(t *testing.T) {

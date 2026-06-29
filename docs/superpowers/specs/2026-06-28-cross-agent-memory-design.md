@@ -6,7 +6,7 @@ Sub-project: A (of the "open-source, self-hosted, multi-model, auditable @agent 
 
 ## Purpose
 
-Give ROMA a persistent memory that is **shared across all coding agents**: what
+Give TagIt a persistent memory that is **shared across all coding agents**: what
 `codex` learned on a repo is recalled for `claude`, and vice versa. Memory makes
 repeated runs in the same repo smarter without re-explaining context — the
 "the more you use it, the more it understands" property of Claude Tag, but
@@ -20,16 +20,16 @@ self-hosted and model-agnostic.
    not a separate hosted LLM. A local embedder (e.g. Ollama) may be added later as
    an opt-in; it is **out of scope** for this sub-project.
 2. **Exposed as an MCP server** (and optionally packaged as a skill) so the coding
-   agents can call it as a tool. ROMA also injects recall in-process for agents
+   agents can call it as a tool. TagIt also injects recall in-process for agents
    that are not driven through MCP.
 
 ## Build constraints
 
 - agent-go (`github.com/liliang-cn/agent-go/v2`, v2.95.0) declares `go 1.25.0`;
-  ROMA is on `go 1.24.2`. Adding the dependency bumps ROMA's `go` directive to
+  TagIt is on `go 1.24.2`. Adding the dependency bumps TagIt's `go` directive to
   1.25 (Go's auto-toolchain fetches 1.25 transparently). CI matrices must use Go
   ≥ 1.25. agent-go is pure-Go SQLite (`modernc.org/sqlite`), no CGO — consistent
-  with ROMA.
+  with TagIt.
 
 ## Non-goals (YAGNI for this sub-project)
 
@@ -53,7 +53,7 @@ run     ->  memory
 `memory` must NOT depend on `scheduler`, `runtime`, or `policy`.
 
 **Core principle — memory is a derived advisory layer, not a source of truth.**
-The authoritative record stays in ROMA's event store. Every memory operation is
+The authoritative record stays in TagIt's event store. Every memory operation is
 best-effort: failures and timeouts are logged and never fail a run.
 
 ### The port (interface)
@@ -92,15 +92,15 @@ type Memory interface {
 ```
 
 - No LLM-based `Distill`. Durable knowledge is captured by `Note`, called either by
-  a coding agent through the MCP tool, or by ROMA extracting the foreman's verdict.
+  a coding agent through the MCP tool, or by TagIt extracting the foreman's verdict.
 - Implementations:
   - `agentgoMemory` — default, wraps agent-go `memory.Service` (CortexDB, lexical).
   - `nopMemory` — used when memory is disabled or the engine fails to initialize.
 
 ### Engine: agent-go in lexical mode
 
-- Backed by agent-go's memory store (CortexDB) under `~/.roma/memory/cortex.db`
-  (via `AGENTGO_HOME`/config `Home` pointed at ROMA's home), **no embedder
+- Backed by agent-go's memory store (CortexDB) under `~/.tagit/memory/cortex.db`
+  (via `AGENTGO_HOME`/config `Home` pointed at TagIt's home), **no embedder
   configured** → CortexDB lexical FTS5 fallback.
 - Episodic run records -> agent-go Memory API, keyed by `Scope.Repo` (agent in
   metadata). Durable notes -> Knowledge API, namespaced by `Scope.Repo`.
@@ -127,7 +127,7 @@ In `internal/run` (start with **rage** mode, the verified path):
 
 ### MCP tool surface
 
-A thin MCP server (in `internal/memory/mcp`, served alongside ROMA's existing
+A thin MCP server (in `internal/memory/mcp`, served alongside TagIt's existing
 ACP/gateway surface) exposes scoped tools so MCP-capable agents recall/record
 on demand:
 
@@ -150,7 +150,7 @@ can be dropped into a coding agent as a skill. No code beyond the MCP server.
 Memory writes are themselves auditable (core to the product promise):
 
 - `Record` emits a `memory.recorded` event; `Note` emits `memory.noted`.
-- When recall context is injected into a prompt, ROMA logs a `memory.recalled`
+- When recall context is injected into a prompt, TagIt logs a `memory.recalled`
   event noting scope, query, and how many episodes/facts were injected.
 
 These go through the existing event store so the full "what was the agent fed"

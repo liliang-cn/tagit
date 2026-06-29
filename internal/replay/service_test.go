@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/store"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/store"
 )
 
 func TestReplaySessionRebuildsTaskAndArtifactState(t *testing.T) {

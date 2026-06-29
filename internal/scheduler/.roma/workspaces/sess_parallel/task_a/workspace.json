@@ -1,0 +1,16 @@
+{
+  "session_id": "sess_parallel",
+  "task_id": "task_a",
+  "requested_mode": "isolated_write",
+  "effective_mode": "shared_read",
+  "provider": "shared_read",
+  "base_dir": ".",
+  "effective_dir": ".",
+  "fallback": "git_worktree_add_--detach_.roma/workspaces/sess_parallel/task_a/root:_exit_status_128_(准备工作区（分离头指针_98a3f08）_致命错误：'internal/scheduler/.roma/workspaces/sess_parallel/task_a/root'_是一个丢失但已经注册的工作区，_使用_'add_-f'_覆盖，或用_'prune'_或_'remove'_清除)",
+  "prepared_at": "2026-06-28T13:45:02.753516Z",
+  "status": "released",
+  "released_at": "2026-06-28T13:45:03.076682Z",
+  "reclaimed_at": "0001-01-01T00:00:00Z",
+  "merged_at": "0001-01-01T00:00:00Z",
+  "rolled_back_at": "0001-01-01T00:00:00Z"
+}

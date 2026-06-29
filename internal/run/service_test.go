@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/agents"
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/memory"
-	"github.com/liliang-cn/roma/internal/runtime"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	"github.com/liliang-cn/roma/internal/taskstore"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/agents"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/memory"
+	"github.com/liliang-cn/tagit/internal/runtime"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/taskstore"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 func TestRunRejectsUnknownAgent(t *testing.T) {
@@ -206,13 +206,13 @@ func TestRunWithResultRageContinuesUntilDone(t *testing.T) {
 
 	script := strings.Join([]string{
 		`prompt="$1"`,
-		`if printf '%s' "$prompt" | grep -q "You are ROMA's semantic runtime classifier."; then`,
+		`if printf '%s' "$prompt" | grep -q "You are TagIt's semantic runtime classifier."; then`,
 		`  printf 'intent: test rage review\n'`,
 		`  printf 'risk: low\n'`,
 		`  printf 'needs_approval: false\n'`,
 		`  printf 'recommend_curia: false\n'`,
 		`  printf 'summary: test semantic review\n'`,
-		`elif printf '%s' "$prompt" | grep -q "ROMA rage foreman mode"; then`,
+		`elif printf '%s' "$prompt" | grep -q "TagIt rage foreman mode"; then`,
 		`  if printf '%s' "$prompt" | grep -q "objective implemented for real"; then`,
 		`    printf 'Progress: implementation complete and verified\n'`,
 		`    printf 'Missing:\n'`,
@@ -228,7 +228,7 @@ func TestRunWithResultRageContinuesUntilDone(t *testing.T) {
 		`    printf 'Verify: not run\n'`,
 		`    printf 'PlanOnly: no\n'`,
 		`    printf 'Blockers: unresolved\n'`,
-		`    printf 'Next: finish the implementation, write rage.txt, emit ROMA_DONE, and emit ROMA_MERGE_BACK.\n'`,
+		`    printf 'Next: finish the implementation, write rage.txt, emit TAGIT_DONE, and emit TAGIT_MERGE_BACK.\n'`,
 		`  else`,
 		`    printf 'Progress: review fallback\n'`,
 		`    printf 'Missing:\n'`,
@@ -240,11 +240,11 @@ func TestRunWithResultRageContinuesUntilDone(t *testing.T) {
 		`  fi`,
 		`elif printf '%s' "$prompt" | grep -q "Current round: 2"; then`,
 		`  printf 'done\n' > rage.txt`,
-		`  printf 'ROMA_DONE: objective implemented for real\n'`,
-		`  printf 'ROMA_MERGE_BACK: direct_merge | rage mode complete\n'`,
-		`  printf 'ROMA_MERGE_FILE: rage.txt\n'`,
+		`  printf 'TAGIT_DONE: objective implemented for real\n'`,
+		`  printf 'TAGIT_MERGE_BACK: direct_merge | rage mode complete\n'`,
+		`  printf 'TAGIT_MERGE_FILE: rage.txt\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Current round: 1"; then`,
-		`  printf 'ROMA_DONE: objective implemented too early\n'`,
+		`  printf 'TAGIT_DONE: objective implemented too early\n'`,
 		`else`,
 		`  printf 'fallback worker output\n'`,
 		`fi`,
@@ -310,10 +310,10 @@ func TestRunWithResultRageContinuesUntilDone(t *testing.T) {
 	if !strings.Contains(payload.Answer, "== round 2 ==") {
 		t.Fatalf("final answer missing continuous rounds:\n%s", payload.Answer)
 	}
-	if !strings.Contains(payload.Answer, "ROMA_DONE: objective implemented too early") {
+	if !strings.Contains(payload.Answer, "TAGIT_DONE: objective implemented too early") {
 		t.Fatalf("final answer missing first-round worker claim:\n%s", payload.Answer)
 	}
-	if !strings.Contains(payload.Answer, "ROMA_DONE: objective implemented for real") {
+	if !strings.Contains(payload.Answer, "TAGIT_DONE: objective implemented for real") {
 		t.Fatalf("final answer missing second-round completion marker:\n%s", payload.Answer)
 	}
 }
@@ -341,13 +341,13 @@ func TestRunWithResultRageRecallsAndRecordsMemory(t *testing.T) {
 	// the run finishes deterministically after one round and Record is invoked.
 	script := strings.Join([]string{
 		`prompt="$1"`,
-		`if printf '%s' "$prompt" | grep -q "You are ROMA's semantic runtime classifier."; then`,
+		`if printf '%s' "$prompt" | grep -q "You are TagIt's semantic runtime classifier."; then`,
 		`  printf 'intent: test rage review\n'`,
 		`  printf 'risk: low\n'`,
 		`  printf 'needs_approval: false\n'`,
 		`  printf 'recommend_curia: false\n'`,
 		`  printf 'summary: test semantic review\n'`,
-		`elif printf '%s' "$prompt" | grep -q "ROMA rage foreman mode"; then`,
+		`elif printf '%s' "$prompt" | grep -q "TagIt rage foreman mode"; then`,
 		`  printf 'Progress: implementation complete and verified\n'`,
 		`  printf 'Missing:\n'`,
 		`  printf 'Files: changed rage.txt\n'`,
@@ -355,12 +355,12 @@ func TestRunWithResultRageRecallsAndRecordsMemory(t *testing.T) {
 		`  printf 'PlanOnly: no\n'`,
 		`  printf 'Blockers: resolved\n'`,
 		`  printf 'Next:\n'`,
-		`elif printf '%s' "$prompt" | grep -q "ROMA rage worker mode"; then`,
+		`elif printf '%s' "$prompt" | grep -q "TagIt rage worker mode"; then`,
 		`  printf '%s' "$prompt" > "` + promptDump + `"`,
 		`  printf 'done\n' > rage.txt`,
-		`  printf 'ROMA_DONE: objective implemented for real\n'`,
-		`  printf 'ROMA_MERGE_BACK: direct_merge | rage mode complete\n'`,
-		`  printf 'ROMA_MERGE_FILE: rage.txt\n'`,
+		`  printf 'TAGIT_DONE: objective implemented for real\n'`,
+		`  printf 'TAGIT_MERGE_BACK: direct_merge | rage mode complete\n'`,
+		`  printf 'TAGIT_MERGE_FILE: rage.txt\n'`,
 		`else`,
 		`  printf 'fallback worker output\n'`,
 		`fi`,
@@ -426,7 +426,7 @@ func TestRunCollabRecallsAndRecordsMemory(t *testing.T) {
 		`elif printf '%s' "$prompt" | grep -q "Starter Caesar coordination"; then`,
 		`  printf 'bootstrap ready\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Caesar review round"; then`,
-		`  printf 'ROMA_DONE: delegated work is complete\n'`,
+		`  printf 'TAGIT_DONE: delegated work is complete\n'`,
 		`else`,
 		`  printf 'starter should only clarify, bootstrap, and review\n' >&2`,
 		`  exit 9`,
@@ -436,7 +436,7 @@ func TestRunCollabRecallsAndRecordsMemory(t *testing.T) {
 		`prompt="$1"`,
 		`printf '%s' "$prompt" > "` + delegatePromptDump + `"`,
 		`printf 'delegated work\n' > delegated.txt`,
-		`printf 'delegated work complete\nROMA_MERGE_BACK: direct_merge | delegated work ready\nROMA_MERGE_FILE: delegated.txt\n'`,
+		`printf 'delegated work complete\nTAGIT_MERGE_BACK: direct_merge | delegated work ready\nTAGIT_MERGE_FILE: delegated.txt\n'`,
 	}, "\n")
 
 	registry, err := agents.NewRegistry(
@@ -508,12 +508,12 @@ func TestRunSenateRecallsAndRecordsMemory(t *testing.T) {
 		`  printf 'starter abstains\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate plan tiebreak"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_plan_3\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | choose delegate two plan\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | choose delegate two plan\n' "$target"`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation vote"; then`,
 		`  printf 'starter abstains\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation tiebreak"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_implementation_1\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | choose delegate one implementation\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | choose delegate one implementation\n' "$target"`,
 		`else`,
 		`  printf 'unexpected starter prompt\n' >&2`,
 		`  exit 9`,
@@ -525,13 +525,13 @@ func TestRunSenateRecallsAndRecordsMemory(t *testing.T) {
 		`  printf 'PLAN ONE\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate plan vote"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_plan_2\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | vote for plan one\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | vote for plan one\n' "$target"`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation candidate"; then`,
 		`  printf 'delegate one\n' > winner.txt`,
-		`  printf 'ROMA_MERGE_BACK: require_vote | candidate ready\nROMA_MERGE_FILE: winner.txt\n'`,
+		`  printf 'TAGIT_MERGE_BACK: require_vote | candidate ready\nTAGIT_MERGE_FILE: winner.txt\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation vote"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_implementation_1\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | vote for implementation one\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | vote for implementation one\n' "$target"`,
 		`else`,
 		`  printf 'unexpected worker one prompt\n' >&2`,
 		`  exit 11`,
@@ -543,13 +543,13 @@ func TestRunSenateRecallsAndRecordsMemory(t *testing.T) {
 		`  printf 'PLAN TWO\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate plan vote"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_plan_3\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | vote for plan two\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | vote for plan two\n' "$target"`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation candidate"; then`,
 		`  printf 'delegate two\n' > loser.txt`,
-		`  printf 'ROMA_MERGE_BACK: require_vote | candidate ready\nROMA_MERGE_FILE: loser.txt\n'`,
+		`  printf 'TAGIT_MERGE_BACK: require_vote | candidate ready\nTAGIT_MERGE_FILE: loser.txt\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation vote"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_implementation_2\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | vote for implementation two\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | vote for implementation two\n' "$target"`,
 		`else`,
 		`  printf 'unexpected worker two prompt\n' >&2`,
 		`  exit 13`,
@@ -984,7 +984,7 @@ func TestRunDirectAutoMergeBackRequest(t *testing.T) {
 		Command:     "sh",
 		Args: []string{
 			"-c",
-			"printf 'auto merge\\n' > auto-merge.txt && printf 'ROMA_MERGE_BACK: direct_merge | ready to merge\\nROMA_MERGE_FILE: auto-merge.txt\\n'",
+			"printf 'auto merge\\n' > auto-merge.txt && printf 'TAGIT_MERGE_BACK: direct_merge | ready to merge\\nTAGIT_MERGE_FILE: auto-merge.txt\\n'",
 		},
 		Availability: domain.AgentAvailabilityAvailable,
 	})
@@ -1033,7 +1033,7 @@ func TestRunDirectAutoMergeBackRequestUsesControlRootWorkspaceMetadata(t *testin
 		Command:     "sh",
 		Args: []string{
 			"-c",
-			"printf 'control root merge\\n' > control-root-merge.txt && printf 'ROMA_MERGE_BACK: direct_merge | ready to merge\\nROMA_MERGE_FILE: control-root-merge.txt\\n'",
+			"printf 'control root merge\\n' > control-root-merge.txt && printf 'TAGIT_MERGE_BACK: direct_merge | ready to merge\\nTAGIT_MERGE_FILE: control-root-merge.txt\\n'",
 		},
 		Availability: domain.AgentAvailabilityAvailable,
 	})
@@ -1074,7 +1074,7 @@ func TestRunDirectMergeBackRequestRequireVoteDoesNotAutoMerge(t *testing.T) {
 		Command:     "sh",
 		Args: []string{
 			"-c",
-			"printf 'vote merge\\n' > vote-merge.txt && printf 'ROMA_MERGE_BACK: require_vote | let Curia decide\\nROMA_MERGE_FILE: vote-merge.txt\\n'",
+			"printf 'vote merge\\n' > vote-merge.txt && printf 'TAGIT_MERGE_BACK: require_vote | let Curia decide\\nTAGIT_MERGE_FILE: vote-merge.txt\\n'",
 		},
 		Availability: domain.AgentAvailabilityAvailable,
 	})
@@ -1105,7 +1105,7 @@ func TestRunDirectMergeBackRequestRequireVoteDoesNotAutoMerge(t *testing.T) {
 		t.Fatalf("workspace status = %q, want released", prepared.Status)
 	}
 	if _, err := os.Stat(filepath.Join(workDir, "vote-merge.txt")); !os.IsNotExist(err) {
-		t.Fatalf("expected base file absent before ROMA merge, stat err = %v", err)
+		t.Fatalf("expected base file absent before TagIt merge, stat err = %v", err)
 	}
 }
 
@@ -1121,7 +1121,7 @@ func TestRunCollabStarterBootstrapsThenDelegates(t *testing.T) {
 		`elif printf '%s' "$prompt" | grep -q "Starter Caesar coordination"; then`,
 		`  printf 'bootstrap ready\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Caesar review round"; then`,
-		`  printf 'ROMA_DONE: delegated work is complete\n'`,
+		`  printf 'TAGIT_DONE: delegated work is complete\n'`,
 		`else`,
 		`  printf 'starter should only clarify, bootstrap, and review\n' >&2`,
 		`  exit 9`,
@@ -1129,7 +1129,7 @@ func TestRunCollabStarterBootstrapsThenDelegates(t *testing.T) {
 	}, "\n")
 	workerScript := strings.Join([]string{
 		`printf 'delegated work\n' > delegated.txt`,
-		`printf 'delegated work complete\nROMA_MERGE_BACK: direct_merge | delegated work ready\nROMA_MERGE_FILE: delegated.txt\n'`,
+		`printf 'delegated work complete\nTAGIT_MERGE_BACK: direct_merge | delegated work ready\nTAGIT_MERGE_FILE: delegated.txt\n'`,
 	}, "\n")
 
 	registry, err := agents.NewRegistry(
@@ -1223,14 +1223,14 @@ func TestRunCaesarStarterParticipatesWithBootstrapAndFollowUp(t *testing.T) {
 		`  printf 'clarified spec\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Starter Caesar coordination"; then`,
 		`  printf 'starter bootstrap\n' > starter.txt`,
-		`  printf 'bootstrap ready\nROMA_MERGE_BACK: direct_merge | starter bootstrap ready\nROMA_MERGE_FILE: starter.txt\n'`,
+		`  printf 'bootstrap ready\nTAGIT_MERGE_BACK: direct_merge | starter bootstrap ready\nTAGIT_MERGE_FILE: starter.txt\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Caesar review round"; then`,
 		`  if printf '%s' "$prompt" | grep -q "second pass complete"; then`,
-		`    printf 'ROMA_DONE: all work is complete\n'`,
+		`    printf 'TAGIT_DONE: all work is complete\n'`,
 		`  else`,
 		`    target=$(printf '%s\n' "$prompt" | sed -n 's/.*\(delegate_1\).*/\1/p' | head -n1)`,
 		`    if [ -z "$target" ]; then target=delegate_1; fi`,
-		`    printf 'ROMA_FOLLOWUP: delegate %s | second pass\n' "$target"`,
+		`    printf 'TAGIT_FOLLOWUP: delegate %s | second pass\n' "$target"`,
 		`  fi`,
 		`else`,
 		`  printf 'unexpected starter prompt\n' >&2`,
@@ -1241,10 +1241,10 @@ func TestRunCaesarStarterParticipatesWithBootstrapAndFollowUp(t *testing.T) {
 		`prompt="$1"`,
 		`if printf '%s' "$prompt" | grep -q "second pass"; then`,
 		`  printf 'second\n' > second.txt`,
-		`  printf 'second pass complete\nROMA_MERGE_BACK: direct_merge | second pass ready\nROMA_MERGE_FILE: second.txt\n'`,
+		`  printf 'second pass complete\nTAGIT_MERGE_BACK: direct_merge | second pass ready\nTAGIT_MERGE_FILE: second.txt\n'`,
 		`else`,
 		`  printf 'first\n' > first.txt`,
-		`  printf 'first pass complete\nROMA_MERGE_BACK: direct_merge | first pass ready\nROMA_MERGE_FILE: first.txt\n'`,
+		`  printf 'first pass complete\nTAGIT_MERGE_BACK: direct_merge | first pass ready\nTAGIT_MERGE_FILE: first.txt\n'`,
 		`fi`,
 	}, "\n")
 
@@ -1312,12 +1312,12 @@ func TestRunSenateVotesOnPlanAndImplementationThenMergesWinner(t *testing.T) {
 		`  printf 'starter abstains\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate plan tiebreak"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_plan_3\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | choose delegate two plan\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | choose delegate two plan\n' "$target"`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation vote"; then`,
 		`  printf 'starter abstains\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation tiebreak"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_implementation_1\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | choose delegate one implementation\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | choose delegate one implementation\n' "$target"`,
 		`else`,
 		`  printf 'unexpected starter prompt\n' >&2`,
 		`  exit 9`,
@@ -1329,13 +1329,13 @@ func TestRunSenateVotesOnPlanAndImplementationThenMergesWinner(t *testing.T) {
 		`  printf 'PLAN ONE\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate plan vote"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_plan_2\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | vote for plan one\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | vote for plan one\n' "$target"`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation candidate"; then`,
 		`  printf 'delegate one\n' > winner.txt`,
-		`  printf 'ROMA_MERGE_BACK: require_vote | candidate ready\nROMA_MERGE_FILE: winner.txt\n'`,
+		`  printf 'TAGIT_MERGE_BACK: require_vote | candidate ready\nTAGIT_MERGE_FILE: winner.txt\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation vote"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_implementation_1\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | vote for implementation one\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | vote for implementation one\n' "$target"`,
 		`else`,
 		`  printf 'unexpected worker one prompt\n' >&2`,
 		`  exit 11`,
@@ -1347,13 +1347,13 @@ func TestRunSenateVotesOnPlanAndImplementationThenMergesWinner(t *testing.T) {
 		`  printf 'PLAN TWO\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate plan vote"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_plan_3\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | vote for plan two\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | vote for plan two\n' "$target"`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation candidate"; then`,
 		`  printf 'delegate two\n' > loser.txt`,
-		`  printf 'ROMA_MERGE_BACK: require_vote | candidate ready\nROMA_MERGE_FILE: loser.txt\n'`,
+		`  printf 'TAGIT_MERGE_BACK: require_vote | candidate ready\nTAGIT_MERGE_FILE: loser.txt\n'`,
 		`elif printf '%s' "$prompt" | grep -q "Senate implementation vote"; then`,
 		`  target=$(printf '%s\n' "$prompt" | sed -n 's/^- \(.*_implementation_2\)$/\1/p' | head -n1)`,
-		`  printf 'ROMA_PICK: %s | vote for implementation two\n' "$target"`,
+		`  printf 'TAGIT_PICK: %s | vote for implementation two\n' "$target"`,
 		`else`,
 		`  printf 'unexpected worker two prompt\n' >&2`,
 		`  exit 13`,
@@ -1417,9 +1417,9 @@ func TestRunSenateVotesOnPlanAndImplementationThenMergesWinner(t *testing.T) {
 func initRunGitRepo(t *testing.T, dir string) {
 	t.Helper()
 	runGitCommand(t, dir, "init")
-	runGitCommand(t, dir, "config", "user.email", "roma@example.com")
-	runGitCommand(t, dir, "config", "user.name", "ROMA")
-	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("roma\n"), 0o644); err != nil {
+	runGitCommand(t, dir, "config", "user.email", "tagit@example.com")
+	runGitCommand(t, dir, "config", "user.name", "TagIt")
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("tagit\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	runGitCommand(t, dir, "add", "README.md")

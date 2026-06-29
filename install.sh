@@ -1,12 +1,12 @@
 #!/bin/sh
-# ROMA installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/liliang-cn/roma/main/install.sh | sh
-# Or:    curl -fsSL https://raw.githubusercontent.com/liliang-cn/roma/main/install.sh | INSTALL_DIR=/usr/local/bin sh
+# TagIt installer
+# Usage: curl -fsSL https://raw.githubusercontent.com/liliang-cn/tagit/main/install.sh | sh
+# Or:    curl -fsSL https://raw.githubusercontent.com/liliang-cn/tagit/main/install.sh | INSTALL_DIR=/usr/local/bin sh
 
 set -e
 
-REPO="liliang-cn/roma"
-BINARIES="roma romad"
+REPO="liliang-cn/tagit"
+BINARIES="tagit tagitd"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 MIN_GO_VERSION="1.22"
 
@@ -57,8 +57,8 @@ go_version_ok() {
 
 install_with_go() {
     info "Go $(go version | awk '{print $3}') found — building from source"
-    GOBIN="$INSTALL_DIR" go install "github.com/$REPO/cmd/roma@latest"
-    GOBIN="$INSTALL_DIR" go install "github.com/$REPO/cmd/romad@latest"
+    GOBIN="$INSTALL_DIR" go install "github.com/$REPO/cmd/tagit@latest"
+    GOBIN="$INSTALL_DIR" go install "github.com/$REPO/cmd/tagitd@latest"
 }
 
 # ── install prebuilt binary ──────────────────────────────────────────────────
@@ -72,7 +72,7 @@ install_prebuilt() {
         | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
     [ -n "$TAG" ] || die "could not determine latest release tag (are releases published?)"
 
-    ARCHIVE="roma_${OS}_${ARCH}.tar.gz"
+    ARCHIVE="tagit_${OS}_${ARCH}.tar.gz"
     URL="https://github.com/$REPO/releases/download/$TAG/$ARCHIVE"
 
     info "Downloading $TAG for ${OS}/${ARCH}…"
@@ -117,9 +117,9 @@ verify_install() {
         [ -x "$BIN_PATH" ] || die "installation failed: $BIN_PATH not found or not executable"
         ok "verified $BIN_PATH"
     done
-    # confirm roma CLI responds correctly
-    "$INSTALL_DIR/roma" --help >/dev/null 2>&1 || die "roma --help failed — binary may be corrupt"
-    ok "roma --help: OK"
+    # confirm tagit CLI responds correctly
+    "$INSTALL_DIR/tagit" --help >/dev/null 2>&1 || die "tagit --help failed — binary may be corrupt"
+    ok "tagit --help: OK"
 }
 
 main() {
@@ -128,9 +128,9 @@ main() {
 
     mkdir -p "$INSTALL_DIR" || die "cannot create install dir: $INSTALL_DIR"
 
-    # create ROMA home directory and required subdirectories
-    mkdir -p "$HOME/.roma"
-    ok "created $HOME/.roma"
+    # create TagIt home directory and required subdirectories
+    mkdir -p "$HOME/.tagit"
+    ok "created $HOME/.tagit"
 
     if go_version_ok; then
         install_with_go
@@ -147,19 +147,19 @@ main() {
     check_path
 
     printf '\n'
-    info "ROMA installed. Next steps:"
+    info "TagIt installed. Next steps:"
     printf '  1. Register an agent (any installed CLI works; claude and codex shown):\n'
-    printf '       roma agent add claude "Claude" $(which claude)\n'
-    printf '       roma agent add codex  "Codex"  $(which codex)\n'
+    printf '       tagit agent add claude "Claude" $(which claude)\n'
+    printf '       tagit agent add codex  "Codex"  $(which codex)\n'
     printf '\n'
     printf '  2. Start the daemon:\n'
-    printf '       roma start\n'
+    printf '       tagit start\n'
     printf '\n'
     printf '  3. Run a task:\n'
-    printf '       roma run --agent claude "your task here"\n'
+    printf '       tagit run --agent claude "your task here"\n'
     printf '\n'
     printf '  4. Stop the daemon:\n'
-    printf '       roma stop\n'
+    printf '       tagit stop\n'
 }
 
 main "$@"

@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/plans"
-	"github.com/liliang-cn/roma/internal/store"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/plans"
+	"github.com/liliang-cn/tagit/internal/store"
 )
 
 // Adapter delivers normalized notifications to a remote endpoint.
@@ -149,7 +149,7 @@ func (s *Service) SubmitRemoteCommand(ctx context.Context, cmd domain.RemoteComm
 		return fmt.Errorf("action %s not allowed for endpoint %s", cmd.Action, endpoint.ID)
 	}
 
-	if err := s.appendRemoteCommandEvent(ctx, cmd, true, "accepted_for_romad_validation"); err != nil {
+	if err := s.appendRemoteCommandEvent(ctx, cmd, true, "accepted_for_tagitd_validation"); err != nil {
 		return err
 	}
 	switch cmd.Action {

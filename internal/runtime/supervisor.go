@@ -17,10 +17,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/policy"
-	"github.com/liliang-cn/roma/internal/store"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/policy"
+	"github.com/liliang-cn/tagit/internal/store"
 )
 
 // StartRequest describes a runtime launch.
@@ -314,7 +314,7 @@ func (s *Supervisor) runCapturedContinuous(ctx context.Context, req StartRequest
 		Profile:     req.Profile,
 		Stdout:      stdout.String(),
 		Stderr:      stderr.String(),
-	}, fmt.Errorf("continuous execution reached max rounds (%d) without ROMA_DONE marker", maxRounds)
+	}, fmt.Errorf("continuous execution reached max rounds (%d) without TAGIT_DONE marker", maxRounds)
 }
 
 // BuildCommand resolves an adapter for the profile.
@@ -676,7 +676,7 @@ func logRuntimeChunk(req StartRequest, chunk string) {
 	if len(chunk) > 240 {
 		chunk = chunk[:237] + "..."
 	}
-	log.Printf("romad output session=%s task=%s agent=%s: %s", req.SessionID, req.TaskID, req.Profile.ID, chunk)
+	log.Printf("tagitd output session=%s task=%s agent=%s: %s", req.SessionID, req.TaskID, req.Profile.ID, chunk)
 }
 
 func mapExecutionState(err error) ExecutionState {
@@ -704,12 +704,12 @@ func isExpectedPTYReadError(err error) bool {
 
 func buildContinuousPrompt(originalPrompt, previousOutput string, round int, mode string) string {
 	var b strings.Builder
-	b.WriteString("ROMA continuous execution mode.\n")
+	b.WriteString("TagIt continuous execution mode.\n")
 	b.WriteString("Keep working on the same task across rounds.\n")
-	b.WriteString("When the task is complete, start your response with `ROMA_DONE:`.\n")
-	b.WriteString("If the task is not complete, keep making concrete progress and ROMA will continue you.\n")
+	b.WriteString("When the task is complete, start your response with `TAGIT_DONE:`.\n")
+	b.WriteString("If the task is not complete, keep making concrete progress and TagIt will continue you.\n")
 	if strings.EqualFold(strings.TrimSpace(mode), "rage") {
-		b.WriteString("ROMA rage supervisor is standing next to you and will keep asking until the original goal is truly done.\n")
+		b.WriteString("TagIt rage supervisor is standing next to you and will keep asking until the original goal is truly done.\n")
 		b.WriteString("At the start of this round, state briefly: current progress, what remains, and the very next concrete action.\n")
 		b.WriteString("Do not stop at analysis, planning, or a partial implementation. Keep executing.\n")
 	}
@@ -773,5 +773,5 @@ func appendRoundOutput(dst *strings.Builder, round int, output string) {
 
 func isContinuousDone(stdout, stderr string) bool {
 	combined := strings.ToUpper(stdout + "\n" + stderr)
-	return strings.Contains(combined, "ROMA_DONE:")
+	return strings.Contains(combined, "TAGIT_DONE:")
 }

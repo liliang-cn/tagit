@@ -4,9 +4,9 @@
 **Version**: v1  
 **Last Updated**: 2026-03-10
 
-This document defines the backend module boundaries for `romad`. It translates the architecture and state-machine specs into implementable subsystem interfaces.
+This document defines the backend module boundaries for `tagitd`. It translates the architecture and state-machine specs into implementable subsystem interfaces.
 
-The goal is to keep `romad` modular, testable, and replay-safe by constraining:
+The goal is to keep `tagitd` modular, testable, and replay-safe by constraining:
 
 * ownership
 * interface boundaries
@@ -26,7 +26,7 @@ The backend must satisfy the following constraints:
 
 ## 2. Module Map
 
-`romad` v1 should be decomposed into the following modules:
+`tagitd` v1 should be decomposed into the following modules:
 
 * `api`
 * `scheduler`
@@ -360,7 +360,7 @@ Owns:
 * approval suspension and resumption
 * state transition decisions
 
-The scheduler is the orchestration brain of `romad`.
+The scheduler is the orchestration brain of `tagitd`.
 
 ### Primary Interfaces
 
@@ -415,7 +415,7 @@ type Adapter interface {
 
 * gateway consumes persisted or stream facts and never becomes execution truth
 * gateway may summarize events but must preserve audit references
-* remote commands must re-enter `romad` through scheduler-facing control paths
+* remote commands must re-enter `tagitd` through scheduler-facing control paths
 * notification failure must not fail task execution
 
 ## 4.12 `api`
@@ -468,7 +468,7 @@ Owns:
 3. `gateway` delivers `NotificationEnvelope` through an adapter
 4. remote user action becomes `RemoteCommand`
 5. `gateway` authenticates endpoint and command envelope
-6. command is forwarded into `romad` control path
+6. command is forwarded into `tagitd` control path
 7. `scheduler` and `policy` make the final accept or reject decision
 
 ## 5.4 Recovery Flow
@@ -630,4 +630,4 @@ The next useful step after this document is to create:
 
 1. Go interface files under `internal/...`
 2. event and domain type definitions
-3. a minimal `romad` bootstrap path for `CreateSession -> single-agent task -> Replay`
+3. a minimal `tagitd` bootstrap path for `CreateSession -> single-agent task -> Replay`

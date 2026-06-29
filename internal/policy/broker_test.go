@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/store"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/store"
 )
 
 func TestSimpleBrokerBlocksRootWorkingDir(t *testing.T) {
@@ -106,7 +106,7 @@ func TestSimpleBrokerBlocksEffectiveDirOutsideWorkspaceBoundary(t *testing.T) {
 }
 
 func TestSimpleBrokerAllowsOverrideForApprovedActor(t *testing.T) {
-	t.Setenv("ROMA_POLICY_OVERRIDE_ACTORS", "local_owner,admin")
+	t.Setenv("TAGIT_POLICY_OVERRIDE_ACTORS", "local_owner,admin")
 	workDir := t.TempDir()
 	broker := NewSimpleBroker(nil)
 	decision, err := broker.Evaluate(context.Background(), Request{
@@ -132,7 +132,7 @@ func TestSimpleBrokerAllowsEffectiveDirUnderExplicitAllowedRoot(t *testing.T) {
 
 	workDir := t.TempDir()
 	controlDir := t.TempDir()
-	effectiveDir := filepath.Join(controlDir, ".roma", "workspaces", "sess_1", "task_1")
+	effectiveDir := filepath.Join(controlDir, ".tagit", "workspaces", "sess_1", "task_1")
 	if err := os.MkdirAll(effectiveDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestSimpleBrokerAllowsEffectiveDirUnderExplicitAllowedRoot(t *testing.T) {
 		Prompt:       "build a feature",
 		WorkingDir:   workDir,
 		EffectiveDir: effectiveDir,
-		AllowedRoots: []string{filepath.Join(controlDir, ".roma", "workspaces")},
+		AllowedRoots: []string{filepath.Join(controlDir, ".tagit", "workspaces")},
 	})
 	if err != nil {
 		t.Fatalf("Evaluate() error = %v", err)
@@ -155,7 +155,7 @@ func TestSimpleBrokerAllowsEffectiveDirUnderExplicitAllowedRoot(t *testing.T) {
 }
 
 func TestSimpleBrokerBlocksOverrideForForbiddenActor(t *testing.T) {
-	t.Setenv("ROMA_POLICY_OVERRIDE_ACTORS", "admin")
+	t.Setenv("TAGIT_POLICY_OVERRIDE_ACTORS", "admin")
 	workDir := t.TempDir()
 	broker := NewSimpleBroker(nil)
 	decision, err := broker.Evaluate(context.Background(), Request{
@@ -186,7 +186,7 @@ func TestEvaluatePathActionBlocksProtectedPlanApplyWithoutOverride(t *testing.T)
 }
 
 func TestEvaluatePathActionAllowsProtectedPlanApplyWithApprovedOverride(t *testing.T) {
-	t.Setenv("ROMA_POLICY_OVERRIDE_ACTORS", "local_owner")
+	t.Setenv("TAGIT_POLICY_OVERRIDE_ACTORS", "local_owner")
 
 	decision := EvaluatePathAction(ActionPlanApply, []string{".github/workflows/build.yml"}, true, "local_owner")
 	if decision.Kind != DecisionAllow || decision.Reason != "approved_override" {

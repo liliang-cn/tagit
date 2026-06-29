@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/liliang-cn/roma/internal/domain"
+	"github.com/liliang-cn/tagit/internal/domain"
 )
 
 func TestBuildReport(t *testing.T) {
@@ -21,7 +21,7 @@ func TestBuildReport(t *testing.T) {
 			DisplayName: "Codex CLI",
 		},
 		Result: "success",
-		Output: "line one\nROMA_FOLLOWUP: delegate gemini | review the result\nline three",
+		Output: "line one\nTAGIT_FOLLOWUP: delegate gemini | review the result\nline three",
 	})
 	if err != nil {
 		t.Fatalf("BuildReport() error = %v", err)
@@ -60,7 +60,7 @@ func TestBuildReportParsesMergeBackRequest(t *testing.T) {
 			DisplayName: "Codex CLI",
 		},
 		Result: "success",
-		Output: "ROMA_MERGE_BACK: direct_merge | ready to merge\nROMA_MERGE_FILE: examples/demo.txt\nROMA_MERGE_FILE: internal/demo.go\n",
+		Output: "TAGIT_MERGE_BACK: direct_merge | ready to merge\nTAGIT_MERGE_FILE: examples/demo.txt\nTAGIT_MERGE_FILE: internal/demo.go\n",
 	})
 	if err != nil {
 		t.Fatalf("BuildReport() error = %v", err)
@@ -447,7 +447,7 @@ func TestBuildFinalAnswerPrefersMeaningfulReportLine(t *testing.T) {
 			"workdir: /tmp/work",
 			"model: gpt-5.4",
 			"codex",
-			"ROMA is a daemon-first local orchestrator for multi-agent AI coding sessions.",
+			"TagIt is a daemon-first local orchestrator for multi-agent AI coding sessions.",
 			"tokens used",
 			"7,671",
 		}, "\n"),
@@ -471,7 +471,7 @@ func TestBuildFinalAnswerPrefersMeaningfulReportLine(t *testing.T) {
 	if !ok {
 		t.Fatal("FinalAnswerFromEnvelope() = false")
 	}
-	want := "ROMA is a daemon-first local orchestrator for multi-agent AI coding sessions."
+	want := "TagIt is a daemon-first local orchestrator for multi-agent AI coding sessions."
 	if payload.Summary != want {
 		t.Fatalf("summary = %q, want %q", payload.Summary, want)
 	}

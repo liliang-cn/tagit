@@ -155,7 +155,7 @@ export default function App() {
       >
         <header style={{ marginBottom: 24 }}>
           <p style={{ margin: 0, color: '#4c7ef3', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: 12 }}>
-            ROMA Demo
+            TagIt Demo
           </p>
           <h1 style={{ margin: '8px 0 6px', fontSize: 32 }}>TODO App</h1>
           <p style={{ margin: 0, color: '#5b728c' }}>

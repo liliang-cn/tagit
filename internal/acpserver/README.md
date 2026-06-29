@@ -1,6 +1,6 @@
 # acpserver — ACP Integration
 
-This package exposes ROMA agents and queue jobs over the
+This package exposes TagIt agents and queue jobs over the
 [Agent Client Protocol (ACP)](https://agentclientprotocol.com/get-started/architecture)
 via a standard HTTP server.
 
@@ -53,9 +53,9 @@ Remote ACP Client
                           └────────────────────┘
 ```
 
-## ACP concepts mapped to ROMA
+## ACP concepts mapped to TagIt
 
-| ACP concept | ROMA equivalent         |
+| ACP concept | TagIt equivalent         |
 |-------------|------------------------|
 | Agent       | `domain.AgentProfile`  |
 | Thread      | `queue.Request`        |
@@ -64,10 +64,10 @@ Remote ACP Client
 ## Configuration
 
 The ACP server is disabled by default (`ACPPort = 0`).  Pass `--acp-port`
-to `romad` to enable it:
+to `tagitd` to enable it:
 
 ```bash
-romad --acp-port 8090
+tagitd --acp-port 8090
 ```
 
 The daemon starts the ACP HTTP listener alongside the Unix-socket API when

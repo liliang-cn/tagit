@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/romapath"
-	"github.com/liliang-cn/roma/internal/store"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
+	"github.com/liliang-cn/tagit/internal/store"
 )
 
 // Mode describes the current workspace execution mode.
@@ -107,7 +107,7 @@ func (m *Manager) Prepare(ctx context.Context, sessionID, taskID, baseDir string
 	if requested == ModeIsolatedWrite {
 		prepared = m.prepareIsolated(ctx, prepared, rootDir)
 	}
-	metaDir := romapath.Join(rootDir, "workspaces", sessionID, taskID)
+	metaDir := tagitpath.Join(rootDir, "workspaces", sessionID, taskID)
 	if err := os.MkdirAll(metaDir, 0o755); err != nil {
 		return Prepared{}, fmt.Errorf("create workspace metadata dir: %w", err)
 	}
@@ -147,7 +147,7 @@ func (m *Manager) Release(ctx context.Context, prepared Prepared, outcome string
 	if rootDir == "" {
 		rootDir = prepared.BaseDir
 	}
-	metaPath := romapath.Join(rootDir, "workspaces", prepared.SessionID, prepared.TaskID, "workspace.json")
+	metaPath := tagitpath.Join(rootDir, "workspaces", prepared.SessionID, prepared.TaskID, "workspace.json")
 	if current, err := loadPrepared(metaPath); err == nil {
 		if current.Status == "merged" {
 			return nil
@@ -405,7 +405,7 @@ func (m *Manager) Get(_ context.Context, sessionID, taskID string) (Prepared, er
 	if rootDir == "" {
 		return Prepared{}, os.ErrNotExist
 	}
-	return loadPrepared(romapath.Join(rootDir, "workspaces", sessionID, taskID, "workspace.json"))
+	return loadPrepared(tagitpath.Join(rootDir, "workspaces", sessionID, taskID, "workspace.json"))
 }
 
 // ReclaimStale removes prepared or released git worktrees and marks them as reclaimed.
@@ -461,7 +461,7 @@ func (m *Manager) ReclaimStaleExcept(ctx context.Context, activeSessions map[str
 }
 
 func (m *Manager) prepareIsolated(ctx context.Context, prepared Prepared, rootDir string) Prepared {
-	worktreeRoot := romapath.Join(rootDir, "workspaces", prepared.SessionID, prepared.TaskID, "root")
+	worktreeRoot := tagitpath.Join(rootDir, "workspaces", prepared.SessionID, prepared.TaskID, "root")
 	if isGitWorktree(prepared.BaseDir) {
 		if stat, err := os.Stat(filepath.Join(worktreeRoot, ".git")); err == nil && !stat.IsDir() {
 			prepared.Effective = ModeIsolatedWrite
@@ -727,7 +727,7 @@ func requestedMode(strategy domain.TaskStrategy) Mode {
 }
 
 func (m *Manager) loadAll(rootDir string) ([]Prepared, error) {
-	workspaceRoot := romapath.Join(rootDir, "workspaces")
+	workspaceRoot := tagitpath.Join(rootDir, "workspaces")
 	sessionEntries, err := os.ReadDir(workspaceRoot)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -759,5 +759,5 @@ func (m *Manager) loadAll(rootDir string) ([]Prepared, error) {
 }
 
 func (m *Manager) metaPath(rootDir, sessionID, taskID string) string {
-	return romapath.Join(rootDir, "workspaces", sessionID, taskID, "workspace.json")
+	return tagitpath.Join(rootDir, "workspaces", sessionID, taskID, "workspace.json")
 }

@@ -4,26 +4,26 @@ BIN_DIR ?= bin
 PREFIX ?= $(HOME)/.local
 INSTALL_BIN_DIR ?= $(PREFIX)/bin
 
-.PHONY: all build build-roma build-romad build-romatui desktop-frontend-build desktop-build test install clean
+.PHONY: all build build-tagit build-tagitd build-tagittui desktop-frontend-build desktop-build test install clean
 
 WAILS ?= $(shell $(GO) env GOPATH)/bin/wails
 DESKTOP_WAILS_TAGS ?= webkit2_41
 
 all: build
 
-build: build-roma build-romad build-romatui
+build: build-tagit build-tagitd build-tagittui
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
-build-roma: | $(BIN_DIR)
-	$(GO_ENV) $(GO) build -o $(BIN_DIR)/roma ./cmd/roma
+build-tagit: | $(BIN_DIR)
+	$(GO_ENV) $(GO) build -o $(BIN_DIR)/tagit ./cmd/tagit
 
-build-romad: | $(BIN_DIR)
-	$(GO_ENV) $(GO) build -o $(BIN_DIR)/romad ./cmd/romad
+build-tagitd: | $(BIN_DIR)
+	$(GO_ENV) $(GO) build -o $(BIN_DIR)/tagitd ./cmd/tagitd
 
-build-romatui: | $(BIN_DIR)
-	$(GO_ENV) $(GO) build -o $(BIN_DIR)/romatui ./cmd/romatui
+build-tagittui: | $(BIN_DIR)
+	$(GO_ENV) $(GO) build -o $(BIN_DIR)/tagittui ./cmd/tagittui
 
 desktop-frontend-build:
 	cd desktop/frontend && npm install && npm run build
@@ -36,9 +36,9 @@ test:
 
 install: build
 	mkdir -p $(INSTALL_BIN_DIR)
-	install -m 0755 $(BIN_DIR)/roma $(INSTALL_BIN_DIR)/roma
-	install -m 0755 $(BIN_DIR)/romad $(INSTALL_BIN_DIR)/romad
-	install -m 0755 $(BIN_DIR)/romatui $(INSTALL_BIN_DIR)/romatui
+	install -m 0755 $(BIN_DIR)/tagit $(INSTALL_BIN_DIR)/tagit
+	install -m 0755 $(BIN_DIR)/tagitd $(INSTALL_BIN_DIR)/tagitd
+	install -m 0755 $(BIN_DIR)/tagittui $(INSTALL_BIN_DIR)/tagittui
 
 clean:
 	rm -rf $(BIN_DIR)

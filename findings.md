@@ -5,7 +5,7 @@
 - There is no existing Wails code in the repository; the only shipped interactive UI is the Bubble Tea TUI.
 - The TUI already proves the right desktop control pattern:
   - connect to daemon through `internal/api.Client`
-  - if unavailable, start an embedded `romad`
+  - if unavailable, start an embedded `tagitd`
   - keep execution truth in daemon state, not UI memory
 - The daemon API already covers the core Wails MVP surface:
   - `/status`
@@ -17,16 +17,16 @@
   - `/workspaces`
 - `api.QueueInspectResponse`, `api.SessionInspectResponse`, and `api.ResultShowResponse` are already UI-oriented enough to back a desktop MVP without new orchestration endpoints.
 - Live inspection is polling-centric today. A Wails MVP should poll rather than invent a websocket/event-stream layer first.
-- Control-plane state is rooted in `$HOME/.roma`, while execution scope still depends on the selected repository `WorkingDir`. A desktop UI must expose cwd/repo selection explicitly.
+- Control-plane state is rooted in `$HOME/.tagit`, while execution scope still depends on the selected repository `WorkingDir`. A desktop UI must expose cwd/repo selection explicitly.
 - The safest architecture is:
   - Wails frontend renders state
   - Wails Go backend wraps `internal/api`
-  - `romad` remains the only owner of queue/session/task/artifact/policy/recovery truth
+  - `tagitd` remains the only owner of queue/session/task/artifact/policy/recovery truth
 - The current TUI code is useful as a behavior reference, but its Bubble Tea state model should not be ported directly into the Wails frontend.
 
 ## Runtime
 
-- `codex` now executes successfully under real PTY when run by `romad`.
+- `codex` now executes successfully under real PTY when run by `tagitd`.
 - PTY fallback must recreate `exec.Cmd`; reusing the same command after failed PTY startup causes `exec: already started`.
 - `gemini` and some other CLIs remain more sensitive to TTY environment and may still need adapter-specific handling.
 
@@ -46,10 +46,10 @@
 - Queue jobs now link to `session_id`, `task_id`, and `artifact_ids`.
 - `queue inspect` is now the best single command to inspect one executed job.
 - Queue jobs can now carry structured graph payloads, making daemon execution independent of on-disk graph file paths.
-- Graph node execution now also persists dedicated task records under `.roma/tasks`, with node state, agent id, and artifact id.
+- Graph node execution now also persists dedicated task records under `.tagit/tasks`, with node state, agent id, and artifact id.
 - Task state transitions are now emitted as explicit `TaskStateChanged` events by scheduler lifecycle control, instead of relay directly mutating stored task state without dedicated transition events.
-- `roma replay <session_id>` now reconstructs task progression, artifact linkage, and ordered timeline from the event store only.
-- Session history, task records, and event records now also mirror into `$HOME/.roma/roma.db`, giving ROMA its first unified persistent backend.
+- `tagit replay <session_id>` now reconstructs task progression, artifact linkage, and ordered timeline from the event store only.
+- Session history, task records, and event records now also mirror into `$HOME/.tagit/tagit.db`, giving TagIt its first unified persistent backend.
 - CLI and daemon API now prefer SQLite-backed reads for sessions, tasks, events, replay, and queue inspection metadata.
 - Queue metadata and artifact envelopes now also mirror into SQLite, with fallback to file-backed records for older runs that predate the mirror.
 - `syncdb` now backfills file-backed sessions, tasks, events, queue records, and artifact envelopes into SQLite before CLI inspection and daemon recovery paths run.
@@ -65,27 +65,27 @@
 
 - A minimum `policy` package now blocks clearly unsafe pre-flight cases such as `/` as the working directory.
 - Policy decisions are emitted as `PolicyDecisionRecorded` events with `actor_type=policy`.
-- Runtime launch commands are now classified before execution, giving ROMA a concrete hook point for later command/path enforcement.
-- `roma policy check ...` now exposes the pre-flight policy decision directly, which is a useful stepping stone toward an explicit approval workflow.
+- Runtime launch commands are now classified before execution, giving TagIt a concrete hook point for later command/path enforcement.
+- `tagit policy check ...` now exposes the pre-flight policy decision directly, which is a useful stepping stone toward an explicit approval workflow.
 - Policy warnings for daemon-managed jobs now become enforceable queue/session state:
   - queue status `awaiting_approval`
   - session status `awaiting_approval`
   - explicit human approval/rejection events
-- `roma approve <job_id>` and `roma reject <job_id>` now drive the approval workflow through daemon API or SQLite-backed fallback.
+- `tagit approve <job_id>` and `tagit reject <job_id>` now drive the approval workflow through daemon API or SQLite-backed fallback.
 - Scheduler nodes can now independently enter `AwaitingApproval` before execution:
   - risky ready tasks are marked at the task-record level
   - `scheduler.Dispatcher` returns `ApprovalPendingError`
-  - `roma tasks approve <task_id>` and `roma tasks reject <task_id>` drive node-level approval through daemon API or fallback
+  - `tagit tasks approve <task_id>` and `tagit tasks reject <task_id>` drive node-level approval through daemon API or fallback
 - Scheduler-dispatched tasks now pass through a dedicated workspace preparation hook before runtime launch:
-  - per-task workspace metadata is written under `.roma/workspaces/<session>/<task>/workspace.json`
+  - per-task workspace metadata is written under `.tagit/workspaces/<session>/<task>/workspace.json`
   - `WorkspacePrepared` / `WorkspaceReleased` / `WorkspaceReclaimed` events are emitted
   - direct/write tasks now use detached Git worktrees when the base directory is a Git repository
   - non-Git working directories now persist an explicit fallback reason instead of silently pretending isolation exists
 - Daemon startup now reclaims released Git worktrees before recovery resumes runnable sessions.
-- `roma workspaces list/show/cleanup` and daemon `/workspaces` endpoints now expose workspace state and reclaim controls to users.
-- `queue inspect` now includes `workspaces`, and `roma sessions inspect` / daemon `/session-inspect/{id}` provide one-command aggregated session truth including workspace state.
+- `tagit workspaces list/show/cleanup` and daemon `/workspaces` endpoints now expose workspace state and reclaim controls to users.
+- `queue inspect` now includes `workspaces`, and `tagit sessions inspect` / daemon `/session-inspect/{id}` provide one-command aggregated session truth including workspace state.
 - Daemon recovery no longer depends on queue re-enqueue alone:
-  - `romad` now calls `ResumeRecoverableSessions` on every scheduler tick, not only at startup
+  - `tagitd` now calls `ResumeRecoverableSessions` on every scheduler tick, not only at startup
   - `ResumeRecoverableSessions` skips sessions that still hold an active scheduler lease
 - Scheduler leases now carry workspace ownership metadata:
   - `workspace_refs` are persisted in SQLite
@@ -96,12 +96,12 @@
   - recovery skips sessions whose leases still carry unresolved approval gates
   - queue/session inspection now exposes `approval_resume_ready`
 - `SchedulerLeaseRecorded` events now include `workspace_refs` and `pending_approval_task_ids`, so replay can show why a session is runnable versus gated.
-- `roma recover` can now use the daemon API, and recovery snapshots now return the active/recovered lease alongside ready tasks and approval readiness.
+- `tagit recover` can now use the daemon API, and recovery snapshots now return the active/recovered lease alongside ready tasks and approval readiness.
 - Queue-level `approve/reject` now acts as a thin wrapper over lease-backed task approvals when a session is gated on node approval, instead of keeping a separate approval truth path.
-- `roma queue list` now shows node-level execution summaries derived from persisted task records, and `roma status` now reports active leases, pending approval tasks, and recoverable session counts.
-- `romad` now exposes `/status`, and `roma status` uses that daemon API in daemon mode instead of recomputing counts from the CLI side.
+- `tagit queue list` now shows node-level execution summaries derived from persisted task records, and `tagit status` now reports active leases, pending approval tasks, and recoverable session counts.
+- `tagitd` now exposes `/status`, and `tagit status` uses that daemon API in daemon mode instead of recomputing counts from the CLI side.
 - Direct runs now execute through `scheduler.Dispatcher` too, so risky single-agent prompts create real task/lease approval state and can resume through the same scheduler recovery path as graph/relay sessions.
-- Direct runs now support a minimal dynamic delegation protocol: if agent output includes `ROMA_DELEGATE: <agent>`, ROMA appends follow-up nodes and continues execution instead of stopping at the starter node.
+- Direct runs now support a minimal dynamic delegation protocol: if agent output includes `TAGIT_DELEGATE: <agent>`, TagIt appends follow-up nodes and continues execution instead of stopping at the starter node.
 - Dynamic delegation is now no longer direct-only; the shared run/graph execution path can append follow-up nodes from artifact output and continue through the scheduler.
 - Report artifacts now carry structured `follow_up_requests`, and scheduler follow-up nodes can also inherit an explicit `PromptHint` instead of relying on raw output scraping alone.
 - Follow-up node generation is now policy-aware at the primitive level because run/graph/direct all pass through the same scheduler + policy path before the new node executes.
@@ -109,17 +109,17 @@
 - Worktree-backed execution now has a minimum merge-back closure:
   - `workspace.CapturePatch` exports the isolated git diff
   - `workspace.MergeBack` applies it into the base repository with `git apply --3way`
-  - CLI/API now expose `roma workspaces merge <session> <task>` and `POST /workspaces/{session}/{task}/merge`
+  - CLI/API now expose `tagit workspaces merge <session> <task>` and `POST /workspaces/{session}/{task}/merge`
 - Policy now has a first path-scoped boundary:
   - execution is blocked if a node tries to run out of `/`, `.git`, or an effective directory outside the workspace boundary
   - prompts mentioning protected repo scopes such as `.github/`, `infra/`, `migrations/`, `auth/`, or `billing/` now raise warnings
 - Policy override is now actor-scoped instead of boolean-only:
-  - `ROMA_POLICY_OVERRIDE_ACTOR` chooses the local actor identity
-  - `ROMA_POLICY_OVERRIDE_ACTORS` defines the allowed override ACL
+  - `TAGIT_POLICY_OVERRIDE_ACTOR` chooses the local actor identity
+  - `TAGIT_POLICY_OVERRIDE_ACTORS` defines the allowed override ACL
   - unauthorized overrides are blocked with `override_actor_forbidden`
   - queue records now persist `policy_override_actor`
 - Queue requests now reserve `session_id` / `task_id` before execution starts, so crash recovery can resume the same session instead of spawning a replacement one.
-- Coding-agent execution can now opt into continuous multi-round mode with `--continuous` and `--max-rounds`, and runtime supervision will keep prompting until the agent emits `ROMA_DONE:` or the round budget is exhausted.
+- Coding-agent execution can now opt into continuous multi-round mode with `--continuous` and `--max-rounds`, and runtime supervision will keep prompting until the agent emits `TAGIT_DONE:` or the round budget is exhausted.
 - `MemoryStore.ListEvents` was missing `Type` filtering; fixing it removed a hidden testing/runtime inconsistency between memory-backed and SQLite/file-backed event stores.
 - The stream classifier is no longer a single ad hoc matcher:
   - transport, pattern, and semantic layers now exist explicitly
@@ -139,13 +139,13 @@
   - the node's primary artifact is the final `execution_plan`
   - intermediate Curia artifacts are persisted alongside the node result
   - `examples/curia-graph.json` provides a runnable Curia graph sample
-  - `roma sessions curia <session_id>` provides a concise Curia-oriented summary
-  - `roma artifacts list --kind <kind>` now makes Curia artifact inspection practical
+  - `tagit sessions curia <session_id>` provides a concise Curia-oriented summary
+  - `tagit artifacts list --kind <kind>` now makes Curia artifact inspection practical
 - `execution_plan` is now inspectable and actionable:
-  - `roma plans inspect <artifact_id>` prints the execution-plan payload
-  - `roma plans apply <session> <task> <artifact_id> --dry-run` validates changed paths against `expected_files` and `forbidden_paths`
-  - `roma plans apply ...` performs merge-back and optional required checks
-  - `roma plans rollback ...` reverse-applies the captured worktree patch into the base repository
+  - `tagit plans inspect <artifact_id>` prints the execution-plan payload
+  - `tagit plans apply <session> <task> <artifact_id> --dry-run` validates changed paths against `expected_files` and `forbidden_paths`
+  - `tagit plans apply ...` performs merge-back and optional required checks
+  - `tagit plans rollback ...` reverse-applies the captured worktree patch into the base repository
   - the same plan apply/rollback path is now exposed through daemon API
   - non-dry-run plan apply now enforces `human_approval_required` through override-aware policy gates
 - execution-plan apply now also records dedicated audit events:
@@ -157,7 +157,7 @@
   - `queue inspect` and `sessions inspect` now summarize those plan events into a `plans` section, so users do not have to manually scan raw event logs
   - `dry-run` now performs a real `git apply --check --3way` preview and can return conflict details before any merge-back is attempted
   - plan apply now uses an action-aware path policy matrix instead of ad hoc protected-path checks
-  - `roma plans inbox` / daemon `/plans/inbox` now aggregate pending execution plans, their latest apply status, approval requirement, violations, and conflict summaries
+  - `tagit plans inbox` / daemon `/plans/inbox` now aggregate pending execution plans, their latest apply status, approval requirement, violations, and conflict summaries
 - execution plans now support explicit `approve` / `reject` actions, and human-approved plans can be applied without forcing a policy override
 - gateway remote commands are no longer audit-only:
   - `plan_approve` / `plan_reject` can now bridge through the gateway service into the plan approval flow
@@ -193,14 +193,14 @@
   - ballot scoring now has a first reputation layer, so reviewer weight can change Curia outcomes instead of every senator counting equally
   - ballot artifacts now persist `reviewer_weight` and `weighted_score`
   - debate logs and decision packs now persist a Curia `scoreboard` with raw score, weighted score, veto count, and reviewer count per proposal
-  - `roma sessions curia <session_id>` now prints dispute signals, selected proposals, and the scoreboard, so Curia outcomes are inspectable instead of implicit
+  - `tagit sessions curia <session_id>` now prints dispute signals, selected proposals, and the scoreboard, so Curia outcomes are inspectable instead of implicit
   - `queue inspect` / `sessions inspect` now also expose a structured `curia` summary instead of forcing callers to recompute it from raw artifacts
   - decision packs now also carry `risk_flags`, `review_questions`, and `candidate_summaries`, which makes the current human-first arbitration output reviewable without reopening every proposal and ballot manually
   - decision packs now also carry a `reviewer_breakdown`, making it explicit which reviewer weighted which proposal and where veto pressure came from
   - debate logs, decision packs, and execution plans now also persist `arbitration_strategy`, `competing_proposal_ids`, `escalation_reasons`, and `approval_reason`, so the automatic arbitration path is inspectable instead of opaque
   - Curia summary readers must filter by `artifact.Kind`; decoding every artifact as every Curia payload type lets zero-value structs overwrite real debate/decision data in CLI/API summaries
   - `Augustus` no longer has to be theoretical: Curia can now run a dedicated arbitrator agent when `arbitration_mode=augustus`, and the resulting decision pack records whether arbitration was automatic plus which arbitrator produced it
-  - reviewer reputation can be persisted without another database migration; a file-backed `.roma/curia-reputation.json` is enough to carry forward effective reviewer weights between Curia runs
+  - reviewer reputation can be persisted without another database migration; a file-backed `.tagit/curia-reputation.json` is enough to carry forward effective reviewer weights between Curia runs
   - the new demos make two key paths concrete instead of purely architectural:
     - a fully automated Curia arbitration run
     - a structured merge-conflict preview with remediation guidance
@@ -209,7 +209,7 @@
   - Curia reviewer reputation is now visible in session/queue inspection summaries, not only persisted on disk
   - Curia reputation now also has a dedicated inspection path:
     - daemon API `/curia/reputation`
-    - CLI `roma curia reputation [--reviewer <agent_id>]`
+    - CLI `tagit curia reputation [--reviewer <agent_id>]`
   - Curia is no longer purely human-first:
     - `Augustus` automatic arbitration exists
     - reviewer reputation is persisted on disk
@@ -219,7 +219,7 @@
 - Execution-plan apply now has daemon API coverage, approval-aware gating, and dedicated audit events, but it still lacks richer replay summaries and conflict preview UX.
 - execution-plan preview is now a first-class concept:
   - daemon exposes `/plans/preview`
-  - CLI exposes `roma plans preview <session> <task> <artifact>`
+  - CLI exposes `tagit plans preview <session> <task> <artifact>`
   - apply/preview/rollback results now carry `remediation_hint`, so conflict and approval failures come back with an explicit next step instead of only raw error text
   - preview must stay side-effect free: reusing `Apply(DryRun=true)` for `/plans/preview` polluted audit trails with an extra `PlanApplied(dry_run)` event and broke API tests until preview was split into a non-recording service path
   - preview/apply/inbox now also expose `conflict_kind` and structured `resolution_steps`, so conflict handling is no longer just raw git output plus a path list
@@ -231,29 +231,29 @@
   - `queue show` on a running job barely changes after submission
   - `queue inspect` can return almost no useful live data while the starter agent is still running
   - `events list --session ...` often remains empty until the current node exits
-  - `journalctl --user -u romad -f` only shows start/end markers, not running-node heartbeats
+  - `journalctl --user -u tagitd -f` only shows start/end markers, not running-node heartbeats
   - the system can still be genuinely busy; `ps` confirmed live `codex exec` child processes under the task worktree while queue/session views looked static
 - Runtime visibility is materially better now:
   - `queue inspect` and `session inspect` carry a `live` section with current task, agent, execution id, workspace path, heartbeat, and last output preview
-  - `roma queue tail <job_id>` gives a minimal watch mode for active jobs
-  - `roma queue list` now appends the current running task and agent for active jobs when that live state can be derived
+  - `tagit queue tail <job_id>` gives a minimal watch mode for active jobs
+  - `tagit queue list` now appends the current running task and agent for active jobs when that live state can be derived
   - the biggest remaining observability gaps are runtime pid, richer progress events while a node is still running, and a true attach mode beyond polling
 - Runtime visibility needed another pass because the first version still felt like raw noise:
   - default `queue tail` output is now structured per event with timestamps, task ids, agent ids, and event classes
-  - `roma queue tail --raw <job_id>` preserves the original stdout chunks when the operator wants the unstructured agent stream
+  - `tagit queue tail --raw <job_id>` preserves the original stdout chunks when the operator wants the unstructured agent stream
   - heartbeat lines now show up as structured records in the watch loop instead of forcing users to infer liveness from unchanged JSON
 - Runtime visibility is now materially more actionable:
   - `RuntimeStarted` / `RuntimeExited` now persist the real child-process pid
   - `queue inspect` / `session inspect` expose `live.process_pid`
-  - CLI fallback queue/session inspection now reads control-plane truth from `$HOME/.roma` and workspace truth from the session `WorkingDir`, matching daemon API behavior
-  - `roma queue attach <job_id>` now gives a dedicated follow mode on top of the structured live tail
+  - CLI fallback queue/session inspection now reads control-plane truth from `$HOME/.tagit` and workspace truth from the session `WorkingDir`, matching daemon API behavior
+  - `tagit queue attach <job_id>` now gives a dedicated follow mode on top of the structured live tail
   - `queue list` summaries now also expose multi-agent execution shape for active jobs:
     - participant count
     - `bootstrap` versus `fanout` phase
 - A first TUI surface now exists on top of the daemon API instead of bypassing it:
-  - `roma tui`
-  - `romatui`
-  - the TUI owns the lifetime of an embedded `romad`
+  - `tagit tui`
+  - `tagittui`
+  - the TUI owns the lifetime of an embedded `tagitd`
   - the TUI stays slash-command-driven instead of inventing a second orchestration model
     - current process pid when available
 - Runtime visibility now also exposes progress shape instead of only liveness:
@@ -264,23 +264,23 @@
 - `queue tail` must not stringify runtime pid through generic payload formatting:
   - JSON numbers were rendering as scientific notation (`2.305007e+06`)
   - operator-facing runtime output needs stable integer pid formatting
-- `roma result show` needs a first-class pending state:
+- `tagit result show` needs a first-class pending state:
   - running sessions do not always have a final-answer artifact yet
   - "has no final answer" is technically true but user-hostile
   - the better UX is `pending=true` with a clear status/message until the final artifact exists
   - live workspace metadata now carries `workspace_base_dir`, `workspace_mode`, and `workspace_requested_mode`
   - `queue tail` summaries include `phase`, `round`, `agents`, and `workspace_mode`
 - There was still no stable user-facing endpoint for "what is the answer?":
-  - ROMA had strong internal truth (`session`, `task`, `artifact`, `plan`) but no single human-facing outcome object
+  - TagIt had strong internal truth (`session`, `task`, `artifact`, `plan`) but no single human-facing outcome object
   - `report` was too executor-centric and overloaded to serve as the final answer for code changes, Curia, and pure architecture/advice runs
   - the system now needs a first-class final outcome artifact, not more ad hoc CLI summaries
 - There is now a first-class queue cancellation path:
-  - `roma cancel <job_id>`
-  - `roma queue cancel <job_id>`
+  - `tagit cancel <job_id>`
+  - `tagit queue cancel <job_id>`
   - daemon API `POST /queue/{id}/cancel`
   - daemon-managed cancellation now propagates through the shared job context, so all agent processes launched under the same job are interrupted together
-  - CLI-side cancellation now resolves queue jobs across both the current workspace root and `$HOME/.roma`, instead of assuming the current local state directory is authoritative
-  - CLI cancellation now chooses the daemon rooted where the job actually lives before falling back to local state mutation, which makes global `$HOME/.roma` jobs cancelable from repository shells
+  - CLI-side cancellation now resolves queue jobs across both the current workspace root and `$HOME/.tagit`, instead of assuming the current local state directory is authoritative
+  - CLI cancellation now chooses the daemon rooted where the job actually lives before falling back to local state mutation, which makes global `$HOME/.tagit` jobs cancelable from repository shells
 - Agent registry is now fully user-provided:
   - there are no built-in coding-agent profiles anymore
 - Multi-agent prompt runs no longer serialize delegates in a strict chain:
@@ -288,16 +288,16 @@
   - the starter now runs a dedicated bootstrap/coordinator node first
   - the starter then stays in the execution set as a worker node
   - delegates fan out concurrently after the bootstrap node instead of waiting on one another
-  - user-defined agents now default to `$HOME/.roma/agents.json`
+  - user-defined agents now default to `$HOME/.tagit/agents.json`
   - runtime launch now comes from profile `command` + `args` templates instead of hard-coded per-agent adapters
   - the first configured profile is the implicit default, and profiles can still request PTY behavior
-  - `roma agent add/remove/inspect` target that per-user config path
+  - `tagit agent add/remove/inspect` target that per-user config path
 - CLI discoverability was becoming a product problem:
   - top-level help exposed too many internal inspection nouns at once
   - `agent` belongs to the management layer, not to `debug`
   - `session/task/artifact/event/plan/workspace` are better treated as internal inspection surfaces under a `debug` namespace
-- The live inspection path now resolves control-plane truth from `$HOME/.roma` and workspace/runtime truth from the session `WorkingDir`; running-session inspection no longer depends on the current repository shell.
-- `roma` and `romad` were previously coupled too tightly to the current workspace root:
+- The live inspection path now resolves control-plane truth from `$HOME/.tagit` and workspace/runtime truth from the session `WorkingDir`; running-session inspection no longer depends on the current repository shell.
+- `tagit` and `tagitd` were previously coupled too tightly to the current workspace root:
 - The first useful runtime stream-classifier step is not a full parser; it is semantic extraction from stdout chunks into a small fixed set of events (`ApprovalRequested`, `DangerousCommandDetected`, `ParseWarning`) plus a kill-switch for high-confidence dangerous command output.
 - Agent-backed semantic classification is useful as a second layer, not as the hard safety boundary:
   - the local rule classifier should stay authoritative for immediate block/kill decisions
@@ -328,12 +328,12 @@
    - `conflict_summary`
    - `conflict_context`
    - `resolution_options`
-  - stale local `.roma/run/api.json` could shadow a healthy global daemon
+  - stale local `.tagit/run/api.json` could shadow a healthy global daemon
   - `systemd --user` service needed explicit PATH for `codex/gemini/copilot`
   - daemon discovery now falls back to a global daemon home, but live progress UX still needs work on top of that fix
-- ROMA home paths were previously split across `~/.config/roma`, `~/.local/share/roma`, and repo-local `.roma/`; the current code now uses `$HOME/.roma` as the single default control-plane path.
+- TagIt home paths were previously split across `~/.config/tagit`, `~/.local/share/tagit`, and repo-local `.tagit/`; the current code now uses `$HOME/.tagit` as the single default control-plane path.
 - Queue/session/task/event/artifact/lease truth now comes from the daemon control root, while workspace metadata is resolved from each session's repository `WorkingDir`.
-- Stale repo-local `.roma/run/api.json` files should no longer shadow the daemon because client discovery now targets the ROMA home path instead of the current repository.
+- Stale repo-local `.tagit/run/api.json` files should no longer shadow the daemon because client discovery now targets the TagIt home path instead of the current repository.
 - Scheduler-dispatched tasks now request isolated workspaces by default; repository execution should flow through worktrees rather than direct writes into the main checkout.
 - the concurrent DAG soak baseline is stronger now:
   - repeated graph runs already existed

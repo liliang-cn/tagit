@@ -10,7 +10,7 @@ import (
 func (m model) renderMain() string {
 	if len(m.transcript) == 0 {
 		return strings.Join([]string{
-			m.titleStyle().Render("ROMA"),
+			m.titleStyle().Render("TagIt"),
 			m.subtitleStyle().Render("Type a prompt below. Use / to open commands."),
 			m.helpLineStyle().Render(
 				fmt.Sprintf("agent %s • with %s • queue %d", fallbackAgent(m.selectedAgent), fallbackWith(m.withAgents), m.status.QueueItems),

@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.roma.romad</string>
+	<string>com.tagit.tagitd</string>
 
 	<key>ProgramArguments</key>
 	<array>
 		<string>/bin/zsh</string>
 		<string>-lc</string>
-		<string>mkdir -p "$HOME/.roma" &amp;&amp; cd "$HOME/.roma" &amp;&amp; exec "$HOME/.local/bin/romad"</string>
+		<string>mkdir -p "$HOME/.tagit" &amp;&amp; cd "$HOME/.tagit" &amp;&amp; exec "$HOME/.local/bin/tagitd"</string>
 	</array>
 
 	<key>RunAtLoad</key>

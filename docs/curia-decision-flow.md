@@ -20,7 +20,7 @@ The current demo proves the Curia path that exists today:
 ## What It Does Not Claim
 
 This demo does **not** prove automatic file-conflict detection across two graph nodes.
-ROMA does not yet upgrade a graph into Curia just because two nodes touch the same file.
+TagIt does not yet upgrade a graph into Curia just because two nodes touch the same file.
 
 The current Curia demo is instead based on a deterministic disagreement in the Curia review phase.
 
@@ -44,9 +44,9 @@ That test uses a deterministic adapter to force:
 For a real run, the current Curia inspection path is:
 
 ```bash
-go run ./cmd/roma graph run --file examples/curia-graph.json
-go run ./cmd/roma sessions curia <session_id>
-go run ./cmd/roma plans inbox --session <session_id>
+go run ./cmd/tagit graph run --file examples/curia-graph.json
+go run ./cmd/tagit sessions curia <session_id>
+go run ./cmd/tagit plans inbox --session <session_id>
 ```
 
 The Curia summary now shows:

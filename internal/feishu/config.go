@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/liliang-cn/roma/internal/chatbot"
+	"github.com/liliang-cn/tagit/internal/chatbot"
 )
 
-// Config is the on-disk Feishu bot configuration (~/.roma/feishu.json).
+// Config is the on-disk Feishu bot configuration (~/.tagit/feishu.json).
 type Config struct {
 	AppID     string           `json:"app_id"`
 	AppSecret string           `json:"app_secret"`

@@ -13,17 +13,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liliang-cn/roma/internal/artifacts"
-	"github.com/liliang-cn/roma/internal/curia"
-	"github.com/liliang-cn/roma/internal/domain"
-	"github.com/liliang-cn/roma/internal/events"
-	"github.com/liliang-cn/roma/internal/history"
-	"github.com/liliang-cn/roma/internal/queue"
-	"github.com/liliang-cn/roma/internal/runtime"
-	"github.com/liliang-cn/roma/internal/scheduler"
-	storepkg "github.com/liliang-cn/roma/internal/store"
-	"github.com/liliang-cn/roma/internal/taskstore"
-	workspacepkg "github.com/liliang-cn/roma/internal/workspace"
+	"github.com/liliang-cn/tagit/internal/artifacts"
+	"github.com/liliang-cn/tagit/internal/curia"
+	"github.com/liliang-cn/tagit/internal/domain"
+	"github.com/liliang-cn/tagit/internal/events"
+	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/queue"
+	"github.com/liliang-cn/tagit/internal/runtime"
+	"github.com/liliang-cn/tagit/internal/scheduler"
+	storepkg "github.com/liliang-cn/tagit/internal/store"
+	"github.com/liliang-cn/tagit/internal/taskstore"
+	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
 
 type curiaDisputeAdapter struct{}
@@ -303,7 +303,7 @@ func TestServerQueueInspect(t *testing.T) {
 		SessionID:     "sess_1",
 		TaskID:        "task_1",
 		CreatedAt:     time.Now().UTC(),
-		PayloadSchema: "roma/report/v1",
+		PayloadSchema: "tagit/report/v1",
 		Payload:       map[string]any{"summary": "ok"},
 		Checksum:      "sha256:test",
 	}
@@ -371,7 +371,7 @@ func TestServerQueueInspect(t *testing.T) {
 	}
 	if err := leaseStore.Renew(context.Background(), "sess_1", "owner_1", []string{"task_1"}, []scheduler.WorkspaceRef{{
 		TaskID:        "task_1",
-		EffectiveDir:  filepath.Join(workDir, ".roma", "workspaces", "sess_1", "task_1", "root"),
+		EffectiveDir:  filepath.Join(workDir, ".tagit", "workspaces", "sess_1", "task_1", "root"),
 		Provider:      "git_worktree",
 		EffectiveMode: "isolated_write",
 	}}, []string{"sess_1__task_1"}, []string{}); err != nil {
@@ -940,7 +940,7 @@ func TestServerWorkspaceMerge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Prepare() error = %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(prepared.EffectiveDir, "README.md"), []byte("roma via api\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(prepared.EffectiveDir, "README.md"), []byte("tagit via api\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	merged, err := client.WorkspaceMerge(context.Background(), "sess_merge", "task_merge")
@@ -954,8 +954,8 @@ func TestServerWorkspaceMerge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	if strings.TrimSpace(string(content)) != "roma via api" {
-		t.Fatalf("base README = %q, want roma via api", strings.TrimSpace(string(content)))
+	if strings.TrimSpace(string(content)) != "tagit via api" {
+		t.Fatalf("base README = %q, want tagit via api", strings.TrimSpace(string(content)))
 	}
 }
 
@@ -1562,7 +1562,7 @@ func TestServerPlanApplyDryRunAndApprovalGate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Prepare() error = %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(prepared.EffectiveDir, "README.md"), []byte("roma changed\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(prepared.EffectiveDir, "README.md"), []byte("tagit changed\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	artifactStore, err := artifacts.NewSQLiteStore(workDir)
@@ -1939,7 +1939,7 @@ func TestServerCuriaReputationEndpoint(t *testing.T) {
 	sessionStore := history.NewStore(workDir)
 	server := NewServer(workDir, queueStore, sessionStore)
 
-	reputationPath := filepath.Join(workDir, ".roma", "curia-reputation.json")
+	reputationPath := filepath.Join(workDir, ".tagit", "curia-reputation.json")
 	if err := os.MkdirAll(filepath.Dir(reputationPath), 0o755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
@@ -1977,9 +1977,9 @@ func TestServerCuriaReputationEndpoint(t *testing.T) {
 func initAPIGitRepo(t *testing.T, dir string) {
 	t.Helper()
 	runAPIGit(t, dir, "init")
-	runAPIGit(t, dir, "config", "user.email", "roma@example.com")
-	runAPIGit(t, dir, "config", "user.name", "ROMA")
-	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("roma\n"), 0o644); err != nil {
+	runAPIGit(t, dir, "config", "user.email", "tagit@example.com")
+	runAPIGit(t, dir, "config", "user.name", "TagIt")
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("tagit\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	runAPIGit(t, dir, "add", "README.md")

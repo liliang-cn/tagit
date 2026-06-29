@@ -7,9 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The Makefile sets `GOWORK=off`; reuse it instead of invoking `go` bare so workspace files in parent directories don't pollute the build.
 
 ```sh
-make build        # builds bin/tagit, bin/tagitd, bin/tagittui
+make build        # builds bin/tagit, bin/tagitd
 make test         # GOWORK=off go test -count=1 ./...
-make install      # installs the three binaries to $HOME/.local/bin
+make install      # installs the two binaries to $HOME/.local/bin
 ```
 
 Single-package or single-test iteration (mirror the env the Makefile uses):
@@ -24,11 +24,10 @@ CI (`.github/workflows/ci.yml`) runs `go build ./...` and `go test -race -count=
 
 ## Big Picture
 
-TagIt is a daemon-first orchestrator that runs interactive coding-agent CLIs (claude, codex, gemini, ...) under a single control plane. Three binaries:
+TagIt is a daemon-first orchestrator that runs interactive coding-agent CLIs (claude, codex, gemini, ...) under a single control plane. Two binaries:
 
 - `cmd/tagitd` — kernel daemon. A 28-line `main.go` that just wires `internal/app.Daemon` with signal handling and an optional `--acp-port`.
 - `cmd/tagit` — CLI client. `cmd/tagit/main.go` is a single ~4000-line dispatcher: `run()` switches on the first arg into `runRun`, `runQueue`, `runAgents`, `runDebug`, etc. Most commands talk to `tagitd` via the API server in `internal/api`; some inspection commands open the SQLite store directly.
-- `cmd/tagittui` — Bubble Tea TUI. Spawns an embedded `tagitd` for the session.
 
 Source-of-truth rule (from `DESIGN.md` §3 and `docs/backend-module-design.md` §1, §8): **business state lives in the persisted event/store, not in runtime memory.** Allowed in-memory state is limited to runtime handle registries, classifier buffers, scheduler work queues. Anything orchestration-shaped (session/task lifecycle, accepted artifacts, approvals) must round-trip through `internal/store`.
 
@@ -49,7 +48,7 @@ The package layout in `internal/` follows `docs/backend-module-design.md` §10. 
 - `curia` — multi-agent voting / arbitration engine, including `Augustus` arbitration and reputation tracking.
 - `run` — high-level orchestration of `tagit run` modes (`caesar.go` for rage, `senate.go`, `dynamic.go`, `curia_auto.go`, `recover.go`, `graph.go`). `mode.go` defines `RunModeCollab`, `RunModeSenate`, `RunModeRage`.
 - `app` — daemon bootstrap (`NewDaemonWithOptions`) wiring all of the above plus `api`, `acpserver`, `gateway`.
-- `api`, `acpserver`, `gateway`, `relay`, `replay`, `plans`, `orchestrator`, `agents`, `tagitpath`, `sqliteutil`, `syncdb`, `tui`.
+- `api`, `acpserver`, `gateway`, `relay`, `replay`, `plans`, `orchestrator`, `agents`, `tagitpath`, `sqliteutil`, `syncdb`.
 
 Forbidden cross-cuts (from §3):
 - `store` must not depend on orchestration modules.

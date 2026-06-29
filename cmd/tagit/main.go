@@ -136,8 +136,6 @@ func run(ctx context.Context, args []string) error {
 		return runStatus(ctx)
 	case "submit", "tell", "ask":
 		return fmt.Errorf("%q has been removed; use \"tagit run\" instead", args[0])
-	case "tui":
-		return runTUI(ctx, args[1:])
 	case "session", "sessions":
 		return runSessions(ctx, args[1:])
 	case "task", "tasks":
@@ -3550,7 +3548,6 @@ func printUsage() {
 	fmt.Println("Core:")
 	fmt.Println("  tagit --help")
 	fmt.Println("  tagit check [job_id] [--raw]")
-	fmt.Println("  tagit tui [--cwd <dir>]")
 	fmt.Println(`  tagit run (--prompt "<prompt>" | --prompt-file <path>) [--mode <collab|senate|rage>] [--agent <id>] [--with <id,...>] [--cwd <dir>] [--continuous] [--max-rounds <n>] [-d] [-f] [--verbose] [--policy-override] [--override-actor <id>]`)
 	fmt.Println("  tagit status")
 	fmt.Println("  tagit result show <session_id>")
@@ -3581,7 +3578,6 @@ func printUsage() {
 	fmt.Println("  tagit check")
 	fmt.Println("  tagit queue --help")
 	fmt.Println("  tagit agent --help")
-	fmt.Println("  tagit tui")
 	fmt.Println(`  tagit agent add my-codex "My Codex" /usr/bin/codex --arg exec --arg --full-auto --arg {prompt} --pty`)
 	fmt.Println(`  tagit run --prompt "build a feature" --agent my-codex --with my-gemini,my-copilot`)
 	fmt.Println(`  tagit run --prompt-file ./prompt.txt --agent my-codex`)
@@ -3697,11 +3693,6 @@ func printTopicUsage(topic string) {
 	case "result show":
 		fmt.Println("tagit result show usage:")
 		fmt.Println("  tagit result show <session_id>")
-	case "tui":
-		fmt.Println("tagit tui usage:")
-		fmt.Println("  tagit tui [--cwd <dir>]")
-		fmt.Println("")
-		fmt.Println("The TUI starts an embedded tagitd for the selected working directory and stops it when the TUI exits.")
 	case "debug":
 		fmt.Println("tagit debug usage:")
 		fmt.Println("  tagit debug session <subcommand>")

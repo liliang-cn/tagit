@@ -39,6 +39,14 @@ Other execution surfaces:
 
 ## Install
 
+### Homebrew (macOS/Linux)
+
+```sh
+brew install --HEAD liliang-cn/tap/tagit
+```
+
+(Until releases are tagged, `--HEAD` builds from `main`. Requires a one-time `brew tap liliang-cn/tap`; the formula is in `HomebrewFormula/tagit.rb`.)
+
 ### One-liner (Linux & macOS)
 
 ```sh
@@ -206,53 +214,6 @@ tagit debug artifact show <artifact_id>
 ```sh
 tagit debug graph run --file examples/curia-test.json
 ```
-
----
-
-## TUI Mode
-
-Launch the interactive terminal UI:
-
-```sh
-tagit tui
-tagittui
-```
-
-The TUI starts an embedded `tagitd` automatically and stops it on exit. Available slash commands:
-
-```
-/help                 show help
-/status               daemon and queue status
-/agent <id>           set active agent
-/with <a,b,...>       set delegate agents
-/run <prompt>         run task and stream output
-/submit <prompt>      submit task asynchronously
-/open <job_id>        open job output
-/cancel [job_id]      cancel a job
-/result [session_id]  show session result
-```
-
----
-
-## Desktop UI
-
-A first Wails desktop UI now lives under [`desktop/`](./desktop).
-
-It keeps the same daemon-first model as the CLI and TUI:
-
-- desktop UI is presentation only
-- `tagitd` remains execution truth
-- the desktop app connects to an existing daemon or starts an embedded one
-
-Current desktop MVP covers:
-
-- daemon status
-- run submission
-- queue inspection
-- result view
-- plans inbox
-
-See [`desktop/README.md`](./desktop/README.md) for build and platform notes.
 
 ---
 

@@ -737,7 +737,6 @@ func TestRunWithNoArgsShowsHelp(t *testing.T) {
 	for _, want := range []string{
 		"tagit usage:",
 		"  tagit --help",
-		"  tagit tui [--cwd <dir>]",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("run(nil) output missing %q:\n%s", want, out)

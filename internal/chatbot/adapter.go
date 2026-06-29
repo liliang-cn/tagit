@@ -29,21 +29,59 @@ func (e apiEnqueuer) Submit(ctx context.Context, args SubmitArgs) (string, error
 	return resp.JobID, nil
 }
 
-// NewProgressFunc returns a ProgressFunc that streams a job's events from the
-// daemon into the chat thread via snd, throttled to one line every 5s. The
-// daemon closes the stream when the job finishes; we then fetch the terminal
-// status via QueueGet and post a final summary.
+// NewProgressFunc returns a ProgressFunc that polls the daemon for a job's
+// status and events, posting new progress lines into the chat thread and a
+// final summary when the job reaches a terminal state. Polling (rather than the
+// SSE stream's close) is what reliably detects completion, so the thread always
+// gets a "done" notification.
 func NewProgressFunc(c *api.Client, snd Sender) ProgressFunc {
 	return func(jobID, chatID, rootMessageID string) {
-		ch := make(chan events.Record, 32)
-		go func() {
-			_ = c.StreamJobEvents(context.Background(), jobID, ch)
-			close(ch)
-		}()
-		streamProgress(context.Background(), snd, chatID, rootMessageID, ch, 5*time.Second, time.Now)
-		// Stream closed => job finished; fetch + post final.
-		if req, err := c.QueueGet(context.Background(), jobID); err == nil {
-			_ = snd.Reply(context.Background(), chatID, rootMessageID, finalSummary(string(req.Status), req.Error))
+		ctx := context.Background()
+		seen := map[string]bool{}
+		lastLine := ""
+		errs := 0
+		for {
+			time.Sleep(3 * time.Second)
+			req, err := c.QueueGet(ctx, jobID)
+			if err != nil {
+				if errs++; errs > 40 {
+					return
+				}
+				continue
+			}
+			errs = 0
+			if req.SessionID != "" {
+				if evList, err := c.EventList(ctx, req.SessionID, req.TaskID, events.Type("")); err == nil {
+					for _, e := range evList {
+						if seen[e.ID] {
+							continue
+						}
+						seen[e.ID] = true
+						line := progressLine(e)
+						next, post := dedupLine(lastLine, line)
+						lastLine = next
+						if post {
+							_ = snd.Reply(ctx, chatID, rootMessageID, line)
+						}
+					}
+				}
+			}
+			if isTerminalStatus(string(req.Status)) {
+				_ = snd.Reply(ctx, chatID, rootMessageID, finalSummary(string(req.Status), req.Error))
+				return
+			}
 		}
 	}
+}
+
+// dedupLine collapses consecutive identical progress lines. Given the last
+// posted line and a candidate line, it returns the new "last" value to carry
+// forward and whether the candidate should be posted. Empty candidates are
+// dropped (and don't reset the last value); a candidate equal to last is
+// skipped.
+func dedupLine(last, line string) (newLast string, post bool) {
+	if line == "" || line == last {
+		return last, false
+	}
+	return line, true
 }

@@ -21,10 +21,10 @@ import (
 	"github.com/liliang-cn/tagit/internal/history"
 	"github.com/liliang-cn/tagit/internal/memory"
 	"github.com/liliang-cn/tagit/internal/policy"
-	"github.com/liliang-cn/tagit/internal/tagitpath"
 	"github.com/liliang-cn/tagit/internal/runtime"
 	"github.com/liliang-cn/tagit/internal/scheduler"
 	"github.com/liliang-cn/tagit/internal/store"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 	"github.com/liliang-cn/tagit/internal/taskstore"
 	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )

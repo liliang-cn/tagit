@@ -172,46 +172,46 @@ type ballotEnvelope struct {
 }
 
 type winnerSelection struct {
-	proposal           artifacts.ProposalPayload
-	ballots            []domain.ArtifactEnvelope
-	ballotEnvelopes    []ballotEnvelope
-	selectedIDs        []string
+	proposal             artifacts.ProposalPayload
+	ballots              []domain.ArtifactEnvelope
+	ballotEnvelopes      []ballotEnvelope
+	selectedIDs          []string
 	competingProposalIDs []string
-	winningMode        string
-	arbitrationStrategy string
-	confidence         domain.Confidence
-	consensusStrength  string
-	rejectedReasons    []string
-	dissentSummary     []string
-	escalationReasons  []string
-	riskFlags          []string
-	reviewQuestions    []string
-	candidateSummaries []artifacts.CuriaCandidateSummary
-	reviewerBreakdown  []artifacts.CuriaReviewContribution
-	approvalReason     string
-	approvalOverride   *bool
-	arbitrated         bool
-	arbitratorID       string
-	producerRole       domain.ProducerRole
-	producerAgentID    string
-	dispute            disputeResult
+	winningMode          string
+	arbitrationStrategy  string
+	confidence           domain.Confidence
+	consensusStrength    string
+	rejectedReasons      []string
+	dissentSummary       []string
+	escalationReasons    []string
+	riskFlags            []string
+	reviewQuestions      []string
+	candidateSummaries   []artifacts.CuriaCandidateSummary
+	reviewerBreakdown    []artifacts.CuriaReviewContribution
+	approvalReason       string
+	approvalOverride     *bool
+	arbitrated           bool
+	arbitratorID         string
+	producerRole         domain.ProducerRole
+	producerAgentID      string
+	dispute              disputeResult
 }
 
 type disputeResult struct {
-	Detected          bool
-	Class             string
-	Confidence        domain.Confidence
-	ConsensusStrength string
-	CriticalVeto      bool
-	TopScoreGap       int
-	WinningMode       string
-	SelectedIDs       []string
+	Detected             bool
+	Class                string
+	Confidence           domain.Confidence
+	ConsensusStrength    string
+	CriticalVeto         bool
+	TopScoreGap          int
+	WinningMode          string
+	SelectedIDs          []string
 	CompetingProposalIDs []string
-	ArbitrationStrategy string
-	RejectedReasons   []string
-	DissentSummary    []string
-	EscalationReasons []string
-	Scoreboard        []artifacts.CuriaScoreEntry
+	ArbitrationStrategy  string
+	RejectedReasons      []string
+	DissentSummary       []string
+	EscalationReasons    []string
+	Scoreboard           []artifacts.CuriaScoreEntry
 }
 
 type rankedProposal struct {
@@ -436,25 +436,25 @@ func (e *Executor) scatterAndReview(ctx context.Context, req ExecuteRequest, quo
 		selectedIDs = append([]string(nil), dispute.SelectedIDs...)
 	}
 	return outProposals, winnerSelection{
-		proposal:           selected.proposal,
-		ballots:            ballots,
-		ballotEnvelopes:    ballotResults,
-		selectedIDs:        selectedIDs,
+		proposal:             selected.proposal,
+		ballots:              ballots,
+		ballotEnvelopes:      ballotResults,
+		selectedIDs:          selectedIDs,
 		competingProposalIDs: append([]string(nil), dispute.CompetingProposalIDs...),
-		winningMode:        dispute.WinningMode,
-		arbitrationStrategy: dispute.ArbitrationStrategy,
-		confidence:         dispute.Confidence,
-		consensusStrength:  dispute.ConsensusStrength,
-		rejectedReasons:    append([]string(nil), dispute.RejectedReasons...),
-		dissentSummary:     append([]string(nil), dispute.DissentSummary...),
-		escalationReasons:  append([]string(nil), dispute.EscalationReasons...),
-		riskFlags:          buildRiskFlags(selected.proposal, dispute),
-		reviewQuestions:    buildReviewQuestions(selected.proposal, dispute),
-		candidateSummaries: buildCandidateSummaries(proposals, dispute.Scoreboard),
-		reviewerBreakdown:  buildReviewerBreakdown(ballotResults),
-		producerRole:       domain.ProducerRoleHuman,
-		producerAgentID:    "human-arbitration",
-		dispute:            dispute,
+		winningMode:          dispute.WinningMode,
+		arbitrationStrategy:  dispute.ArbitrationStrategy,
+		confidence:           dispute.Confidence,
+		consensusStrength:    dispute.ConsensusStrength,
+		rejectedReasons:      append([]string(nil), dispute.RejectedReasons...),
+		dissentSummary:       append([]string(nil), dispute.DissentSummary...),
+		escalationReasons:    append([]string(nil), dispute.EscalationReasons...),
+		riskFlags:            buildRiskFlags(selected.proposal, dispute),
+		reviewQuestions:      buildReviewQuestions(selected.proposal, dispute),
+		candidateSummaries:   buildCandidateSummaries(proposals, dispute.Scoreboard),
+		reviewerBreakdown:    buildReviewerBreakdown(ballotResults),
+		producerRole:         domain.ProducerRoleHuman,
+		producerAgentID:      "human-arbitration",
+		dispute:              dispute,
 	}, nil
 }
 
@@ -544,19 +544,19 @@ func shouldRunAugustus(req ExecuteRequest) bool {
 }
 
 type augustusDecision struct {
-	winningMode       string
-	selectedIDs       []string
-	competingIDs      []string
-	confidence        domain.Confidence
-	consensusStrength string
+	winningMode         string
+	selectedIDs         []string
+	competingIDs        []string
+	confidence          domain.Confidence
+	consensusStrength   string
 	arbitrationStrategy string
-	approvalRequired  *bool
-	approvalReason    string
-	rationale         string
-	escalationReasons []string
-	riskFlags         []string
-	reviewQuestions   []string
-	dissentSummary    []string
+	approvalRequired    *bool
+	approvalReason      string
+	rationale           string
+	escalationReasons   []string
+	riskFlags           []string
+	reviewQuestions     []string
+	dissentSummary      []string
 }
 
 func augustusPrompt(req ExecuteRequest, proposals []domain.ArtifactEnvelope, winner winnerSelection) string {
@@ -940,13 +940,13 @@ func detectDispute(proposals []proposalEnvelope, rawScoreByProposal map[string]i
 		}
 	}
 	result := disputeResult{
-		WinningMode:         "accept",
-		Class:               "none",
-		Confidence:          domain.ConfidenceMedium,
-		ConsensusStrength:   "moderate_consensus",
-		SelectedIDs:         []string{ranked[0].id},
+		WinningMode:          "accept",
+		Class:                "none",
+		Confidence:           domain.ConfidenceMedium,
+		ConsensusStrength:    "moderate_consensus",
+		SelectedIDs:          []string{ranked[0].id},
 		CompetingProposalIDs: []string{ranked[0].id},
-		ArbitrationStrategy: "accept_highest_score",
+		ArbitrationStrategy:  "accept_highest_score",
 	}
 	if len(ranked) > 1 {
 		result.TopScoreGap = ranked[0].weightedScore - ranked[1].weightedScore

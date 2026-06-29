@@ -10,8 +10,8 @@ import (
 	"slices"
 
 	"github.com/liliang-cn/tagit/internal/domain"
-	"github.com/liliang-cn/tagit/internal/tagitpath"
 	"github.com/liliang-cn/tagit/internal/store"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
 // Store persists task records under .tagit/tasks.

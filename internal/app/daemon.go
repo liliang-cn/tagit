@@ -23,13 +23,13 @@ import (
 	"github.com/liliang-cn/tagit/internal/memory"
 	"github.com/liliang-cn/tagit/internal/plans"
 	"github.com/liliang-cn/tagit/internal/queue"
-	"github.com/liliang-cn/tagit/internal/tagitpath"
 	"github.com/liliang-cn/tagit/internal/run"
 	"github.com/liliang-cn/tagit/internal/scheduler"
 	"github.com/liliang-cn/tagit/internal/sessions"
 	"github.com/liliang-cn/tagit/internal/slack"
 	"github.com/liliang-cn/tagit/internal/store"
 	"github.com/liliang-cn/tagit/internal/syncdb"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 	"github.com/liliang-cn/tagit/internal/taskstore"
 	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )
@@ -164,15 +164,17 @@ func NewDaemonWithOptions(opts DaemonOptions) (*Daemon, error) {
 		}()
 	}
 	chatAPIClient := api.NewClientForControlDir(wd, tagitpath.HomeDir())
-	if fcfg, enabled, err := feishu.Load(filepath.Join(tagitpath.HomeDir(), "feishu.json")); err != nil {
+	feishuPath := filepath.Join(tagitpath.HomeDir(), "feishu.json")
+	if fcfg, enabled, err := feishu.Load(feishuPath); err != nil {
 		log.Printf("feishu: disabled (%v)", err)
 	} else if enabled {
-		startChatBot("feishu", feishu.NewBot(fcfg, chatAPIClient).Start)
+		startChatBot("feishu", feishu.NewBot(fcfg, feishuPath, chatAPIClient).Start)
 	}
-	if scfg, enabled, err := slack.Load(filepath.Join(tagitpath.HomeDir(), "slack.json")); err != nil {
+	slackPath := filepath.Join(tagitpath.HomeDir(), "slack.json")
+	if scfg, enabled, err := slack.Load(slackPath); err != nil {
 		log.Printf("slack: disabled (%v)", err)
 	} else if enabled {
-		startChatBot("slack", slack.NewBot(scfg, chatAPIClient).Start)
+		startChatBot("slack", slack.NewBot(scfg, slackPath, chatAPIClient).Start)
 	}
 
 	return daemon, nil

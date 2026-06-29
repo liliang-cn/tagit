@@ -22,12 +22,12 @@ import (
 	"github.com/liliang-cn/tagit/internal/policy"
 	"github.com/liliang-cn/tagit/internal/queue"
 	"github.com/liliang-cn/tagit/internal/replay"
-	"github.com/liliang-cn/tagit/internal/tagitpath"
 	runsvc "github.com/liliang-cn/tagit/internal/run"
 	"github.com/liliang-cn/tagit/internal/scheduler"
 	"github.com/liliang-cn/tagit/internal/sqliteutil"
 	storepkg "github.com/liliang-cn/tagit/internal/store"
 	"github.com/liliang-cn/tagit/internal/syncdb"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 	"github.com/liliang-cn/tagit/internal/taskstore"
 	workspacepkg "github.com/liliang-cn/tagit/internal/workspace"
 )

@@ -21,11 +21,13 @@ type Bot struct {
 }
 
 // NewBot wires the Slack sender + shared handler over TagIt's api.Client.
-func NewBot(cfg *Config, apiClient *api.Client) *Bot {
+// path is the slack.json file backing the persistent binding store.
+func NewBot(cfg *Config, path string, apiClient *api.Client) *Bot {
 	snd := NewSender(cfg.BotToken)
 	enq := chatbot.NewAPIEnqueuer(apiClient)
 	progress := chatbot.NewProgressFunc(apiClient, snd)
-	handler := chatbot.NewHandler(cfg.Bindings, enq, snd, progress)
+	store := NewConfigStore(path)
+	handler := chatbot.NewHandler(store, enq, snd, progress)
 	api := slack.New(cfg.BotToken, slack.OptionAppLevelToken(cfg.AppToken))
 	client := socketmode.New(api)
 	return &Bot{cfg: cfg, handler: handler, client: client}

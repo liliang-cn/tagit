@@ -13,8 +13,8 @@ import (
 
 	"github.com/liliang-cn/tagit/internal/domain"
 	"github.com/liliang-cn/tagit/internal/events"
-	"github.com/liliang-cn/tagit/internal/tagitpath"
 	"github.com/liliang-cn/tagit/internal/store"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 )
 
 // DecisionKind identifies the policy outcome.

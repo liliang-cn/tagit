@@ -168,7 +168,8 @@ func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
 // handleCreateThread accepts an ACP CreateThreadRequest and submits a TagIt
 // queue job, returning the new Thread with status=pending.
 // TODO: when acp-go-sdk is available, use its request parsing and response
-//       helpers; map sdk.Thread <-> queue.Request.
+//
+//	helpers; map sdk.Thread <-> queue.Request.
 func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 	var req CreateThreadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -213,7 +214,8 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 // handleGetThread looks up a queue job by its ACP thread ID and returns the
 // mapped Thread status.
 // TODO: when acp-go-sdk is available, use sdk.Thread as the return type and
-//       populate message history from session artifacts.
+//
+//	populate message history from session artifacts.
 func (s *Server) handleGetThread(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {

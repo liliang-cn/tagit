@@ -2,7 +2,6 @@ package chatbot
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/liliang-cn/tagit/internal/events"
@@ -39,49 +38,55 @@ func streamProgress(ctx context.Context, snd Sender, chatID, rootMessageID strin
 	}
 }
 
-// progressLine derives a short phase line from a real TagIt event, or "" if the
-// event should be skipped.
+// progressLine derives a short, human progress line from a real TagIt event, or
+// "" if the event should be skipped. Curated to a handful of meaningful
+// milestones so the thread shows real activity without flooding.
 func progressLine(rec events.Record) string {
 	switch rec.Type {
+	case events.TypeMemoryRecalled:
+		return "🧠 recalled past context from this repo"
 	case events.TypeRelayNodeStarted:
-		return "… running a step"
+		return "▶️ running a step"
 	case events.TypeRuntimeStarted:
-		return "… agent working"
-	case events.TypeSessionStateChanged:
-		return "… " + payloadString(rec.Payload, "state", "status")
+		return "🔧 agent is working…"
+	case events.TypeSemanticReportProduced:
+		return "🔎 reviewed the output"
+	case events.TypeArtifactStored:
+		return "📦 produced a result"
+	case events.TypeMergeBackRequested:
+		return "🔀 merging changes back to the repo"
 	case events.TypeExecutionCompletedDetected:
-		return "… wrapping up"
+		return "✓ finishing up"
 	default:
 		return ""
+	}
+}
+
+// isTerminalStatus reports whether a queue status means the job is done.
+func isTerminalStatus(status string) bool {
+	switch status {
+	case "succeeded", "failed", "cancelled", "rejected":
+		return true
+	default:
+		return false
 	}
 }
 
 // finalSummary builds the closing message from the terminal job status and
 // optional error message.
 func finalSummary(status, errMsg string) string {
-	if strings.Contains(status, "fail") || errMsg != "" {
-		msg := "❌ " + status
+	switch {
+	case status == "succeeded":
+		return "✅ Done — the task succeeded. Check the repo for the changes."
+	case status == "failed" || errMsg != "":
+		msg := "❌ Failed"
 		if errMsg != "" {
 			msg += ": " + errMsg
 		}
 		return msg
+	case status == "cancelled":
+		return "🛑 Cancelled."
+	default:
+		return "Run " + status
 	}
-	if strings.Contains(status, "succ") {
-		return "✅ Done — " + status
-	}
-	return "Run " + status
-}
-
-// payloadString returns the first non-empty string value among keys.
-func payloadString(p map[string]any, keys ...string) string {
-	for _, k := range keys {
-		v, ok := p[k]
-		if !ok {
-			continue
-		}
-		if s, ok := v.(string); ok && s != "" {
-			return s
-		}
-	}
-	return ""
 }

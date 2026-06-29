@@ -3,6 +3,7 @@ package chatbot
 import (
 	"context"
 	"log"
+	"strings"
 	"sync"
 )
 
@@ -26,7 +27,7 @@ type ProgressFunc func(jobID, chatID, rootMessageID string)
 
 // Handler turns an @mention in a bound group chat into a TagIt run and acks it.
 type Handler struct {
-	bindings Bindings
+	store    BindingStore
 	enq      Enqueuer
 	snd      Sender
 	progress ProgressFunc
@@ -36,9 +37,9 @@ type Handler struct {
 }
 
 // NewHandler wires the handler with its dependencies. progress may be nil.
-func NewHandler(bindings Bindings, enq Enqueuer, snd Sender, progress ProgressFunc) *Handler {
+func NewHandler(store BindingStore, enq Enqueuer, snd Sender, progress ProgressFunc) *Handler {
 	return &Handler{
-		bindings: bindings,
+		store:    store,
 		enq:      enq,
 		snd:      snd,
 		progress: progress,
@@ -55,9 +56,15 @@ func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
 		return
 	}
 
-	binding, ok := h.bindings.For(msg.ChatID)
+	if strings.HasPrefix(strings.TrimSpace(msg.Text), "/") {
+		reply := h.handleCommand(ctx, msg)
+		h.reply(ctx, msg.ChatID, msg.MessageID, reply)
+		return
+	}
+
+	binding, ok := h.store.For(msg.ChatID)
 	if !ok {
-		h.reply(ctx, msg.ChatID, msg.MessageID, "This chat isn't linked to a repo yet. Link it before mentioning me.")
+		h.reply(ctx, msg.ChatID, msg.MessageID, "This chat isn't linked to a repo yet. Use /bind <repo-path> to link it.")
 		return
 	}
 

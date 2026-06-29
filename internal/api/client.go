@@ -19,8 +19,8 @@ import (
 	"github.com/liliang-cn/tagit/internal/events"
 	"github.com/liliang-cn/tagit/internal/history"
 	"github.com/liliang-cn/tagit/internal/queue"
-	"github.com/liliang-cn/tagit/internal/tagitpath"
 	"github.com/liliang-cn/tagit/internal/scheduler"
+	"github.com/liliang-cn/tagit/internal/tagitpath"
 	"github.com/liliang-cn/tagit/internal/workspace"
 )
 

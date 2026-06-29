@@ -20,3 +20,10 @@ func (bs Bindings) For(chatID string) (Binding, bool) {
 	}
 	return Binding{}, false
 }
+
+// BindingStore is a mutable, persisted set of per-chat bindings.
+type BindingStore interface {
+	For(chatID string) (Binding, bool)
+	Set(b Binding) error // upsert by b.ChatID
+	Delete(chatID string) error
+}

@@ -55,11 +55,58 @@ func (f *fakeEnqueuer) count() int {
 
 func noopProgress(string, string, string) {}
 
+// fakeStore is an in-memory BindingStore for tests.
+type fakeStore struct {
+	mu       sync.Mutex
+	m        map[string]Binding
+	setErr   error
+	delErr   error
+	setCalls int
+	delCalls int
+}
+
+func newFakeStore(seed ...Binding) *fakeStore {
+	s := &fakeStore{m: make(map[string]Binding)}
+	for _, b := range seed {
+		s.m[b.ChatID] = b
+	}
+	return s
+}
+
+func (s *fakeStore) For(chatID string) (Binding, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	b, ok := s.m[chatID]
+	return b, ok
+}
+
+func (s *fakeStore) Set(b Binding) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.setCalls++
+	if s.setErr != nil {
+		return s.setErr
+	}
+	s.m[b.ChatID] = b
+	return nil
+}
+
+func (s *fakeStore) Delete(chatID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.delCalls++
+	if s.delErr != nil {
+		return s.delErr
+	}
+	delete(s.m, chatID)
+	return nil
+}
+
 func TestHandleBoundChatEnqueuesAndAcks(t *testing.T) {
 	snd := &fakeSender{}
 	enq := &fakeEnqueuer{jobID: "job-1"}
-	bindings := Bindings{{ChatID: "c1", Repo: "/r", Agent: "codex", Mode: "senate"}}
-	h := NewHandler(bindings, enq, snd, noopProgress)
+	store := newFakeStore(Binding{ChatID: "c1", Repo: "/r", Agent: "codex", Mode: "senate"})
+	h := NewHandler(store, enq, snd, noopProgress)
 
 	h.Handle(context.Background(), IncomingMessage{
 		MessageID: "m1", ChatID: "c1", Text: "do the thing",
@@ -81,7 +128,7 @@ func TestHandleBoundChatEnqueuesAndAcks(t *testing.T) {
 
 func TestHandleDefaultsModeToRage(t *testing.T) {
 	enq := &fakeEnqueuer{jobID: "j"}
-	h := NewHandler(Bindings{{ChatID: "c1", Repo: "/r"}}, enq, &fakeSender{}, noopProgress)
+	h := NewHandler(newFakeStore(Binding{ChatID: "c1", Repo: "/r"}), enq, &fakeSender{}, noopProgress)
 	h.Handle(context.Background(), IncomingMessage{MessageID: "m1", ChatID: "c1", Text: "x", Mentioned: true, IsGroup: true})
 	if enq.count() != 1 || enq.args[0].Mode != "rage" {
 		t.Fatalf("mode default = %q", enq.args[0].Mode)
@@ -91,7 +138,7 @@ func TestHandleDefaultsModeToRage(t *testing.T) {
 func TestHandleUnboundChatRepliesNoEnqueue(t *testing.T) {
 	snd := &fakeSender{}
 	enq := &fakeEnqueuer{}
-	h := NewHandler(Bindings{}, enq, snd, noopProgress)
+	h := NewHandler(newFakeStore(), enq, snd, noopProgress)
 
 	h.Handle(context.Background(), IncomingMessage{
 		MessageID: "m1", ChatID: "cX", Text: "hi", Mentioned: true, IsGroup: true,
@@ -107,7 +154,7 @@ func TestHandleUnboundChatRepliesNoEnqueue(t *testing.T) {
 
 func TestHandleDedup(t *testing.T) {
 	enq := &fakeEnqueuer{jobID: "j"}
-	h := NewHandler(Bindings{{ChatID: "c1", Repo: "/r"}}, enq, &fakeSender{}, noopProgress)
+	h := NewHandler(newFakeStore(Binding{ChatID: "c1", Repo: "/r"}), enq, &fakeSender{}, noopProgress)
 	msg := IncomingMessage{MessageID: "same", ChatID: "c1", Text: "x", Mentioned: true, IsGroup: true}
 	h.Handle(context.Background(), msg)
 	h.Handle(context.Background(), msg)
@@ -118,7 +165,7 @@ func TestHandleDedup(t *testing.T) {
 
 func TestHandleIgnoresNonGroupAndEmpty(t *testing.T) {
 	enq := &fakeEnqueuer{}
-	h := NewHandler(Bindings{{ChatID: "c1", Repo: "/r"}}, enq, &fakeSender{}, noopProgress)
+	h := NewHandler(newFakeStore(Binding{ChatID: "c1", Repo: "/r"}), enq, &fakeSender{}, noopProgress)
 	cases := []IncomingMessage{
 		{MessageID: "a", ChatID: "c1", Text: "x", Mentioned: true, IsGroup: false},
 		{MessageID: "b", ChatID: "c1", Text: "", Mentioned: true, IsGroup: true},
@@ -135,7 +182,7 @@ func TestHandleIgnoresNonGroupAndEmpty(t *testing.T) {
 func TestHandleSubmitErrorReplies(t *testing.T) {
 	snd := &fakeSender{}
 	enq := &fakeEnqueuer{err: errors.New("boom")}
-	h := NewHandler(Bindings{{ChatID: "c1", Repo: "/r"}}, enq, snd, noopProgress)
+	h := NewHandler(newFakeStore(Binding{ChatID: "c1", Repo: "/r"}), enq, snd, noopProgress)
 	h.Handle(context.Background(), IncomingMessage{MessageID: "m1", ChatID: "c1", Text: "x", Mentioned: true, IsGroup: true})
 	replies := snd.all()
 	if len(replies) == 0 {

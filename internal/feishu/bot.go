@@ -18,11 +18,13 @@ type Bot struct {
 }
 
 // NewBot wires the Feishu sender + shared handler over TagIt's api.Client.
-func NewBot(cfg *Config, apiClient *api.Client) *Bot {
+// path is the feishu.json file backing the persistent binding store.
+func NewBot(cfg *Config, path string, apiClient *api.Client) *Bot {
 	snd := NewSender(cfg.AppID, cfg.AppSecret)
 	enq := chatbot.NewAPIEnqueuer(apiClient)
 	progress := chatbot.NewProgressFunc(apiClient, snd)
-	handler := chatbot.NewHandler(cfg.Bindings, enq, snd, progress)
+	store := NewConfigStore(path)
+	handler := chatbot.NewHandler(store, enq, snd, progress)
 	return &Bot{cfg: cfg, handler: handler}
 }
 
@@ -30,7 +32,9 @@ func NewBot(cfg *Config, apiClient *api.Client) *Bot {
 func (b *Bot) Start(ctx context.Context) error {
 	d := dispatcher.NewEventDispatcher("", "").
 		OnP2MessageReceiveV1(func(ctx context.Context, e *larkim.P2MessageReceiveV1) error {
-			b.handler.Handle(ctx, toIncomingMessage(e))
+			msg := toIncomingMessage(e)
+			log.Printf("feishu: received message chat=%s group=%v mentioned=%v text=%q", msg.ChatID, msg.IsGroup, msg.Mentioned, msg.Text)
+			b.handler.Handle(ctx, msg)
 			return nil
 		})
 	cli := larkws.NewClient(b.cfg.AppID, b.cfg.AppSecret,

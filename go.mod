@@ -6,8 +6,8 @@ require (
 	github.com/creack/pty v1.1.24
 	github.com/larksuite/oapi-sdk-go/v3 v3.9.7
 	github.com/liliang-cn/agent-go/v2 v2.95.0
-	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/slack-go/slack v0.27.0
+	modernc.org/sqlite v1.38.2
 )
 
 require (
@@ -35,5 +35,4 @@ require (
 	modernc.org/libc v1.66.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.38.2 // indirect
 )

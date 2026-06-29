@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/liliang-cn/tagit/internal/tagitpath"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite" // pure-Go SQLite driver (no CGO) — registers driver name "sqlite"
 )
 
 // DBPath returns the canonical SQLite database path for a workspace.
@@ -23,7 +23,7 @@ func Open(workDir string) (*sql.DB, error) {
 		return nil, fmt.Errorf("create sqlite directory: %w", err)
 	}
 
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite database: %w", err)
 	}

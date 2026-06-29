@@ -82,7 +82,10 @@ func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
 		return
 	}
 
-	h.reply(ctx, msg.ChatID, msg.MessageID, "On it 🛠️")
+	// Neutral ack: this fires before the run layer decides whether the message
+	// is real work or just conversation, so it must read naturally before either
+	// a quick answer or streamed work progress.
+	h.reply(ctx, msg.ChatID, msg.MessageID, "Got it — one sec… 👀")
 
 	mode := binding.Mode
 	if mode == "" {

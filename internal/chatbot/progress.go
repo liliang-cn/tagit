@@ -2,6 +2,7 @@ package chatbot
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/liliang-cn/tagit/internal/events"
@@ -43,6 +44,13 @@ func streamProgress(ctx context.Context, snd Sender, chatID, rootMessageID strin
 // milestones so the thread shows real activity without flooding.
 func progressLine(rec events.Record) string {
 	switch rec.Type {
+	case events.TypeConversationReplied:
+		// A conversational run: the agent answered directly instead of doing
+		// repo work. Post that answer verbatim.
+		if text, ok := rec.Payload["text"].(string); ok {
+			return strings.TrimSpace(text)
+		}
+		return ""
 	case events.TypeMemoryRecalled:
 		return "🧠 recalled past context from this repo"
 	case events.TypeRelayNodeStarted:

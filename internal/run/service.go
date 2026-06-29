@@ -149,6 +149,15 @@ func (s *Service) RunWithResult(ctx context.Context, req Request) (Result, error
 		}
 	}
 
+	// Single-agent path: let the agent itself decide whether this is real repo
+	// work or just conversation. Conversation is answered inline and skips the
+	// whole worktree/scheduler/merge-back pipeline.
+	if res, handled, err := s.maybeChatReply(ctx, req, profile, os.Stdout); err != nil {
+		return Result{}, err
+	} else if handled {
+		return res, nil
+	}
+
 	return s.runDirect(ctx, req, profile, os.Stdout, os.Stderr)
 }
 

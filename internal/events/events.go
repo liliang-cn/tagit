@@ -44,6 +44,7 @@ const (
 	TypeQueueCancelled              Type = "QueueCancelled"
 	TypeMemoryRecalled              Type = "MemoryRecalled"
 	TypeMemoryRecorded              Type = "MemoryRecorded"
+	TypeConversationReplied         Type = "ConversationReplied"
 )
 
 // ActorType identifies who produced an event.

@@ -40,6 +40,7 @@ func NewProgressFunc(c *api.Client, snd Sender) ProgressFunc {
 		seen := map[string]bool{}
 		lastLine := ""
 		errs := 0
+		conversational := false
 		for {
 			time.Sleep(3 * time.Second)
 			req, err := c.QueueGet(ctx, jobID)
@@ -57,6 +58,9 @@ func NewProgressFunc(c *api.Client, snd Sender) ProgressFunc {
 							continue
 						}
 						seen[e.ID] = true
+						if e.Type == events.TypeConversationReplied {
+							conversational = true
+						}
 						line := progressLine(e)
 						next, post := dedupLine(lastLine, line)
 						lastLine = next
@@ -67,7 +71,11 @@ func NewProgressFunc(c *api.Client, snd Sender) ProgressFunc {
 				}
 			}
 			if isTerminalStatus(string(req.Status)) {
-				_ = snd.Reply(ctx, chatID, rootMessageID, finalSummary(string(req.Status), req.Error))
+				// A conversational reply already delivered the agent's answer;
+				// don't follow it with a generic "check the repo" summary.
+				if !conversational {
+					_ = snd.Reply(ctx, chatID, rootMessageID, finalSummary(string(req.Status), req.Error))
+				}
 				return
 			}
 		}

@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"time"
 )
 
 // SubmitArgs are the platform-agnostic inputs to a run submission.
@@ -25,12 +26,19 @@ type Enqueuer interface {
 // caller.
 type ProgressFunc func(jobID, chatID, rootMessageID string)
 
+// ContextProvider returns a short transcript of recent messages in a chat for
+// extra context, or "" if unavailable. Best-effort: errors -> "".
+type ContextProvider interface {
+	RecentContext(ctx context.Context, chatID, messageID string) string
+}
+
 // Handler turns an @mention in a bound group chat into a TagIt run and acks it.
 type Handler struct {
 	store    BindingStore
 	enq      Enqueuer
 	snd      Sender
 	progress ProgressFunc
+	ctxProv  ContextProvider
 
 	mu   sync.Mutex
 	seen map[string]struct{}
@@ -45,6 +53,12 @@ func NewHandler(store BindingStore, enq Enqueuer, snd Sender, progress ProgressF
 		progress: progress,
 		seen:     make(map[string]struct{}),
 	}
+}
+
+// SetContextProvider sets an optional provider used to prepend recent chat
+// context to task prompts. nil-safe.
+func (h *Handler) SetContextProvider(p ContextProvider) {
+	h.ctxProv = p
 }
 
 // Handle processes one incoming message: best-effort, never returns an error.
@@ -74,9 +88,18 @@ func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
 	if mode == "" {
 		mode = "rage"
 	}
+
+	prompt := msg.Text
+	if h.ctxProv != nil {
+		cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		cxt := h.ctxProv.RecentContext(cctx, msg.ChatID, msg.MessageID)
+		cancel()
+		prompt = composePrompt(cxt, msg.Text)
+	}
+
 	jobID, err := h.enq.Submit(ctx, SubmitArgs{
 		Repo:   binding.Repo,
-		Prompt: msg.Text,
+		Prompt: prompt,
 		Agent:  binding.Agent,
 		Mode:   mode,
 	})
@@ -99,6 +122,16 @@ func (h *Handler) markSeen(messageID string) bool {
 	}
 	h.seen[messageID] = struct{}{}
 	return true
+}
+
+// composePrompt prepends recent conversation context to the task prompt.
+func composePrompt(contextText, task string) string {
+	if strings.TrimSpace(contextText) == "" {
+		return task
+	}
+	return "Recent conversation in this chat (for context, latest last):\n" +
+		contextText +
+		"\n\n---\nThe latest request to act on:\n" + task
 }
 
 func (h *Handler) reply(ctx context.Context, chatID, rootMessageID, text string) {

@@ -3,6 +3,7 @@ package chatbot
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -176,6 +177,64 @@ func TestHandleIgnoresNonGroupAndEmpty(t *testing.T) {
 	}
 	if enq.count() != 0 {
 		t.Fatalf("ignored messages enqueued %d", enq.count())
+	}
+}
+
+type fakeContextProvider struct{ transcript string }
+
+func (f fakeContextProvider) RecentContext(_ context.Context, _, _ string) string {
+	return f.transcript
+}
+
+func TestHandleWithContextProviderComposesPrompt(t *testing.T) {
+	enq := &fakeEnqueuer{jobID: "j"}
+	h := NewHandler(newFakeStore(Binding{ChatID: "c1", Repo: "/r"}), enq, &fakeSender{}, noopProgress)
+	h.SetContextProvider(fakeContextProvider{transcript: "alice: hello\nbob: world"})
+
+	h.Handle(context.Background(), IncomingMessage{
+		MessageID: "m1", ChatID: "c1", Text: "fix the bug",
+		Mentioned: true, IsGroup: true,
+	})
+
+	if enq.count() != 1 {
+		t.Fatalf("expected 1 enqueue, got %d", enq.count())
+	}
+	prompt := enq.args[0].Prompt
+	if !strings.Contains(prompt, "alice: hello") || !strings.Contains(prompt, "bob: world") {
+		t.Fatalf("prompt missing context: %q", prompt)
+	}
+	if !strings.Contains(prompt, "fix the bug") {
+		t.Fatalf("prompt missing task: %q", prompt)
+	}
+}
+
+func TestHandleWithoutContextProviderUsesText(t *testing.T) {
+	enq := &fakeEnqueuer{jobID: "j"}
+	h := NewHandler(newFakeStore(Binding{ChatID: "c1", Repo: "/r"}), enq, &fakeSender{}, noopProgress)
+
+	h.Handle(context.Background(), IncomingMessage{
+		MessageID: "m1", ChatID: "c1", Text: "fix the bug",
+		Mentioned: true, IsGroup: true,
+	})
+
+	if enq.count() != 1 {
+		t.Fatalf("expected 1 enqueue, got %d", enq.count())
+	}
+	if enq.args[0].Prompt != "fix the bug" {
+		t.Fatalf("prompt = %q, want %q", enq.args[0].Prompt, "fix the bug")
+	}
+}
+
+func TestComposePrompt(t *testing.T) {
+	if got := composePrompt("", "task"); got != "task" {
+		t.Fatalf("composePrompt empty context = %q, want %q", got, "task")
+	}
+	if got := composePrompt("   ", "task"); got != "task" {
+		t.Fatalf("composePrompt blank context = %q, want %q", got, "task")
+	}
+	got := composePrompt("ctx line", "task")
+	if !strings.Contains(got, "ctx line") || !strings.Contains(got, "task") {
+		t.Fatalf("composePrompt = %q", got)
 	}
 }
 

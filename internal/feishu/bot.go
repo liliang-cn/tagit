@@ -25,6 +25,7 @@ func NewBot(cfg *Config, path string, apiClient *api.Client) *Bot {
 	progress := chatbot.NewProgressFunc(apiClient, snd)
 	store := NewConfigStore(path)
 	handler := chatbot.NewHandler(store, enq, snd, progress)
+	handler.SetContextProvider(newFeishuContext(cfg.AppID, cfg.AppSecret))
 	return &Bot{cfg: cfg, handler: handler}
 }
 

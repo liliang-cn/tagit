@@ -28,6 +28,7 @@ func NewBot(cfg *Config, path string, apiClient *api.Client) *Bot {
 	progress := chatbot.NewProgressFunc(apiClient, snd)
 	store := NewConfigStore(path)
 	handler := chatbot.NewHandler(store, enq, snd, progress)
+	handler.SetContextProvider(newSlackContext(cfg.BotToken))
 	api := slack.New(cfg.BotToken, slack.OptionAppLevelToken(cfg.AppToken))
 	client := socketmode.New(api)
 	return &Bot{cfg: cfg, handler: handler, client: client}

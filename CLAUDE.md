@@ -49,6 +49,8 @@ The package layout in `internal/` follows `docs/backend-module-design.md` §10. 
 - `run` — high-level orchestration of `tagit run` modes (`caesar.go` for rage, `senate.go`, `dynamic.go`, `curia_auto.go`, `recover.go`, `graph.go`). `mode.go` defines `RunModeCollab`, `RunModeSenate`, `RunModeRage`.
 - `app` — daemon bootstrap (`NewDaemonWithOptions`) wiring all of the above plus `api`, `acpserver`, `gateway`.
 - `api`, `acpserver`, `gateway`, `relay`, `replay`, `plans`, `orchestrator`, `agents`, `tagitpath`, `sqliteutil`, `syncdb`.
+- `memory` — cross-agent persistent memory (CortexDB via agent-go, lexical/no-key); advisory layer wired into `run` (recall→inject→record). Never a source of truth.
+- `chatbot` — platform-agnostic @Tag bot core (per-channel repo bindings, dedup, ack, enqueue, progress streaming, `/bind` `/agent` `/mode` `/status` commands). `feishu` (long-connection) and `slack` (Socket Mode) are the adapters; the daemon starts them best-effort when `~/.tagit/{feishu,slack}.json` exists. See `docs/feishu-setup.md`.
 
 Forbidden cross-cuts (from §3):
 - `store` must not depend on orchestration modules.

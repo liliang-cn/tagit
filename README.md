@@ -61,18 +61,23 @@ Modes: **rage** (one agent, worker/foreman rounds — default) · **collab** (de
 
 ### 3. @mention it in chat — the "Tag" experience
 
-Create `~/.tagit/feishu.json` (or `slack.json`) with bot creds + per-channel repo bindings:
+Drop bot credentials into `~/.tagit/feishu.json` (or `slack.json`):
 
 ```json
-{
-  "app_id": "cli_xxx", "app_secret": "xxx",
-  "bindings": [{ "chat_id": "oc_xxx", "repo": "/path/to/repo", "agent": "codex" }]
-}
+{ "app_id": "cli_xxx", "app_secret": "xxx", "bindings": [] }
 ```
 
-Restart the daemon and add the bot to the group. Then **@TagIt do something** — it acks, works in an isolated worktree, streams progress, and posts the result in the thread.
+`tagit start`, add the bot to a group, then configure and run **entirely from chat**:
 
-- **Feishu**: a self-built app subscribing `im.message.receive_v1` over **long connection** (no public URL).
+```
+@TagIt /bind /path/to/repo      link this channel to a repo
+@TagIt /agent codex             set the agent   (also: /mode, /status, /unbind, /help)
+@TagIt add input validation to the signup handler
+```
+
+It acks (**收到，开始干 🛠️**), works in an isolated `git worktree`, streams progress, and posts **✅ Done** in the thread.
+
+- **Feishu**: a self-built app subscribing `im.message.receive_v1` over **long connection** — no public URL. Full walkthrough: **[docs/feishu-setup.md](docs/feishu-setup.md)**.
 - **Slack**: an app in **Socket Mode** (`xapp-` + `xoxb-` tokens) subscribing `app_mention`.
 
 ---

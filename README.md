@@ -25,8 +25,8 @@ Paste this to your agent:
 ### Homebrew (macOS/Linux)
 
 ```sh
-brew install --HEAD liliang-cn/tap/tagit
-brew services start tagit   # optional: run the daemon on login, auto-restart
+brew install liliang-cn/tap/tagit     # prebuilt binary, no Go toolchain needed
+brew services start tagit             # optional: run the daemon on login, auto-restart
 ```
 
 ### From source

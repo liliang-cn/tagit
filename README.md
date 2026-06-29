@@ -78,7 +78,7 @@ Drop bot credentials into `~/.tagit/feishu.json` (or `slack.json`):
 It acks (**收到，开始干 🛠️**), works in an isolated `git worktree`, streams progress, and posts **✅ Done** in the thread.
 
 - **Feishu**: a self-built app subscribing `im.message.receive_v1` over **long connection** — no public URL. Full walkthrough: **[docs/feishu-setup.md](docs/feishu-setup.md)**.
-- **Slack**: an app in **Socket Mode** (`xapp-` + `xoxb-` tokens) subscribing `app_mention`.
+- **Slack**: an app in **Socket Mode** (`xapp-` + `xoxb-` tokens) subscribing `app_mention`, with a native `/tagit` slash command (autocompletes — `/tagit bind <repo>`, `/tagit status`, …). `@TagIt /bind …` still works as a fallback. Full walkthrough: **[docs/slack-setup.md](docs/slack-setup.md)**.
 
 ---
 

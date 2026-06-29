@@ -14,29 +14,33 @@ const helpText = "Commands:\n" +
 	"/mode <rage|collab|senate> — set the run mode\n" +
 	"/unbind — unlink this chat"
 
-// handleCommand routes a leading-slash @mention to a config command and returns
-// the reply text. It never enqueues a run.
-func (h *Handler) handleCommand(ctx context.Context, msg IncomingMessage) string {
-	fields := strings.Fields(strings.TrimSpace(msg.Text))
+// Command parses and executes a config command for chatID and returns the reply
+// text. `text` may be the full "/bind /repo" form (from @mention) or the
+// slash-remainder "bind /repo" form (from a native Slack slash command). It
+// never enqueues a run.
+func (h *Handler) Command(ctx context.Context, chatID, text string) string {
+	text = strings.TrimSpace(text)
+	fields := strings.Fields(text)
 	if len(fields) == 0 {
 		return "Unknown command. Try /help."
 	}
-	cmd := strings.ToLower(fields[0])
-	arg := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(msg.Text), fields[0]))
+	word := fields[0]
+	arg := strings.TrimSpace(strings.TrimPrefix(text, word))
+	cmd := strings.ToLower(strings.TrimPrefix(word, "/"))
 
 	switch cmd {
-	case "/help":
+	case "help":
 		return helpText
-	case "/status":
-		return h.cmdStatus(msg.ChatID)
-	case "/bind":
-		return h.cmdBind(msg.ChatID, arg)
-	case "/agent":
-		return h.cmdAgent(msg.ChatID, arg)
-	case "/mode":
-		return h.cmdMode(msg.ChatID, arg)
-	case "/unbind":
-		return h.cmdUnbind(msg.ChatID)
+	case "status":
+		return h.cmdStatus(chatID)
+	case "bind":
+		return h.cmdBind(chatID, arg)
+	case "agent":
+		return h.cmdAgent(chatID, arg)
+	case "mode":
+		return h.cmdMode(chatID, arg)
+	case "unbind":
+		return h.cmdUnbind(chatID)
 	default:
 		return "Unknown command. Try /help."
 	}

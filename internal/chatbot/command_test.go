@@ -207,6 +207,40 @@ func TestCommandCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestCommandBothFormsBehaveIdentically(t *testing.T) {
+	store := newFakeStore(Binding{ChatID: "c1", Repo: "/r", Agent: "codex", Mode: "senate"})
+	h := NewHandler(store, &fakeEnqueuer{}, &fakeSender{}, noopProgress)
+
+	withSlash := h.Command(context.Background(), "c1", "/status")
+	noSlash := h.Command(context.Background(), "c1", "status")
+	if withSlash != noSlash {
+		t.Fatalf("status forms differ: %q vs %q", withSlash, noSlash)
+	}
+	for _, want := range []string{"/r", "codex", "senate"} {
+		if !strings.Contains(noSlash, want) {
+			t.Fatalf("status missing %q: %q", want, noSlash)
+		}
+	}
+
+	if got := h.Command(context.Background(), "c1", "/help"); got != h.Command(context.Background(), "c1", "help") {
+		t.Fatalf("help forms differ")
+	}
+}
+
+func TestCommandBindNoSlashForm(t *testing.T) {
+	store := newFakeStore()
+	h := NewHandler(store, &fakeEnqueuer{}, &fakeSender{}, noopProgress)
+	dir := t.TempDir()
+
+	got := h.Command(context.Background(), "c1", "bind "+dir)
+	if !strings.Contains(got, "Linked") {
+		t.Fatalf("no-slash bind = %q", got)
+	}
+	if b, ok := store.For("c1"); !ok || b.Repo != dir {
+		t.Fatalf("binding not persisted: %+v ok=%v", b, ok)
+	}
+}
+
 func TestCommandDoesNotEnqueueButTaskDoes(t *testing.T) {
 	snd := &fakeSender{}
 	enq := &fakeEnqueuer{jobID: "j"}

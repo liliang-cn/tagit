@@ -37,19 +37,31 @@ func NewBot(cfg *Config, path string, apiClient *api.Client) *Bot {
 func (b *Bot) Start(ctx context.Context) error {
 	go func() {
 		for evt := range b.client.Events {
-			if evt.Type != socketmode.EventTypeEventsAPI {
-				continue
-			}
-			eventsAPI, ok := evt.Data.(slackevents.EventsAPIEvent)
-			if !ok {
-				continue
-			}
-			if evt.Request != nil {
-				b.client.Ack(*evt.Request)
-			}
-			if eventsAPI.Type == slackevents.CallbackEvent {
-				if mention, ok := eventsAPI.InnerEvent.Data.(*slackevents.AppMentionEvent); ok {
-					b.handler.Handle(ctx, toIncomingMessage(mention))
+			switch evt.Type {
+			case socketmode.EventTypeEventsAPI:
+				eventsAPI, ok := evt.Data.(slackevents.EventsAPIEvent)
+				if !ok {
+					continue
+				}
+				if evt.Request != nil {
+					b.client.Ack(*evt.Request)
+				}
+				if eventsAPI.Type == slackevents.CallbackEvent {
+					if mention, ok := eventsAPI.InnerEvent.Data.(*slackevents.AppMentionEvent); ok {
+						b.handler.Handle(ctx, toIncomingMessage(mention))
+					}
+				}
+			case socketmode.EventTypeSlashCommand:
+				cmd, ok := evt.Data.(slack.SlashCommand)
+				if !ok {
+					continue
+				}
+				reply := b.handler.Command(ctx, cmd.ChannelID, cmd.Text)
+				if evt.Request != nil {
+					b.client.Ack(*evt.Request, map[string]interface{}{
+						"response_type": "ephemeral",
+						"text":          reply,
+					})
 				}
 			}
 		}

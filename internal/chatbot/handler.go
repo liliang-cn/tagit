@@ -57,7 +57,7 @@ func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
 	}
 
 	if strings.HasPrefix(strings.TrimSpace(msg.Text), "/") {
-		reply := h.handleCommand(ctx, msg)
+		reply := h.Command(ctx, msg.ChatID, msg.Text)
 		h.reply(ctx, msg.ChatID, msg.MessageID, reply)
 		return
 	}

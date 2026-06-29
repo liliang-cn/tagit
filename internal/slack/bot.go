@@ -49,14 +49,19 @@ func (b *Bot) Start(ctx context.Context) error {
 				}
 				if eventsAPI.Type == slackevents.CallbackEvent {
 					if mention, ok := eventsAPI.InnerEvent.Data.(*slackevents.AppMentionEvent); ok {
-						b.handler.Handle(ctx, toIncomingMessage(mention))
+						msg := toIncomingMessage(mention)
+						log.Printf("slack: received mention chat=%s user=%s text=%q", msg.ChatID, mention.User, msg.Text)
+						b.handler.Handle(ctx, msg)
 					}
 				}
+			case socketmode.EventTypeConnected:
+				log.Printf("slack: socket-mode connected")
 			case socketmode.EventTypeSlashCommand:
 				cmd, ok := evt.Data.(slack.SlashCommand)
 				if !ok {
 					continue
 				}
+				log.Printf("slack: received slash %q chat=%s text=%q", cmd.Command, cmd.ChannelID, cmd.Text)
 				reply := b.handler.Command(ctx, cmd.ChannelID, cmd.Text)
 				if evt.Request != nil {
 					b.client.Ack(*evt.Request, map[string]interface{}{

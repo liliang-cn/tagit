@@ -82,7 +82,7 @@ func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
 		return
 	}
 
-	h.reply(ctx, msg.ChatID, msg.MessageID, "收到，开始干 🛠️")
+	h.reply(ctx, msg.ChatID, msg.MessageID, "On it 🛠️")
 
 	mode := binding.Mode
 	if mode == "" {

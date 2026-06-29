@@ -26,6 +26,7 @@ Paste this to your agent:
 
 ```sh
 brew install --HEAD liliang-cn/tap/tagit
+brew services start tagit   # optional: run the daemon on login, auto-restart
 ```
 
 ### From source

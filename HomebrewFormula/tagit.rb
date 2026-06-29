@@ -11,6 +11,15 @@ class Tagit < Formula
     system "go", "build", *std_go_args(ldflags: "-s -w", output: bin/"tagitd"), "./cmd/tagitd"
   end
 
+  # `brew services start tagit` runs the daemon on login and keeps it alive.
+  # The daemon uses ~/.tagit for state and config (agents.json, feishu.json, slack.json).
+  service do
+    run [opt_bin/"tagitd"]
+    keep_alive true
+    log_path var/"log/tagit.log"
+    error_log_path var/"log/tagit.log"
+  end
+
   test do
     assert_match "tagit usage", shell_output("#{bin}/tagit --help")
   end

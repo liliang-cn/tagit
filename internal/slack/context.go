@@ -17,28 +17,49 @@ func newSlackContext(botToken string) chatbot.ContextProvider {
 	return &slackContext{api: slack.New(botToken)}
 }
 
-// RecentContext fetches up to ~20 recent messages of the channel and returns
-// them oldest→newest as plain text lines. Best-effort: any API error returns "".
-func (c *slackContext) RecentContext(ctx context.Context, chatID, _ string) string {
-	resp, err := c.api.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
-		ChannelID: chatID,
-		Limit:     20,
-	})
-	if err != nil || resp == nil {
-		return ""
-	}
-
-	// Slack returns newest→oldest; collect text and reverse to oldest→newest.
+// RecentContext returns a plain-text transcript (oldest→newest) for extra
+// context. When threadID is set it returns that thread's replies; otherwise the
+// channel's recent messages. Best-effort: any API error returns "".
+func (c *slackContext) RecentContext(ctx context.Context, chatID, threadID, _ string) string {
 	var lines []string
-	for _, m := range resp.Messages {
-		text := stripSlackMention(m.Text)
-		if text == "" {
-			continue
+	if threadID != "" {
+		// Thread replies come oldest→newest already.
+		msgs, _, _, err := c.api.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{
+			ChannelID: chatID,
+			Timestamp: threadID,
+			Limit:     50,
+		})
+		if err != nil {
+			return ""
 		}
-		lines = append(lines, text)
-	}
-	for i, j := 0, len(lines)-1; i < j; i, j = i+1, j-1 {
-		lines[i], lines[j] = lines[j], lines[i]
+		for _, m := range msgs {
+			if m.BotID != "" { // skip bot/app messages (our own progress spam)
+				continue
+			}
+			if text := stripSlackMention(m.Text); text != "" {
+				lines = append(lines, text)
+			}
+		}
+	} else {
+		resp, err := c.api.GetConversationHistoryContext(ctx, &slack.GetConversationHistoryParameters{
+			ChannelID: chatID,
+			Limit:     20,
+		})
+		if err != nil || resp == nil {
+			return ""
+		}
+		// Channel history is newest→oldest; collect then reverse below.
+		for _, m := range resp.Messages {
+			if m.BotID != "" { // skip bot/app messages
+				continue
+			}
+			if text := stripSlackMention(m.Text); text != "" {
+				lines = append(lines, text)
+			}
+		}
+		for i, j := 0, len(lines)-1; i < j; i, j = i+1, j-1 {
+			lines[i], lines[j] = lines[j], lines[i]
+		}
 	}
 	if len(lines) == 0 {
 		return ""

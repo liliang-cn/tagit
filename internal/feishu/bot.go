@@ -53,8 +53,12 @@ func toIncomingMessage(e *larkim.P2MessageReceiveV1) chatbot.IncomingMessage {
 	msg := e.Event.Message
 	m.MessageID = deref(msg.MessageId)
 	m.ChatID = deref(msg.ChatId)
+	m.ThreadID = deref(msg.RootId) // thread root; "" for a top-level message
 	m.IsGroup = deref(msg.ChatType) == "group"
 	m.Mentioned = len(msg.Mentions) > 0
+	if e.Event.Sender != nil {
+		m.FromBot = deref(e.Event.Sender.SenderType) == "app"
+	}
 	if deref(msg.MessageType) == "text" {
 		m.Text = parseTextContent(deref(msg.Content))
 	}

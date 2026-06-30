@@ -13,6 +13,7 @@ import (
 	"github.com/liliang-cn/tagit/internal/domain"
 	"github.com/liliang-cn/tagit/internal/events"
 	"github.com/liliang-cn/tagit/internal/history"
+	"github.com/liliang-cn/tagit/internal/memory"
 )
 
 // triageTaskSentinel is the token the agent emits when it judges the message to
@@ -35,7 +36,12 @@ const triageTimeout = 45 * time.Second
 // ACP) goes through here, so the chat-vs-task decision is made once, not in each
 // adapter.
 func (s *Service) maybeChatReply(ctx context.Context, req Request, profile domain.AgentProfile, stdout io.Writer) (Result, bool, error) {
-	answer, isTask := triageWithAgent(ctx, profile, req.WorkingDir, req.Prompt)
+	// Recall cross-agent memory (CortexDB) so conversation can answer from what
+	// the repo's past chats established (e.g. "who am I?"). Best-effort.
+	scope := memory.Scope{Repo: filepath.Clean(req.WorkingDir)}
+	memCtx := s.recallMemory(ctx, scope, req.Prompt)
+
+	answer, isTask := triageWithAgent(ctx, profile, req.WorkingDir, req.Prompt, memCtx)
 	if isTask || strings.TrimSpace(answer) == "" {
 		return Result{}, false, nil
 	}
@@ -83,6 +89,19 @@ func (s *Service) maybeChatReply(ctx context.Context, req Request, profile domai
 		}
 	}
 	s.appendSessionStateEvent(ctx, record)
+	// Record this exchange into cross-agent memory so future chats (even in other
+	// threads) can recall it. Best-effort; never fails the reply.
+	s.recordMemory(ctx, memory.RunRecord{
+		Scope:         scope,
+		SessionID:     sessionID,
+		TaskID:        taskID,
+		Agent:         profile.ID,
+		Mode:          "chat",
+		Prompt:        req.Prompt,
+		ResultSummary: answer,
+		Success:       true,
+		OccurredAt:    now,
+	})
 	if stdout != nil {
 		_, _ = fmt.Fprintln(stdout, answer)
 		_, _ = fmt.Fprintf(stdout, "session=%s task=%s status=%s\n", record.ID, record.TaskID, record.Status)
@@ -92,12 +111,13 @@ func (s *Service) maybeChatReply(ctx context.Context, req Request, profile domai
 
 // triageWithAgent runs the agent once, read-only, to classify the message. It
 // returns (answer, isTask). On any failure it returns ("", true) so the caller
-// never drops real work: when unsure, do the task.
-func triageWithAgent(ctx context.Context, profile domain.AgentProfile, workingDir, message string) (string, bool) {
+// never drops real work: when unsure, do the task. memoryContext is recalled
+// cross-agent memory injected so the agent can answer from past conversations.
+func triageWithAgent(ctx context.Context, profile domain.AgentProfile, workingDir, message, memoryContext string) (string, bool) {
 	if profile.Command == "" {
 		return "", true
 	}
-	out, err := runTriageAgent(ctx, profile, workingDir, triagePrompt(message))
+	out, err := runTriageAgent(ctx, profile, workingDir, triagePrompt(message, memoryContext, workingDir))
 	if err != nil {
 		return "", true
 	}
@@ -152,13 +172,28 @@ func triageArgs(profile domain.AgentProfile, prompt string) []string {
 
 // triagePrompt asks the agent to either flag the message as real work or answer
 // it conversationally — in one shot, with no repo changes.
-func triagePrompt(message string) string {
-	return "You are TagIt, a coding-agent assistant in a team chat. Someone messaged you.\n\n" +
-		"Decide whether their message needs real work on the code repository — writing or editing code, " +
-		"running commands, investigating the codebase, or producing a deliverable — or is just conversation " +
-		"(a greeting, \"are you there?\", thanks, or a question you can answer in a sentence or two without touching the repo).\n\n" +
+func triagePrompt(message, memoryContext, workingDir string) string {
+	var mem string
+	if strings.TrimSpace(memoryContext) != "" {
+		mem = "\nWhat you remember from this repo's past conversations (use it to answer, e.g. who someone is):\n" +
+			memoryContext + "\n"
+	}
+	var dir string
+	if strings.TrimSpace(workingDir) != "" {
+		dir = "\nThe repository you are bound to (your working directory) is: " + workingDir + "\n"
+	}
+	return "You are TagIt, a coding-agent assistant in a team chat. Someone messaged you.\n" +
+		dir +
+		mem +
+		"\nThe message below may be preceded by background conversation context. Base your decision ONLY on what " +
+		"the user is actually asking right now (the latest request), not on the surrounding chatter. A greeting, " +
+		"a presence check (\"are you there?\", \"在吗?\"), thanks, or a question answerable in a sentence or two are " +
+		"CONVERSATION even when the chat around them is technical.\n\n" +
+		"Decide: does the latest request need real work on the code repository — writing or editing code, running " +
+		"commands, investigating the codebase, producing a deliverable — or is it just conversation?\n\n" +
 		"Reply with EXACTLY ONE of:\n" +
 		"1. If it needs real repo work: output only this token, nothing else: " + triageTaskSentinel + "\n" +
-		"2. Otherwise: a short, friendly reply (1-3 sentences) in the same language as the message. Do not modify the repo.\n\n" +
+		"2. Otherwise: a short, friendly reply (1-3 sentences) in the same language as the user. Use what you " +
+		"remember above when relevant. Do not modify the repo.\n\n" +
 		"Message:\n\"\"\"\n" + message + "\n\"\"\""
 }

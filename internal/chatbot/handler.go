@@ -26,13 +26,16 @@ type Enqueuer interface {
 // caller.
 type ProgressFunc func(jobID, chatID, rootMessageID string)
 
-// ContextProvider returns a short transcript of recent messages in a chat for
-// extra context, or "" if unavailable. Best-effort: errors -> "".
+// ContextProvider returns a short transcript of recent messages for extra
+// context, or "" if unavailable. When threadID is set, it should return that
+// thread's transcript; otherwise recent channel messages. Best-effort: errors -> "".
 type ContextProvider interface {
-	RecentContext(ctx context.Context, chatID, messageID string) string
+	RecentContext(ctx context.Context, chatID, threadID, messageID string) string
 }
 
 // Handler turns an @mention in a bound group chat into a TagIt run and acks it.
+// Once engaged in a thread it also picks up follow-up replies in that thread
+// without requiring another @mention.
 type Handler struct {
 	store    BindingStore
 	enq      Enqueuer
@@ -40,8 +43,9 @@ type Handler struct {
 	progress ProgressFunc
 	ctxProv  ContextProvider
 
-	mu   sync.Mutex
-	seen map[string]struct{}
+	mu      sync.Mutex
+	seen    map[string]struct{}
+	engaged map[string]struct{} // thread roots the bot is actively conversing in
 }
 
 // NewHandler wires the handler with its dependencies. progress may be nil.
@@ -52,6 +56,7 @@ func NewHandler(store BindingStore, enq Enqueuer, snd Sender, progress ProgressF
 		snd:      snd,
 		progress: progress,
 		seen:     make(map[string]struct{}),
+		engaged:  make(map[string]struct{}),
 	}
 }
 
@@ -62,30 +67,45 @@ func (h *Handler) SetContextProvider(p ContextProvider) {
 }
 
 // Handle processes one incoming message: best-effort, never returns an error.
+//
+// It acts when the bot is @mentioned, or when the message is a follow-up reply
+// in a thread the bot is already engaged in (so users can keep chatting without
+// re-mentioning). Messages from bots (including our own replies) are ignored to
+// avoid loops.
 func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
-	if !msg.IsGroup || !msg.Mentioned || msg.Text == "" {
+	if !msg.IsGroup || msg.Text == "" || msg.FromBot {
+		return
+	}
+	active := msg.Mentioned || (msg.ThreadID != "" && h.threadActive(msg.ThreadID))
+	if !active {
 		return
 	}
 	if !h.markSeen(msg.MessageID) {
 		return
 	}
 
+	root := msg.ReplyRoot()
+
 	if strings.HasPrefix(strings.TrimSpace(msg.Text), "/") {
 		reply := h.Command(ctx, msg.ChatID, msg.Text)
-		h.reply(ctx, msg.ChatID, msg.MessageID, reply)
+		h.reply(ctx, msg.ChatID, root, reply)
 		return
 	}
 
 	binding, ok := h.store.For(msg.ChatID)
 	if !ok {
-		h.reply(ctx, msg.ChatID, msg.MessageID, "This chat isn't linked to a repo yet. Use /bind <repo-path> to link it.")
+		h.reply(ctx, msg.ChatID, root, "This chat isn't linked to a repo yet. Use /bind <repo-path> to link it.")
 		return
 	}
+
+	// Engage this thread so later replies in it continue the conversation
+	// without another @mention.
+	h.engageThread(root)
 
 	// Neutral ack: this fires before the run layer decides whether the message
 	// is real work or just conversation, so it must read naturally before either
 	// a quick answer or streamed work progress.
-	h.reply(ctx, msg.ChatID, msg.MessageID, "Got it — one sec… 👀")
+	h.reply(ctx, msg.ChatID, root, "Got it — one sec… 👀")
 
 	mode := binding.Mode
 	if mode == "" {
@@ -95,7 +115,7 @@ func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
 	prompt := msg.Text
 	if h.ctxProv != nil {
 		cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		cxt := h.ctxProv.RecentContext(cctx, msg.ChatID, msg.MessageID)
+		cxt := h.ctxProv.RecentContext(cctx, msg.ChatID, msg.ThreadID, msg.MessageID)
 		cancel()
 		prompt = composePrompt(cxt, msg.Text)
 	}
@@ -107,13 +127,31 @@ func (h *Handler) Handle(ctx context.Context, msg IncomingMessage) {
 		Mode:   mode,
 	})
 	if err != nil {
-		h.reply(ctx, msg.ChatID, msg.MessageID, "Failed to start: "+err.Error())
+		h.reply(ctx, msg.ChatID, root, "Failed to start: "+err.Error())
 		return
 	}
 
 	if h.progress != nil {
-		go h.progress(jobID, msg.ChatID, msg.MessageID)
+		go h.progress(jobID, msg.ChatID, root)
 	}
+}
+
+// threadActive reports whether the bot is engaged in the given thread root.
+func (h *Handler) threadActive(threadID string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	_, ok := h.engaged[threadID]
+	return ok
+}
+
+// engageThread marks a thread root as one the bot is conversing in.
+func (h *Handler) engageThread(threadID string) {
+	if threadID == "" {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.engaged[threadID] = struct{}{}
 }
 
 // markSeen records the message id and reports whether it is new (not a duplicate).

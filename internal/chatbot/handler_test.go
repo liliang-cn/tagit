@@ -182,7 +182,7 @@ func TestHandleIgnoresNonGroupAndEmpty(t *testing.T) {
 
 type fakeContextProvider struct{ transcript string }
 
-func (f fakeContextProvider) RecentContext(_ context.Context, _, _ string) string {
+func (f fakeContextProvider) RecentContext(_ context.Context, _, _, _ string) string {
 	return f.transcript
 }
 
@@ -222,6 +222,55 @@ func TestHandleWithoutContextProviderUsesText(t *testing.T) {
 	}
 	if enq.args[0].Prompt != "fix the bug" {
 		t.Fatalf("prompt = %q, want %q", enq.args[0].Prompt, "fix the bug")
+	}
+}
+
+func TestThreadContinuationAfterMention(t *testing.T) {
+	enq := &fakeEnqueuer{jobID: "j"}
+	h := NewHandler(newFakeStore(Binding{ChatID: "c1", Repo: "/r"}), enq, &fakeSender{}, noopProgress)
+
+	// A top-level mention engages the thread rooted at its own message id.
+	h.Handle(context.Background(), IncomingMessage{
+		MessageID: "root1", ChatID: "c1", Text: "start work",
+		Mentioned: true, IsGroup: true,
+	})
+	// A follow-up reply in that thread, WITHOUT a mention, continues it.
+	h.Handle(context.Background(), IncomingMessage{
+		MessageID: "m2", ChatID: "c1", ThreadID: "root1", Text: "and also rename it",
+		Mentioned: false, IsGroup: true,
+	})
+
+	if enq.count() != 2 {
+		t.Fatalf("expected 2 enqueues (mention + thread reply), got %d", enq.count())
+	}
+}
+
+func TestThreadReplyIgnoredWhenNotEngaged(t *testing.T) {
+	enq := &fakeEnqueuer{jobID: "j"}
+	h := NewHandler(newFakeStore(Binding{ChatID: "c1", Repo: "/r"}), enq, &fakeSender{}, noopProgress)
+
+	// A thread reply with no prior engagement and no mention is ignored.
+	h.Handle(context.Background(), IncomingMessage{
+		MessageID: "m1", ChatID: "c1", ThreadID: "other", Text: "random chatter",
+		Mentioned: false, IsGroup: true,
+	})
+
+	if enq.count() != 0 {
+		t.Fatalf("expected 0 enqueues for unengaged thread, got %d", enq.count())
+	}
+}
+
+func TestBotMessageIgnored(t *testing.T) {
+	enq := &fakeEnqueuer{jobID: "j"}
+	h := NewHandler(newFakeStore(Binding{ChatID: "c1", Repo: "/r"}), enq, &fakeSender{}, noopProgress)
+
+	// Even a mention is ignored if it comes from a bot (prevents loops).
+	h.Handle(context.Background(), IncomingMessage{
+		MessageID: "m1", ChatID: "c1", Text: "hi", Mentioned: true, IsGroup: true, FromBot: true,
+	})
+
+	if enq.count() != 0 {
+		t.Fatalf("expected 0 enqueues for bot message, got %d", enq.count())
 	}
 }
 

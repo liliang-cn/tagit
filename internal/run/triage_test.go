@@ -39,10 +39,10 @@ func TestTriageArgs(t *testing.T) {
 		command string
 		want    []string
 	}{
-		{"/usr/local/bin/claude", []string{"-p", "PROMPT"}},
+		{"/usr/local/bin/claude", []string{"-p", "PROMPT", "--allowedTools", "mcp__plugin_cortexdb_cortexdb"}},
 		{"gemini", []string{"-p", "PROMPT"}},
 		{"copilot", []string{"-p", "PROMPT"}},
-		{"/opt/codex", []string{"exec", "--skip-git-repo-check", "PROMPT"}},
+		{"/opt/codex", []string{"exec", "--skip-git-repo-check", "-s", "read-only", "-c", "approval_policy=never", "PROMPT"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.command, func(t *testing.T) {

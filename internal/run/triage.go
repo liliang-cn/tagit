@@ -159,13 +159,21 @@ func runTriageAgent(ctx context.Context, profile domain.AgentProfile, workingDir
 }
 
 // triageArgs builds read-only one-shot arguments for the given agent command.
-// Coding CLIs converge on `-p <prompt>` for a single print-mode turn; codex uses
-// `exec`. None of these enable auto-edit, so the run can't mutate files.
+// The chat path runs in the MAIN repo dir (not an isolated worktree), so it must
+// never be able to mutate files — but it SHOULD be able to call read-only MCP
+// knowledge tools (e.g. cortexdb) so conversational answers can look things up.
+//   - codex: `-s read-only` keeps the sandbox read-only while
+//     `approval_policy=never` lets MCP tool calls fire without an approval that
+//     can't be answered headless (plain `exec`/`--full-auto` silently gates them).
+//   - claude: allow ONLY the cortexdb MCP server — no Bash/Write/Edit — so it can
+//     query knowledge but not change anything.
 func triageArgs(profile domain.AgentProfile, prompt string) []string {
 	switch strings.ToLower(filepath.Base(profile.Command)) {
 	case "codex":
-		return []string{"exec", "--skip-git-repo-check", prompt}
-	default: // claude, gemini, copilot, and anything else print-capable
+		return []string{"exec", "--skip-git-repo-check", "-s", "read-only", "-c", "approval_policy=never", prompt}
+	case "claude":
+		return []string{"-p", prompt, "--allowedTools", "mcp__plugin_cortexdb_cortexdb"}
+	default: // gemini, copilot, and anything else print-capable
 		return []string{"-p", prompt}
 	}
 }
@@ -194,6 +202,7 @@ func triagePrompt(message, memoryContext, workingDir string) string {
 		"Reply with EXACTLY ONE of:\n" +
 		"1. If it needs real repo work: output only this token, nothing else: " + triageTaskSentinel + "\n" +
 		"2. Otherwise: a short, friendly reply (1-3 sentences) in the same language as the user. Use what you " +
-		"remember above when relevant. Do not modify the repo.\n\n" +
+		"remember above when relevant, and you MAY call read-only tools (e.g. cortexdb knowledge search) to " +
+		"look something up before answering. Do not modify the repo.\n\n" +
 		"Message:\n\"\"\"\n" + message + "\n\"\"\""
 }

@@ -324,7 +324,13 @@ func normalizeProfile(profile domain.AgentProfile) domain.AgentProfile {
 
 	switch command {
 	case "codex":
-		profile.Args = []string{"exec", "--full-auto", "--skip-git-repo-check", "--ephemeral", "-C", "{cwd}", "{prompt}"}
+		// --dangerously-bypass-approvals-and-sandbox (not --full-auto) is what
+		// lets headless `codex exec` actually call MCP tools (e.g. cortexdb):
+		// --full-auto gates MCP calls behind an approval that can't be answered
+		// in non-interactive mode, so they silently never fire. TagIt runs the
+		// agent autonomously in an isolated git worktree, matching claude's
+		// bypassPermissions and gemini's auto_edit.
+		profile.Args = []string{"exec", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "--ephemeral", "-C", "{cwd}", "{prompt}"}
 		profile.UsePTY = true
 		profile.PromptTransport = domain.PromptTransportStdin
 	case "gemini":
@@ -336,7 +342,12 @@ func normalizeProfile(profile domain.AgentProfile) domain.AgentProfile {
 		profile.UsePTY = true
 		profile.PromptTransport = domain.PromptTransportArgv
 	case "claude":
-		profile.Args = []string{"-p", "{prompt}", "--permission-mode", "acceptEdits"}
+		// bypassPermissions lets the headless agent use ALL its tools — file
+		// edits, bash, and any configured MCP plugins (e.g. cortexdb) — without an
+		// interactive approval that can't be answered in -p mode. TagIt runs the
+		// agent autonomously in an isolated git worktree, so this matches the
+		// other agents' full-auto modes (codex --full-auto, gemini auto_edit).
+		profile.Args = []string{"-p", "{prompt}", "--permission-mode", "bypassPermissions"}
 		profile.UsePTY = true
 		profile.PromptTransport = domain.PromptTransportArgv
 	}
